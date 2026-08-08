@@ -30,7 +30,7 @@ public sealed class WpfDialogService : IDialogService
             Title = title,
             Filter = filter,
             AddExtension = true,
-            DefaultExt = ".gxt",
+            DefaultExt = Path.GetExtension(suggestedPath),
             FileName = Path.GetFileName(suggestedPath),
             InitialDirectory = Path.GetDirectoryName(suggestedPath),
         };

@@ -17,6 +17,8 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private const string GxtFileFilter =
         "GTA III/Vice City GXT (*.gxt)|*.gxt|Все файлы (*.*)|*.*";
+    private const string JsonFileFilter =
+        "JSON (*.json)|*.json|Все файлы (*.*)|*.*";
     private const string DictionaryFileFilter =
         "Словарь символов (*.txt)|*.txt|Все файлы (*.*)|*.*";
 
@@ -68,6 +70,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReloadCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportJsonCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddEntryCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddMissingEntriesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConvertDictionaryCommand))]
@@ -267,6 +270,34 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception exception)
         {
             _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void ExportJson()
+    {
+        var directory = Path.GetDirectoryName(GxtPath) ?? Environment.CurrentDirectory;
+        var suggestedPath = Path.Combine(
+            directory,
+            $"{Path.GetFileNameWithoutExtension(GxtPath)}.json");
+        var targetPath = _dialogs.SaveFile(
+            "Экспортировать GXT в JSON",
+            JsonFileFilter,
+            suggestedPath);
+
+        if (targetPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            GxtJsonExporter.Export(targetPath, GxtPath, DocumentType, Entries);
+            StatusText = $"Экспортировано в JSON: {targetPath}";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось экспортировать JSON.\n\n{exception.Message}");
         }
     }
 

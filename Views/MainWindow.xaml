@@ -11,6 +11,7 @@
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenFileCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
+        <KeyBinding Key="E" Modifiers="Control+Shift" Command="{Binding ExportJsonCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="{Binding ApplyFilterCommand}" />
         <KeyBinding Key="Delete" Command="{Binding DeleteEntryCommand}" />
     </Window.InputBindings>
@@ -37,6 +38,12 @@
                         Padding="14,8"
                         Content="Сохранить как…"
                         Command="{Binding SaveCommand}" />
+                <Button MinWidth="140"
+                        Margin="8,0,0,0"
+                        Padding="14,8"
+                        Content="Экспорт JSON…"
+                        ToolTip="Экспортировать все записи в JSON (Ctrl+Shift+E)"
+                        Command="{Binding ExportJsonCommand}" />
             </StackPanel>
 
             <StackPanel>
