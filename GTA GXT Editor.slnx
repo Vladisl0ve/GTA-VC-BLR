@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="GTA GXT Editor.csproj" />
+  <Project Path="tests/GTA GXT Editor.Tests/GTA GXT Editor.Tests.csproj" />
+</Solution>

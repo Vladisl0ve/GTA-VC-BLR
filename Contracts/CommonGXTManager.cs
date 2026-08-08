@@ -1,79 +1,100 @@
-﻿using GTA_GXT_Editor.Common;
+using System.IO;
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Utils;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace GTA_GXT_Editor.Contracts
+namespace GTA_GXT_Editor.Contracts;
+
+public abstract class CommonGXTManager
 {
-    public abstract class CommonGXTManager
+    public abstract string? CyrillicCharsDictionaryPath { get; set; }
+
+    public abstract Dictionary<int[], char> CyrillicCharsDictionary { get; set; }
+
+    public abstract List<GXTBase> GXTEntries { get; }
+
+    public abstract void AddGXTEntry(
+        string newDatName,
+        string newDatValue,
+        string? tableName = null);
+
+    public abstract void EditGXTEntry(
+        string datName,
+        string newDatValue,
+        string? currentTableName = null,
+        string? newTableName = null);
+
+    public abstract void RemoveGXTEntry(string datName, string? tableName = null);
+
+    public abstract void SaveGXTChanges(string gxtFilePath);
+
+    public abstract List<GXTBase> ReadGXTFile(string gxtFilePath);
+
+    public abstract void WriteGXTFile(string gxtFilePath);
+
+    public string ConvertBytesToText(byte[] inputBytes)
     {
-        public abstract string CyryllicCharsDictionaryPath { get; set; }
+        ArgumentNullException.ThrowIfNull(inputBytes);
 
-        public abstract Dictionary<int[], char> CyryllicCharsDictionary { get; set; }
-
-        public abstract List<GXTBase> GXTEntries { get; }
-
-        public abstract void AddGXTEntry(string newDatName, string newDatValue, string tableName = default(string));
-
-        public abstract void EditGXTEntry(string datName, string newDatValue, string tableName = default(string));
-
-        public abstract void RemoveGXTEntry(string datName, string tableName = default(string));
-
-        public abstract void SaveGXTChanges(string gxtFilePath);
-
-        public abstract List<GXTBase> ReadGXTFile(string gxtFilePath);
-
-        public abstract void WriteGXTFile(string gxtFilePath);
-
-        public string ConvertBytesToText(byte[] inputBytes)
+        if (inputBytes.Length == 0)
         {
-            string targetString = string.Empty;
+            return string.Empty;
+        }
 
-            for (int arrayIndex = 0; arrayIndex < inputBytes.Length; arrayIndex += 2)
+        var charactersByByte = CyrillicCharsDictionary
+            .SelectMany(pair => pair.Key.Select(index => (Index: index, pair.Value)))
+            .ToDictionary(pair => pair.Index, pair => pair.Value);
+        var result = new char[(inputBytes.Length + 1) / 2];
+        var resultLength = 0;
+
+        for (var index = 0; index < inputBytes.Length; index += 2)
+        {
+            var value = inputBytes[index];
+            if (value == 0)
             {
-                char targetChar = CyryllicCharsDictionary.FirstOrDefault(x => x.Key.Contains(inputBytes[arrayIndex])).Value;
-
-                if (targetChar == default(char))
-                {
-                    targetString += ((char)inputBytes[arrayIndex]).ToString();
-                }
-                else
-                {
-                    targetString += targetChar.ToString();
-                }
+                break;
             }
 
-            return targetString.Remove(targetString.Length - 1);
+            result[resultLength++] = charactersByByte.GetValueOrDefault(value, (char)value);
         }
 
-        public byte[] ConvertTextToBytes(string inputString)
-        {
-            List<byte> targetBytes = new List<byte>();
+        return new string(result, 0, resultLength);
+    }
 
-            for (int stringChar = 0; stringChar < inputString.Length; stringChar++)
+    public byte[] ConvertTextToBytes(string inputString)
+    {
+        ArgumentNullException.ThrowIfNull(inputString);
+
+        var bytesByCharacter = CyrillicCharsDictionary
+            .ToDictionary(pair => pair.Value, pair => checked((byte)pair.Key[0]));
+        var targetBytes = new byte[(inputString.Length + 1) * 2];
+
+        for (var index = 0; index < inputString.Length; index++)
+        {
+            if (bytesByCharacter.TryGetValue(inputString[index], out var dictionaryByte))
             {
-                int targetByte = 0;
-                if (CyryllicCharsDictionary.Any(x => x.Value == inputString[stringChar]))
-                {
-                    targetByte = CyryllicCharsDictionary.First(x => x.Value == inputString[stringChar]).Key[0];
-                }
-                else
-                {
-                    targetByte = (byte)inputString[stringChar];
-                }
-
-                targetBytes.Add((byte)targetByte);
-                targetBytes.Add(0);
+                targetBytes[index * 2] = dictionaryByte;
             }
-            targetBytes.Add(0);
-            targetBytes.Add(0);
-
-            return targetBytes.ToArray();
+            else if (inputString[index] <= byte.MaxValue)
+            {
+                targetBytes[index * 2] = (byte)inputString[index];
+            }
+            else
+            {
+                throw new InvalidDataException(
+                    $"Символ '{inputString[index]}' отсутствует в выбранном словаре символов.");
+            }
         }
 
-        public void ReloadCyryllicCharsDictionary()
+        return targetBytes;
+    }
+
+    public void ReloadCyrillicCharsDictionary()
+    {
+        if (CyrillicCharsDictionaryPath is null)
         {
-            CyryllicCharsDictionary = CyryllicCharsDictionaryPath.LoadCyryllicCharsDictionary();
+            throw new InvalidOperationException("Путь к пользовательскому словарю не задан.");
         }
+
+        CyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
     }
 }

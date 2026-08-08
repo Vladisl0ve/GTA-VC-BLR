@@ -1,39 +1,31 @@
-﻿using GTA_GXT_Editor.Utils;
-using System;
-using System.Collections.Generic;
+using GTA_GXT_Editor.Utils;
 
-namespace GTA_GXT_Editor.Common
+namespace GTA_GXT_Editor.Common;
+
+public sealed class GXTEntryEqualityComparer : IEqualityComparer<GXTBase>
 {
-    public class GXTEntryEqualityComparer : IEqualityComparer<GXTBase>
+    public bool Equals(GXTBase? x, GXTBase? y)
     {
-        public bool Equals(GXTBase x, GXTBase y)
+        if (ReferenceEquals(x, y))
         {
-            if (GetEqualityString(x).Equals(GetEqualityString(y)))
-            {
-                return true;
-            }
-            return false;
+            return true;
         }
 
-        public int GetHashCode(GXTBase obj)
-        {
-            return GetEqualityString(obj).GetHashCode();
-        }
+        return x is not null && y is not null &&
+               string.Equals(GetIdentity(x), GetIdentity(y), StringComparison.Ordinal);
+    }
 
-        private string GetEqualityString(GXTBase obj)
+    public int GetHashCode(GXTBase obj) =>
+        StringComparer.Ordinal.GetHashCode(GetIdentity(obj));
+
+    private static string GetIdentity(GXTBase entry)
+    {
+        return entry switch
         {
-            if (obj is GTAIII.GXTEntry)
-            {
-                return obj.DatName.GetClearName();
-            }
-            else if (obj is GTAVC.GXTEntry)
-            {
-                return obj.DatName.GetClearName() + (obj as GTAVC.GXTEntry).TableName.GetClearName();
-            }
-            else
-            {
-                throw new Exception("Неожиданная ошибка");
-            }
-        }
+            GTAIII.GXTEntry => entry.DatName.GetClearName(),
+            GTAVC.GXTEntry viceCityEntry =>
+                $"{entry.DatName.GetClearName()}\u001f{viceCityEntry.TableName.GetClearName()}",
+            _ => throw new ArgumentOutOfRangeException(nameof(entry), "Неизвестный тип GXT-записи."),
+        };
     }
 }

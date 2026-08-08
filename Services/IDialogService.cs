@@ -1,0 +1,18 @@
+using GTA_GXT_Editor.Models;
+
+namespace GTA_GXT_Editor.Services;
+
+public interface IDialogService
+{
+    string? OpenFile(string title, string filter);
+
+    string? SaveFile(string title, string filter, string suggestedPath);
+
+    bool Confirm(string message, string title);
+
+    void ShowInfo(string message, string title = "GTA GXT Editor");
+
+    void ShowError(string message, string title = "Ошибка");
+
+    EntryEditorResult? EditEntry(EntryEditorRequest request);
+}

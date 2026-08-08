@@ -1,9 +1,8 @@
-﻿namespace GTA_GXT_Editor.Common
+namespace GTA_GXT_Editor.Common;
+
+public enum GXTType
 {
-    public enum GXTType
-    {
-        NONE,
-        GTA_III,
-        GTA_VC
-    }
+    None,
+    GtaIII,
+    GtaViceCity,
 }

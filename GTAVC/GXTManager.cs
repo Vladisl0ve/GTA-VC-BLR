@@ -1,65 +1,89 @@
-﻿using GTA_3_GXT_Editor.Utils;
+using System.IO;
+using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Utils;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
 
 namespace GTA_GXT_Editor.GTAVC
 {
     public class GXTManager : CommonGXTManager
     {
-        private List<string> _emptyBlockKeySetsList = new List<string>();
+        private readonly List<string> _emptyBlockKeySetsList = new List<string>();
 
         private const string RUSSIAN_CHARS_FILENAME = "russian_chars_vc.txt";
 
-        private string _gxtPath;
-
         private List<GXTBase> _gxtEntries;
-        private Dictionary<int[], char> _cyryllicCharsDictionary;
+        private Dictionary<int[], char> _cyrillicCharsDictionary;
 
-        public override string CyryllicCharsDictionaryPath { get; set; }
+        public override string? CyrillicCharsDictionaryPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
-        public override Dictionary<int[], char> CyryllicCharsDictionary { get => _cyryllicCharsDictionary; set => _cyryllicCharsDictionary = value; }
+        public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
 
-        public GXTManager(string gxtPath, string dictionaryPath = null)
+        public GXTManager(string gxtPath, string? dictionaryPath = null)
         {
-            _gxtPath = gxtPath;
-            CyryllicCharsDictionaryPath = dictionaryPath;
+            CyrillicCharsDictionaryPath = dictionaryPath;
 
-            if (CyryllicCharsDictionaryPath == null)
+            if (CyrillicCharsDictionaryPath == null)
             {
-                _cyryllicCharsDictionary = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), RUSSIAN_CHARS_FILENAME).LoadCyryllicCharsDictionary();
+                _cyrillicCharsDictionary = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME).LoadCyrillicCharsDictionary();
             }
             else
             {
-                _cyryllicCharsDictionary = CyryllicCharsDictionaryPath.LoadCyryllicCharsDictionary();
+                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
             }
             _gxtEntries = ReadGXTFile(gxtPath);
         }
 
 
-        public override void AddGXTEntry(string newDatName, string newDatValue, string tableName)
+        public override void AddGXTEntry(string newDatName, string newDatValue, string? tableName = null)
         {
-            _gxtEntries.Add(new GXTEntry { DatName = newDatName.FillWithZeros(8), Value = ConvertTextToBytes(newDatValue), TableName = tableName });
+            _gxtEntries.Add(new GXTEntry
+            {
+                DatName = newDatName.GetClearName().FillWithZeros(8),
+                Value = ConvertTextToBytes(newDatValue),
+                TableName = NormalizeTableName(tableName),
+            });
         }
 
-        public override void EditGXTEntry(string datName, string newDatValue, string tableName)
+        public override void EditGXTEntry(
+            string datName,
+            string newDatValue,
+            string? currentTableName = null,
+            string? newTableName = null)
         {
-            var editIndex = _gxtEntries.FindIndex(x => x.DatName == datName && (x as GXTEntry).TableName == tableName);
-            var editValue = _gxtEntries[editIndex].Value;
+            var editIndex = _gxtEntries.FindIndex(entry =>
+                entry.DatName.GetClearName() == datName.GetClearName() &&
+                entry is GXTEntry viceCityEntry &&
+                viceCityEntry.TableName.GetClearName() == NormalizeTableName(currentTableName).GetClearName());
+            if (editIndex < 0)
+            {
+                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+            }
 
             _gxtEntries[editIndex].Value = ConvertTextToBytes(newDatValue);
+            ((GXTEntry)_gxtEntries[editIndex]).TableName = NormalizeTableName(
+                newTableName ?? currentTableName);
         }
 
-        public override void RemoveGXTEntry(string datName, string tableName)
+        public override void RemoveGXTEntry(string datName, string? tableName = null)
         {
-            var removeIndex = _gxtEntries.FindIndex(x => x.DatName == datName && (x as GXTEntry).TableName == tableName);
+            var normalizedTableName = NormalizeTableName(tableName).GetClearName();
+            var removeIndex = _gxtEntries.FindIndex(entry =>
+                entry.DatName.GetClearName() == datName.GetClearName() &&
+                entry is GXTEntry viceCityEntry &&
+                viceCityEntry.TableName.GetClearName() == normalizedTableName);
+            if (removeIndex < 0)
+            {
+                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+            }
 
             _gxtEntries.RemoveAt(removeIndex);
+        }
+
+        private static string NormalizeTableName(string? tableName)
+        {
+            return (string.IsNullOrWhiteSpace(tableName) ? "MAIN" : tableName.GetClearName())
+                .FillWithZeros(8);
         }
 
         public override void SaveGXTChanges(string gxtFilePath)
@@ -74,18 +98,22 @@ namespace GTA_GXT_Editor.GTAVC
             {
                 //Читаем идентификатор блока - "TABL"
                 string tablIdentifier = fsStream.ReadString(4);
-                if (!tablIdentifier.Equals("TABL"))
+                if (!string.Equals(tablIdentifier, "TABL", StringComparison.Ordinal))
                 {
-                    throw new Exception($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                    throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                 }
 
                 //Читаем полный размер блока "TABL"
                 int tablBlockSize = fsStream.ReadInt();
+                if (tablBlockSize <= 0 || tablBlockSize % 12 != 0)
+                {
+                    throw new InvalidDataException("Некорректный размер блока TABL.");
+                }
 
                 //Читаем наборы ключей
                 List<KeyValuePair<int, string>> keySets = new List<KeyValuePair<int, string>>();
                 int readedBytes = 0;
-                do
+                while (readedBytes < tablBlockSize)
                 {
                     //Читаем название набора ключей
                     string keySetName = fsStream.ReadString(8);
@@ -96,7 +124,7 @@ namespace GTA_GXT_Editor.GTAVC
                     //Записываем в словарь для дальшейшего использования
                     keySets.Add(new KeyValuePair<int, string>(keySetOffset, keySetName));
                     readedBytes += 12;
-                } while (readedBytes != tablBlockSize);
+                }
 
                 //Проходимся по всем наборам ключей
                 List<GXTEntry> localGXTEntries = new List<GXTEntry>();
@@ -105,7 +133,7 @@ namespace GTA_GXT_Editor.GTAVC
                     //В некоторых GXT файлах после блока набора ключей стоят 2 пустых байта. 
                     //Зачем они там и влияют ли на работоспособность - неизвестно, но на всякий случай я их тоже записываю в список
                     //При сохранении GXT эти байты будут дописаны к соответствующим блокам
-                    if (fsStream.Position != keySets[keySetIndex].Key)
+                    if (keySetIndex > 0 && fsStream.Position != keySets[keySetIndex].Key)
                     {
                         //Console.WriteLine($"Обнаружен пустой блок длиною в {keySets[keySetIndex].Key - fsStream.Position} после набора ключей '{keySets[keySetIndex - 1].Value}'.");
                         _emptyBlockKeySetsList.Add(keySets[keySetIndex - 1].Value);
@@ -115,7 +143,7 @@ namespace GTA_GXT_Editor.GTAVC
                     fsStream.Seek(keySets[keySetIndex].Key, SeekOrigin.Begin);
 
                     //Устанавливаем сдвиг для текущего набора ключей
-                    var gxtEntriesShift = localGXTEntries.Count();
+                    var gxtEntriesShift = localGXTEntries.Count;
 
                     //Читаем название набора ключей
                     //Примечание: Для набора "MAIN" название в файл не записывается - он всегда идёт первым
@@ -131,18 +159,22 @@ namespace GTA_GXT_Editor.GTAVC
 
                     //Читаем идентификатор блока - "TKEY"
                     string tKeyIdentifier = fsStream.ReadString(4);
-                    if (!tKeyIdentifier.Equals("TKEY"))
+                    if (!string.Equals(tKeyIdentifier, "TKEY", StringComparison.Ordinal))
                     {
-                        throw new Exception($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                     }
 
                     //Читаем полный размер блока "TKEY"
                     int tKeyBlockSize = fsStream.ReadInt();
+                    if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+                    {
+                        throw new InvalidDataException("Некорректный размер блока TKEY.");
+                    }
 
                     //Считываем все названия текстовых данных и их сдвиги
                     List<KeyValuePair<int, string>> valueOffsets = new List<KeyValuePair<int, string>>();
                     readedBytes = 0;
-                    do
+                    while (readedBytes < tKeyBlockSize)
                     {
                         //Читаем cдвиг текстовых данных
                         int tDatOffset = fsStream.ReadInt();
@@ -154,13 +186,13 @@ namespace GTA_GXT_Editor.GTAVC
                         valueOffsets.Add(new KeyValuePair<int, string>(tDatOffset, tDatName));
 
                         readedBytes += 12;
-                    } while (readedBytes != tKeyBlockSize);
+                    }
 
                     //Читаем идентификатор блока - "TDAT"
                     var tDatIdentifier = fsStream.ReadString(4);
-                    if (!tDatIdentifier.Equals("TDAT"))
+                    if (!string.Equals(tDatIdentifier, "TDAT", StringComparison.Ordinal))
                     {
-                        throw new Exception($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                     }
 
                     //Читаем полный размер блока "TDAT"
@@ -192,7 +224,7 @@ namespace GTA_GXT_Editor.GTAVC
                         //Позиция должна соответствовать текущей позиции считывания в файле
                         if (tDatPosition != fsStream.Position)
                         {
-                            throw new Exception($"В файле '{Path.GetFileName(gxtFilePath)}' обнаружена неверная последовательность данных.");
+                            throw new InvalidDataException($"В файле '{Path.GetFileName(gxtFilePath)}' обнаружена неверная последовательность данных.");
                         }
 
                         //Записываем в элемент блок текстовых данных
@@ -204,7 +236,7 @@ namespace GTA_GXT_Editor.GTAVC
                         //Проверяем правильность блока текстовых данных. Два нулевых байта должны быть строго в конце блока
                         if (!localGXTEntries.Last().Value.GXTValueIsValid())
                         {
-                            throw new Exception($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                            throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                         }
 
                         readedBytes += readLength;
@@ -216,7 +248,7 @@ namespace GTA_GXT_Editor.GTAVC
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
             }
-            throw new Exception("Ошибка при чтении GXT-файла.");
+            throw new InvalidDataException("Ошибка при чтении GXT-файла.");
         }
 
         public override void WriteGXTFile(string gxtFilePath)
@@ -226,7 +258,12 @@ namespace GTA_GXT_Editor.GTAVC
             using (FileStream fsStream = new FileStream(gxtFilePath, FileMode.Create, FileAccess.Write))
             {
                 //Получаем список названий всех наборов ключей (таблиц) и сортируем по алфавиту
-                var gxtKeysSetNames = _gxtEntries.Select(x => (x as GXTEntry).TableName).Distinct().OrderBy(x => x, new ASCIIStringComparer()).ToList();
+                var gxtKeysSetNames = _gxtEntries
+                    .OfType<GXTEntry>()
+                    .Select(entry => entry.TableName)
+                    .Distinct()
+                    .OrderBy(name => name, new ASCIIStringComparer())
+                    .ToList();
 
                 //Перемещаем набор "MAIN" в начало
                 gxtKeysSetNames.Remove("MAIN\0\0\0\0");
@@ -247,7 +284,11 @@ namespace GTA_GXT_Editor.GTAVC
                     tableMemoryStreams[keySetIndex].WriteString("TKEY");
 
                     //Получаем список всех элементов, относящихся к текущему набору ключей (таблице) и сортируем им по алфавиту
-                    var keySetEntries = _gxtEntries.Where(x => (x as GXTEntry).TableName == gxtKeysSetNames[keySetIndex]).OrderBy(x => x.DatName, new ASCIIStringComparer()).ToList();
+                    var keySetEntries = _gxtEntries
+                        .OfType<GXTEntry>()
+                        .Where(entry => entry.TableName == gxtKeysSetNames[keySetIndex])
+                        .OrderBy(entry => entry.DatName, new ASCIIStringComparer())
+                        .ToList<GXTBase>();
 
                     //Записываем размер блока всех названия текстовых данных и их сдвигов
                     //Сдвиг - 4 байта, Название - 8 байт. Каждая запись 12 байт

@@ -1,82 +1,79 @@
-﻿using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
-using System.Linq;
+using System.Text;
 
-namespace GTA_GXT_Editor.Utils
+namespace GTA_GXT_Editor.Utils;
+
+public static class TextExtensions
 {
-    public static class StructExtensions
+    public static bool GXTValueIsValid(this byte[] inputBytes)
     {
-        public static bool GXTValueIsValid(this byte[] inputBytes)
+        ArgumentNullException.ThrowIfNull(inputBytes);
+
+        if (inputBytes.Length < 2 || inputBytes.Length % 2 != 0)
         {
-            if (inputBytes.Length == 2)
-            {
-                if (inputBytes[0] == 0 && inputBytes[1] == 0)
-                {
-                    return true;
-                }
-            }
-
-            for (int arrayIndex = 0; arrayIndex < inputBytes.Length; arrayIndex++)
-            {
-                if (inputBytes[arrayIndex] == 0)
-                {
-                    if (arrayIndex != inputBytes.Length - 1)
-                    {
-                        if (inputBytes[arrayIndex + 1] == 0)
-                        {
-                            if (arrayIndex < inputBytes.Length - 3)
-                            {
-                                return false;
-                            }
-                            else
-                            {
-                                if (inputBytes[arrayIndex + 2] == 0)
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             return false;
         }
 
-        public static string FillWithZeros(this string inputString, int desiredLength)
+        for (var index = 0; index < inputBytes.Length - 2; index += 2)
         {
-            return inputString + new string('\0', desiredLength - inputString.Length);
+            if (inputBytes[index] == 0 && inputBytes[index + 1] == 0)
+            {
+                return false;
+            }
         }
 
-        public static Dictionary<int[], char> LoadCyryllicCharsDictionary(this string charsFilePath)
+        return inputBytes[^2] == 0 && inputBytes[^1] == 0;
+    }
+
+    public static string FillWithZeros(this string inputString, int desiredLength)
+    {
+        ArgumentNullException.ThrowIfNull(inputString);
+
+        if (inputString.Length > desiredLength)
         {
-            Dictionary<int[], char> cyryllicCharsDictionary = new Dictionary<int[], char>();
+            throw new ArgumentException(
+                $"Строка не может быть длиннее {desiredLength} символов.",
+                nameof(inputString));
+        }
 
-            string[] dictLines = File.ReadAllLines(charsFilePath, System.Text.Encoding.GetEncoding(1251));
-            foreach (var line in dictLines)
+        return inputString.PadRight(desiredLength, '\0');
+    }
+
+    public static Dictionary<int[], char> LoadCyrillicCharsDictionary(this string charsFilePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(charsFilePath);
+
+        var dictionary = new Dictionary<int[], char>();
+        foreach (var (line, lineNumber) in File.ReadLines(charsFilePath, Encoding.GetEncoding(1251))
+                     .Select((line, index) => (line, index + 1)))
+        {
+            if (string.IsNullOrWhiteSpace(line))
             {
-                var lineItems = line.Split(' ');
-                var indexes = lineItems[0].Split(',');
-
-                if (indexes.Length == 1)
-                {
-                    cyryllicCharsDictionary.Add(new int[] { int.Parse(lineItems[0]) }, lineItems[1][0]);
-                }
-                else
-                {
-                    var parsedIndexes = indexes.Select(x => int.Parse(x)).ToArray();
-                    cyryllicCharsDictionary.Add(parsedIndexes, lineItems[1][0]);
-                }
+                continue;
             }
 
-            return cyryllicCharsDictionary;
+            var parts = line.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2 || string.IsNullOrEmpty(parts[1]))
+            {
+                throw new FormatException(
+                    $"Некорректная строка {lineNumber} в словаре '{Path.GetFileName(charsFilePath)}'.");
+            }
+
+            var indexes = parts[0]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(value => int.Parse(value, CultureInfo.InvariantCulture))
+                .ToArray();
+            dictionary.Add(indexes, parts[1][0]);
         }
 
-        public static string GetClearName(this string dirtyName)
-        {
-            var nullIndex = dirtyName.IndexOf('\0');
+        return dictionary;
+    }
 
-            return dirtyName.Substring(0, nullIndex == -1 ? dirtyName.Length : nullIndex);
-        }
+    public static string GetClearName(this string dirtyName)
+    {
+        ArgumentNullException.ThrowIfNull(dirtyName);
+        var nullIndex = dirtyName.IndexOf('\0');
+        return nullIndex < 0 ? dirtyName : dirtyName[..nullIndex];
     }
 }

@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GTA GXT Editor (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/Debug/net10.0-windows/GTA GXT Editor.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/bin/Debug/net10.0-windows",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "justMyCode": true
+        },
+        {
+            "name": "Attach to .NET process",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

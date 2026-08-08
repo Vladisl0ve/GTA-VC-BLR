@@ -1,12 +1,8 @@
-﻿using GTA_3_GXT_Editor.Utils;
+using System.IO;
+using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Utils;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
 
 namespace GTA_GXT_Editor.GTAIII
 {
@@ -14,48 +10,57 @@ namespace GTA_GXT_Editor.GTAIII
     {
         private const string RUSSIAN_CHARS_FILENAME = "russian_chars.txt";
 
-        private string _gxtPath;
-
         private List<GXTBase> _gxtEntries;
-        private Dictionary<int[], char> _cyryllicCharsDictionary;
+        private Dictionary<int[], char> _cyrillicCharsDictionary;
 
-        public override string CyryllicCharsDictionaryPath { get; set; }
+        public override string? CyrillicCharsDictionaryPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
-        public override Dictionary<int[], char> CyryllicCharsDictionary { get => _cyryllicCharsDictionary; set => _cyryllicCharsDictionary = value; }
+        public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
 
-        public GXTManager(string gxtPath, string dictionaryPath = null)
+        public GXTManager(string gxtPath, string? dictionaryPath = null)
         {
-            _gxtPath = gxtPath;
-            CyryllicCharsDictionaryPath = dictionaryPath;
+            CyrillicCharsDictionaryPath = dictionaryPath;
 
-            if (CyryllicCharsDictionaryPath == null)
+            if (CyrillicCharsDictionaryPath == null)
             {
-                _cyryllicCharsDictionary = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), RUSSIAN_CHARS_FILENAME).LoadCyryllicCharsDictionary();
+                _cyrillicCharsDictionary = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME).LoadCyrillicCharsDictionary();
             }
             else
             {
-                _cyryllicCharsDictionary = CyryllicCharsDictionaryPath.LoadCyryllicCharsDictionary();
+                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
             }
             _gxtEntries = ReadGXTFile(gxtPath);
         }
 
 
-        public override void AddGXTEntry(string newDatName, string newDatValue, string tableName = default(string))
+        public override void AddGXTEntry(string newDatName, string newDatValue, string? tableName = null)
         {
             _gxtEntries.Add(new GXTEntry { DatName = newDatName.FillWithZeros(8), Value = ConvertTextToBytes(newDatValue) });
         }
 
-        public override void EditGXTEntry(string datName, string newDatValue, string tableName = default(string))
+        public override void EditGXTEntry(
+            string datName,
+            string newDatValue,
+            string? currentTableName = null,
+            string? newTableName = null)
         {
             var editIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
-            var editValue = _gxtEntries[editIndex].Value;
+            if (editIndex < 0)
+            {
+                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+            }
 
             _gxtEntries[editIndex].Value = ConvertTextToBytes(newDatValue);
         }
 
-        public override void RemoveGXTEntry(string datName, string tableName = default(string))
+        public override void RemoveGXTEntry(string datName, string? tableName = null)
         {
             var removeIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
+            if (removeIndex < 0)
+            {
+                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+            }
+
             _gxtEntries.RemoveAt(removeIndex);
         }
 
@@ -73,14 +78,22 @@ namespace GTA_GXT_Editor.GTAIII
             {
                 //TKEY
                 string tKeyString = fsStream.ReadString(4);
+                if (!string.Equals(tKeyString, "TKEY", StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException("Отсутствует блок TKEY.");
+                }
 
                 //Size of TKEY
                 int tKeyBlockSize = fsStream.ReadInt();
+                if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+                {
+                    throw new InvalidDataException("Некорректный размер блока TKEY.");
+                }
 
                 //TKEY Entries
                 List<KeyValuePair<int, string>> valueOffsets = new List<KeyValuePair<int, string>>();
                 int readedBytes = 0;
-                do
+                while (readedBytes < tKeyBlockSize)
                 {
                     int tDatOffset = fsStream.ReadInt();
                     string tDatName = fsStream.ReadString(8);
@@ -88,10 +101,14 @@ namespace GTA_GXT_Editor.GTAIII
                     valueOffsets.Add(new KeyValuePair<int, string>(tDatOffset, tDatName));
 
                     readedBytes += 12;
-                } while (readedBytes != tKeyBlockSize);
+                }
 
                 //TDAT
                 tKeyString = fsStream.ReadString(4);
+                if (!string.Equals(tKeyString, "TDAT", StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException("Отсутствует блок TDAT.");
+                }
 
                 //Size of TDAT
                 int tDatBlockSize = fsStream.ReadInt();
@@ -117,13 +134,17 @@ namespace GTA_GXT_Editor.GTAIII
                     var valueBlock = fsStream.ReadBytes(readLength);
 
                     localGXTEntries.Add(new GXTEntry { DatName = valueName, Value = valueBlock });
+                    if (!valueBlock.GXTValueIsValid())
+                    {
+                        throw new InvalidDataException("Обнаружено некорректное значение TDAT.");
+                    }
                 }
                 if (tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
                 {
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
             }
-            throw new Exception("Ошибка при чтении GXT-файла.");
+            throw new InvalidDataException("Ошибка при чтении GXT-файла.");
         }
 
         public override void WriteGXTFile(string gxtFilePath)
