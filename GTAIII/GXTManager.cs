@@ -18,6 +18,12 @@ namespace GTA_GXT_Editor.GTAIII
         public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
 
         public GXTManager(string gxtPath, string? dictionaryPath = null)
+            : this(dictionaryPath)
+        {
+            _gxtEntries = ReadGXTFile(gxtPath);
+        }
+
+        private GXTManager(string? dictionaryPath)
         {
             CyrillicCharsDictionaryPath = dictionaryPath;
 
@@ -29,8 +35,11 @@ namespace GTA_GXT_Editor.GTAIII
             {
                 _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
             }
-            _gxtEntries = ReadGXTFile(gxtPath);
+            _gxtEntries = [];
         }
+
+        internal static GXTManager Create(string? dictionaryPath = null) =>
+            new(dictionaryPath);
 
 
         public override void AddGXTEntry(string newDatName, string newDatValue, string? tableName = null)

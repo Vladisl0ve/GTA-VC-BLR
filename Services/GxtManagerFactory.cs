@@ -38,4 +38,24 @@ public sealed class GxtManagerFactory
                 $"Файл '{Path.GetFileName(path)}' повреждён или не является GXT-файлом GTA III/Vice City."),
         };
     }
+
+    public static CommonGXTManager Create(
+        GXTType type,
+        string? dictionaryPath = null,
+        string? sourceName = null,
+        IEnumerable<string>? sourceTexts = null)
+    {
+        return type switch
+        {
+            GXTType.GtaIII => GTAIII.GXTManager.Create(dictionaryPath),
+            GXTType.GtaViceCity => GTAVC.GXTManager.Create(
+                dictionaryPath,
+                sourceName,
+                sourceTexts ?? []),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(type),
+                type,
+                "Можно создать только GXT-файл GTA III или Vice City."),
+        };
+    }
 }

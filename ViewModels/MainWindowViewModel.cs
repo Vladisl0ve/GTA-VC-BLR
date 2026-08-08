@@ -301,6 +301,56 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ImportJson()
+    {
+        var sourcePath = _dialogs.OpenFile("Преобразовать JSON в GXT", JsonFileFilter);
+        if (sourcePath is null)
+        {
+            return;
+        }
+
+        string? dictionaryPath = null;
+        if (!_dialogs.Confirm(
+                "Использовать встроенный словарь символов для создаваемого GXT?\n\n" +
+                "Выберите «Нет», чтобы указать собственный .txt-словарь.",
+                "Словарь символов"))
+        {
+            dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
+            if (dictionaryPath is null)
+            {
+                return;
+            }
+        }
+
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var suggestedPath = Path.Combine(
+            directory,
+            $"{Path.GetFileNameWithoutExtension(sourcePath)}.gxt");
+        var targetPath = _dialogs.SaveFile(
+            "Сохранить преобразованный GXT",
+            GxtFileFilter,
+            suggestedPath);
+        if (targetPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = GxtJsonImporter.Import(sourcePath, targetPath, dictionaryPath);
+            if (LoadDocument(targetPath, askForDictionary: false, dictionaryPath))
+            {
+                var game = result.Type == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
+                StatusText = $"JSON преобразован в {game} GXT: {result.EntryCount} ключей";
+            }
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось преобразовать JSON в GXT.\n\n{exception.Message}");
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void AddMissingEntries()
     {

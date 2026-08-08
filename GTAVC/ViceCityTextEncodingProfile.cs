@@ -105,6 +105,40 @@ internal sealed class ViceCityTextEncodingProfile
         return ukrainianScore > russianScore ? Ukrainian : Russian;
     }
 
+    public static ViceCityTextEncodingProfile DetectForText(
+        string? sourceName,
+        IEnumerable<string> texts)
+    {
+        ArgumentNullException.ThrowIfNull(texts);
+
+        var text = string.Concat(texts);
+        if (!text.Any(character => character is >= '\u0400' and <= '\u04ff'))
+        {
+            return English;
+        }
+
+        const string ukrainianMarkers = "ҐґЄєІіЇї";
+        const string russianMarkers = "ЁёЪъЫыЭэ";
+        if (text.Any(ukrainianMarkers.Contains))
+        {
+            return Ukrainian;
+        }
+
+        if (text.Any(russianMarkers.Contains))
+        {
+            return Russian;
+        }
+
+        var fileName = Path.GetFileNameWithoutExtension(sourceName ?? string.Empty);
+        if (fileName.Contains("ukrain", StringComparison.OrdinalIgnoreCase) ||
+            fileName.StartsWith("ukr", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ukrainian;
+        }
+
+        return Russian;
+    }
+
     public string Decode(byte[] inputBytes)
     {
         ArgumentNullException.ThrowIfNull(inputBytes);

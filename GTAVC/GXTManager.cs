@@ -43,6 +43,33 @@ namespace GTA_GXT_Editor.GTAVC
             }
         }
 
+        private GXTManager(
+            string? dictionaryPath,
+            string? sourceName,
+            IEnumerable<string> sourceTexts)
+        {
+            CyrillicCharsDictionaryPath = dictionaryPath;
+            _gxtEntries = [];
+
+            if (CyrillicCharsDictionaryPath is null)
+            {
+                _builtInTextEncoding = ViceCityTextEncodingProfile.DetectForText(
+                    sourceName,
+                    sourceTexts);
+                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+            }
+            else
+            {
+                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
+            }
+        }
+
+        internal static GXTManager Create(
+            string? dictionaryPath,
+            string? sourceName,
+            IEnumerable<string> sourceTexts) =>
+            new(dictionaryPath, sourceName, sourceTexts);
+
         public override string ConvertBytesToText(byte[] inputBytes) =>
             _builtInTextEncoding?.Decode(inputBytes) ?? base.ConvertBytesToText(inputBytes);
 
