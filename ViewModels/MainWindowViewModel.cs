@@ -27,6 +27,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private CommonGXTManager? _manager;
     private GXTType _loadedType = GXTType.None;
+    private Dictionary<EntryIdentity, string> _comparisonTexts = [];
+    private GXTType _comparisonType = GXTType.None;
 
     public MainWindowViewModel(GxtManagerFactory managerFactory, IDialogService dialogs)
     {
@@ -41,6 +43,7 @@ public partial class MainWindowViewModel : ObservableObject
             SearchColumnOption.All,
             new SearchColumnOption(SearchColumn.Name, "Ключ"),
             new SearchColumnOption(SearchColumn.Text, "Текст"),
+            new SearchColumnOption(SearchColumn.Comparison, "Текст для сравнения"),
             new SearchColumnOption(SearchColumn.Table, "Таблица"),
         ];
         selectedSearchColumn = SearchColumns[0];
@@ -54,6 +57,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string gxtPath = string.Empty;
+
+    [ObservableProperty]
+    private string comparisonGxtPath = string.Empty;
+
+    [ObservableProperty]
+    private bool isComparisonLoaded;
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -72,6 +81,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportJsonCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddEntryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenComparisonFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddMissingEntriesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConvertDictionaryCommand))]
     private bool isDocumentLoaded;
@@ -147,6 +157,52 @@ public partial class MainWindowViewModel : ObservableObject
         if (dictionaryPath is not null)
         {
             LoadDocument(path, dictionaryPath);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void OpenComparisonFile()
+    {
+        var path = _dialogs.OpenFile("Открыть GXT для сравнения", GxtFileFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var type = _managerFactory.DetectType(path);
+            if (type != _loadedType)
+            {
+                _dialogs.ShowError(
+                    "Тип выбранного GXT-файла не соответствует открытому файлу.");
+                return;
+            }
+
+            var comparisonManager = _managerFactory.Open(path);
+            var comparisonTexts = new Dictionary<EntryIdentity, string>();
+            foreach (var entry in comparisonManager.GXTEntries)
+            {
+                comparisonTexts[GetEntryIdentity(entry)] = comparisonManager
+                    .ConvertBytesToText(entry.Value)
+                    .GetClearName();
+            }
+
+            _comparisonTexts = comparisonTexts;
+            _comparisonType = type;
+            ComparisonGxtPath = path;
+            IsComparisonLoaded = true;
+
+            var selected = SelectedEntry;
+            RefreshEntries(selected?.Name, selected?.RawTableName);
+            var matchingCount = Entries.Count(entry => entry.ComparisonText is not null);
+            StatusText = $"Для сравнения открыт {Path.GetFileName(path)} — совпадений: {matchingCount} из {Entries.Count}";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(
+                $"Не удалось открыть '{Path.GetFileName(path)}' для сравнения.\n\n{exception.Message}",
+                "Ошибка открытия");
         }
     }
 
@@ -508,6 +564,12 @@ public partial class MainWindowViewModel : ObservableObject
             var manager = _managerFactory.Open(path, dictionaryPath, language);
             var type = _managerFactory.DetectType(path);
 
+            if (!string.Equals(path, GxtPath, StringComparison.OrdinalIgnoreCase) ||
+                _comparisonType != type)
+            {
+                ClearComparison();
+            }
+
             _manager = manager;
             _loadedType = type;
             GxtPath = path;
@@ -539,11 +601,15 @@ public partial class MainWindowViewModel : ObservableObject
         foreach (var entry in _manager.GXTEntries)
         {
             var rawTable = (entry as GTAVC.GXTEntry)?.TableName;
+            _comparisonTexts.TryGetValue(GetEntryIdentity(entry), out var comparisonText);
             Entries.Add(new GxtEntryRow(
                 entry.DatName.GetClearName(),
                 _manager.ConvertBytesToText(entry.Value).GetClearName(),
                 rawTable?.GetClearName() ?? string.Empty,
-                rawTable));
+                rawTable)
+            {
+                ComparisonText = comparisonText,
+            });
         }
 
         EntriesView.Refresh();
@@ -591,12 +657,27 @@ public partial class MainWindowViewModel : ObservableObject
         {
             SearchColumn.Name => entry.Name.Contains(SearchText, comparison),
             SearchColumn.Text => entry.Text.Contains(SearchText, comparison),
+            SearchColumn.Comparison => entry.ComparisonText?.Contains(SearchText, comparison) == true,
             SearchColumn.Table => entry.Table.Contains(SearchText, comparison),
             _ => entry.Name.Contains(SearchText, comparison) ||
                  entry.Text.Contains(SearchText, comparison) ||
+                 entry.ComparisonText?.Contains(SearchText, comparison) == true ||
                  entry.Table.Contains(SearchText, comparison),
         };
     }
+
+    private void ClearComparison()
+    {
+        _comparisonTexts = [];
+        _comparisonType = GXTType.None;
+        ComparisonGxtPath = string.Empty;
+        IsComparisonLoaded = false;
+    }
+
+    private static EntryIdentity GetEntryIdentity(GXTBase entry) =>
+        new(
+            entry.DatName.GetClearName(),
+            (entry as GTAVC.GXTEntry)?.TableName);
 
     private void UpdateStatus()
     {
@@ -614,4 +695,6 @@ public partial class MainWindowViewModel : ObservableObject
     private bool CanUseDocument() => IsDocumentLoaded && _manager is not null;
 
     private bool CanUseSelection() => CanUseDocument() && SelectedEntry is not null;
+
+    private readonly record struct EntryIdentity(string Name, string? Table);
 }

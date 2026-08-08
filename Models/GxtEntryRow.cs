@@ -4,4 +4,7 @@ public sealed record GxtEntryRow(
     string Name,
     string Text,
     string Table,
-    string? RawTableName);
+    string? RawTableName)
+{
+    public string? ComparisonText { get; init; }
+}

@@ -105,6 +105,85 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public void OpenComparisonFile_ShowsMatchingValuesInEntryRows()
+    {
+        var primaryPath = CreateGxtWithEntries(
+            "primary.gxt",
+            ("HELLO", "Primary hello"),
+            ("ONLYMAIN", "Only in primary"));
+        var comparisonPath = CreateGxtWithEntries(
+            "comparison.gxt",
+            ("HELLO", "Comparison hello"),
+            ("ONLYCOM", "Only in comparison"));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(primaryPath);
+        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        var viewModel = CreateViewModel(dialogs);
+
+        viewModel.OpenFileCommand.Execute(null);
+        viewModel.OpenComparisonFileCommand.Execute(null);
+
+        Assert.IsTrue(viewModel.IsComparisonLoaded);
+        Assert.AreEqual(comparisonPath, viewModel.ComparisonGxtPath);
+        Assert.AreEqual(
+            "Comparison hello",
+            viewModel.Entries.Single(entry => entry.Name == "HELLO").ComparisonText);
+        Assert.IsNull(viewModel.Entries.Single(entry => entry.Name == "ONLYMAIN").ComparisonText);
+        Assert.IsFalse(viewModel.Entries.Any(entry => entry.Name == "ONLYCOM"));
+    }
+
+    [TestMethod]
+    public void OpenComparisonFile_ReloadPreservesComparisonAndNewDocumentClearsIt()
+    {
+        var primaryPath = CreateGxt("primary.gxt", text: "Primary");
+        var comparisonPath = CreateGxt("comparison.gxt", text: "Comparison");
+        var nextPath = CreateGxt("next.gxt", text: "Next");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(primaryPath);
+        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFileCommand.Execute(null);
+        viewModel.OpenComparisonFileCommand.Execute(null);
+
+        viewModel.ReloadCommand.Execute(null);
+
+        Assert.IsTrue(viewModel.IsComparisonLoaded);
+        Assert.AreEqual("Comparison", viewModel.Entries[0].ComparisonText);
+
+        dialogs.OpenFileResults.Enqueue(nextPath);
+        viewModel.OpenFileCommand.Execute(null);
+
+        Assert.IsFalse(viewModel.IsComparisonLoaded);
+        Assert.AreEqual(string.Empty, viewModel.ComparisonGxtPath);
+        Assert.IsNull(viewModel.Entries[0].ComparisonText);
+    }
+
+    [TestMethod]
+    public void Search_CanFilterByComparisonText()
+    {
+        var primaryPath = CreateGxtWithEntries(
+            "primary.gxt",
+            ("FIRST", "One"),
+            ("SECOND", "Two"));
+        var comparisonPath = CreateGxtWithEntries(
+            "comparison.gxt",
+            ("FIRST", "Needle"),
+            ("SECOND", "Other"));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(primaryPath);
+        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFileCommand.Execute(null);
+        viewModel.OpenComparisonFileCommand.Execute(null);
+
+        viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(
+            option => option.Column == SearchColumn.Comparison);
+        viewModel.SearchText = "needle";
+
+        Assert.AreEqual("FIRST", viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+    }
+
+    [TestMethod]
     public void ImportJson_UsesAutomaticDictionaryWithoutConfirmation()
     {
         var jsonPath = WriteJson("automatic.json", "Hello", "en");
@@ -170,13 +249,30 @@ public sealed class MainWindowViewModelTests
 
     private string CreateGxt(string fileName, string? dictionaryPath = null, string text = "Hello")
     {
+        return CreateGxtWithEntries(fileName, dictionaryPath, ("HELLO", text));
+    }
+
+    private string CreateGxtWithEntries(
+        string fileName,
+        params (string Key, string Text)[] entries) =>
+        CreateGxtWithEntries(fileName, dictionaryPath: null, entries);
+
+    private string CreateGxtWithEntries(
+        string fileName,
+        string? dictionaryPath,
+        params (string Key, string Text)[] entries)
+    {
         var path = Path.Combine(_testDirectory, fileName);
         var manager = GxtManagerFactory.Create(
             GXTType.GtaIII,
             dictionaryPath,
             sourceName: fileName,
-            sourceTexts: [text]);
-        manager.AddGXTEntry("HELLO", text);
+            sourceTexts: entries.Select(entry => entry.Text));
+        foreach (var entry in entries)
+        {
+            manager.AddGXTEntry(entry.Key, entry.Text);
+        }
+
         manager.SaveGXTChanges(path);
         return path;
     }

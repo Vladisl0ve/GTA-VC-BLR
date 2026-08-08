@@ -5,6 +5,7 @@ public enum SearchColumn
     All,
     Name,
     Text,
+    Comparison,
     Table,
 }
 

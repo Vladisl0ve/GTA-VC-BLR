@@ -236,6 +236,9 @@
                 <DataGridTextColumn Width="2*"
                                     Header="Текст"
                                     Binding="{Binding Text}" />
+                <DataGridTextColumn Width="2*"
+                                    Header="Текст для сравнения"
+                                    Binding="{Binding ComparisonText}" />
                 <DataGridTextColumn Width="160"
                                     Header="Таблица"
                                     Binding="{Binding Table}" />
@@ -248,6 +251,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -273,9 +277,15 @@
                     MinWidth="190"
                     Margin="8,0,0,0"
                     Padding="12,7"
+                    Content="Открыть для сравнения…"
+                    Command="{Binding OpenComparisonFileCommand}" />
+            <Button Grid.Column="5"
+                    MinWidth="190"
+                    Margin="8,0,0,0"
+                    Padding="12,7"
                     Content="Добавить из другого GXT…"
                     Command="{Binding AddMissingEntriesCommand}" />
-            <Button Grid.Column="5"
+            <Button Grid.Column="6"
                     MinWidth="200"
                     Margin="8,0,0,0"
                     Padding="12,7"
