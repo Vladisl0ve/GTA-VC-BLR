@@ -31,7 +31,7 @@ public abstract class CommonGXTManager
 
     public abstract void WriteGXTFile(string gxtFilePath);
 
-    public string ConvertBytesToText(byte[] inputBytes)
+    public virtual string ConvertBytesToText(byte[] inputBytes)
     {
         ArgumentNullException.ThrowIfNull(inputBytes);
 
@@ -60,7 +60,7 @@ public abstract class CommonGXTManager
         return new string(result, 0, resultLength);
     }
 
-    public byte[] ConvertTextToBytes(string inputString)
+    public virtual byte[] ConvertTextToBytes(string inputString)
     {
         ArgumentNullException.ThrowIfNull(inputString);
 

@@ -10,29 +10,44 @@ namespace GTA_GXT_Editor.GTAVC
     {
         private readonly List<string> _emptyBlockKeySetsList = new List<string>();
 
-        private const string RUSSIAN_CHARS_FILENAME = "russian_chars_vc.txt";
-
         private List<GXTBase> _gxtEntries;
         private Dictionary<int[], char> _cyrillicCharsDictionary;
+        private ViceCityTextEncodingProfile? _builtInTextEncoding;
 
         public override string? CyrillicCharsDictionaryPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
-        public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
+        public override Dictionary<int[], char> CyrillicCharsDictionary
+        {
+            get => _cyrillicCharsDictionary;
+            set
+            {
+                _cyrillicCharsDictionary = value;
+                _builtInTextEncoding = null;
+            }
+        }
 
         public GXTManager(string gxtPath, string? dictionaryPath = null)
         {
             CyrillicCharsDictionaryPath = dictionaryPath;
+            _cyrillicCharsDictionary = [];
+            _gxtEntries = ReadGXTFile(gxtPath);
 
             if (CyrillicCharsDictionaryPath == null)
             {
-                _cyrillicCharsDictionary = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME).LoadCyrillicCharsDictionary();
+                _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(gxtPath, _gxtEntries);
+                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
             }
             else
             {
                 _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
             }
-            _gxtEntries = ReadGXTFile(gxtPath);
         }
+
+        public override string ConvertBytesToText(byte[] inputBytes) =>
+            _builtInTextEncoding?.Decode(inputBytes) ?? base.ConvertBytesToText(inputBytes);
+
+        public override byte[] ConvertTextToBytes(string inputString) =>
+            _builtInTextEncoding?.Encode(inputString) ?? base.ConvertTextToBytes(inputString);
 
 
         public override void AddGXTEntry(string newDatName, string newDatValue, string? tableName = null)

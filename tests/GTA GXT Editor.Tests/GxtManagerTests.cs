@@ -105,6 +105,63 @@ public sealed class GxtManagerTests
         Assert.AreEqual("ЎўІі", result);
     }
 
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_LeavesEnglishTextUnchanged()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "american.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "ACCURA", "Accuracy");
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual("Accuracy", manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+        CollectionAssert.AreEqual(EncodeValue("Accuracy"), manager.ConvertTextToBytes("Accuracy"));
+    }
+
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_DecodesRussianTextAndEmbeddedEnglish()
+    {
+        byte[] sourceCodes =
+        [
+            0x85, 0x61, 0x9E, 0x9A, 0x9D, 0x79, 0x65, 0x20,
+            0x98, 0x20,
+            0x6F, 0x70, 0xA3, 0x9B, 0x65, 0x9E, 0xA1, 0xA9, 0x9E, 0x20,
+            0xA0, 0x61, 0x99, 0x61, 0x9C, 0x9D, 0xA1, 0x2C, 0x20,
+            0xA6, 0x79, 0x6F, 0x97, 0xA9, 0x20,
+            0xA2, 0x70, 0x9D, 0x6F, 0x97, 0x70, 0x65, 0x63, 0x79, 0x9D, 0x20,
+            0x6F, 0x70, 0xA3, 0x9B, 0x9D, 0x65, 0x2E,
+        ];
+        var sourcePath = Path.Combine(_testDirectory, "localized-one.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "AMMU", EncodeRawValue(sourceCodes));
+        var expected = "Зайдите в оружейный магазин, чтобы приобрести оружие.";
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(expected, manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+        CollectionAssert.AreEqual(EncodeRawValue(sourceCodes), manager.ConvertTextToBytes(expected));
+    }
+
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_DecodesUkrainianTextAndEmbeddedEnglish()
+    {
+        byte[] sourceCodes =
+        [
+            0x8C, 0x98, 0x69, 0x9E, 0x9A, 0x9D, 0x20,
+            0x98, 0x63, 0x65, 0x70, 0x65, 0x9A, 0x9D, 0xA1, 0xA3, 0x20,
+            0x27, 0x41, 0x6D, 0x6D, 0x75, 0x2D, 0x4E, 0x61, 0x79, 0x69, 0x6F, 0x6E, 0x27, 0x2C, 0x20,
+            0xA8, 0x6F, 0x97, 0x20,
+            0x6B, 0xA3, 0xA2, 0x9D, 0x74, 0x9D, 0x20,
+            0x9C, 0x97, 0x70, 0x6F, 0xAC, 0x2E,
+        ];
+        var sourcePath = Path.Combine(_testDirectory, "localized-two.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "AMMU", EncodeRawValue(sourceCodes));
+        var expected = "Увійди всередину 'Ammu-Nation', щоб купити зброю.";
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(expected, manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+        CollectionAssert.AreEqual(EncodeRawValue(sourceCodes), manager.ConvertTextToBytes(expected));
+    }
+
     private static void WriteGtaIIIFile(string path, string name, string value)
     {
         var valueBytes = EncodeValue(value);
@@ -120,7 +177,11 @@ public sealed class GxtManagerTests
 
     private static void WriteViceCityFile(string path, string table, string name, string value)
     {
-        var valueBytes = EncodeValue(value);
+        WriteViceCityFile(path, table, name, EncodeValue(value));
+    }
+
+    private static void WriteViceCityFile(string path, string table, string name, byte[] valueBytes)
+    {
         using var stream = File.Create(path);
         stream.WriteString("TABL");
         stream.WriteInt(12);
@@ -133,6 +194,17 @@ public sealed class GxtManagerTests
         stream.WriteString("TDAT");
         stream.WriteInt(valueBytes.Length);
         stream.WriteBytes(valueBytes);
+    }
+
+    private static byte[] EncodeRawValue(params byte[] characterCodes)
+    {
+        var bytes = new byte[(characterCodes.Length + 1) * 2];
+        for (var index = 0; index < characterCodes.Length; index++)
+        {
+            bytes[index * 2] = characterCodes[index];
+        }
+
+        return bytes;
     }
 
     private static byte[] EncodeValue(string value)
