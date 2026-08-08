@@ -29,17 +29,84 @@
 
         <DockPanel Grid.Row="0" Margin="0,0,0,16">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button MinWidth="120"
-                        Margin="8,0,0,0"
-                        Padding="14,8"
-                        Content="Открыть…"
-                        Command="{Binding OpenFileCommand}" />
-                <Button MinWidth="130"
-                        Margin="8,0,0,0"
-                        Padding="14,8"
-                        Content="JSON → GXT…"
-                        ToolTip="Преобразовать JSON в GXT (Ctrl+Shift+I)"
-                        Command="{Binding ImportJsonCommand}" />
+                <Grid Margin="8,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button MinWidth="91"
+                            Padding="12,8"
+                            Content="Открыть…"
+                            ToolTip="Открыть GXT с автоматическим выбором кодировки (Ctrl+O)"
+                            Command="{Binding OpenFileCommand}" />
+                    <ToggleButton x:Name="OpenFileOptionsButton"
+                                  Grid.Column="1"
+                                  Width="28"
+                                  Margin="1,0,0,0"
+                                  Padding="0"
+                                  Content="▾"
+                                  ToolTip="Дополнительные варианты открытия" />
+                    <Popup Grid.ColumnSpan="2"
+                           AllowsTransparency="True"
+                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                           IsOpen="{Binding IsChecked, ElementName=OpenFileOptionsButton, Mode=TwoWay}"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding ElementName=OpenFileOptionsButton}"
+                           PopupAnimation="Fade"
+                           StaysOpen="False">
+                        <Border Padding="4"
+                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+                                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Button Padding="12,7"
+                                    HorizontalContentAlignment="Left"
+                                    Content="Открыть со словарём…"
+                                    Command="{Binding OpenFileWithDictionaryCommand}" />
+                        </Border>
+                    </Popup>
+                </Grid>
+
+                <Grid Margin="8,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button MinWidth="101"
+                            Padding="12,8"
+                            Content="JSON → GXT…"
+                            ToolTip="Преобразовать JSON в GXT с автоматическим выбором кодировки (Ctrl+Shift+I)"
+                            Command="{Binding ImportJsonCommand}" />
+                    <ToggleButton x:Name="ImportJsonOptionsButton"
+                                  Grid.Column="1"
+                                  Width="28"
+                                  Margin="1,0,0,0"
+                                  Padding="0"
+                                  Content="▾"
+                                  ToolTip="Дополнительные варианты преобразования" />
+                    <Popup Grid.ColumnSpan="2"
+                           AllowsTransparency="True"
+                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                           IsOpen="{Binding IsChecked, ElementName=ImportJsonOptionsButton, Mode=TwoWay}"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding ElementName=ImportJsonOptionsButton}"
+                           PopupAnimation="Fade"
+                           StaysOpen="False">
+                        <Border Padding="4"
+                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+                                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Button Padding="12,7"
+                                    HorizontalContentAlignment="Left"
+                                    Content="JSON → GXT со словарём…"
+                                    Command="{Binding ImportJsonWithDictionaryCommand}" />
+                        </Border>
+                    </Popup>
+                </Grid>
+
                 <Button MinWidth="120"
                         Margin="8,0,0,0"
                         Padding="14,8"

@@ -89,7 +89,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void OpenFromCommandLine(string path)
     {
-        LoadDocument(path, askForDictionary: true);
+        LoadDocument(path);
     }
 
     partial void OnSearchTextChanged(string value)
@@ -130,7 +130,23 @@ public partial class MainWindowViewModel : ObservableObject
         var path = _dialogs.OpenFile("Открыть GXT-файл", GxtFileFilter);
         if (path is not null)
         {
-            LoadDocument(path, askForDictionary: true);
+            LoadDocument(path);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenFileWithDictionary()
+    {
+        var path = _dialogs.OpenFile("Открыть GXT-файл со словарём", GxtFileFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
+        if (dictionaryPath is not null)
+        {
+            LoadDocument(path, dictionaryPath);
         }
     }
 
@@ -142,11 +158,10 @@ public partial class MainWindowViewModel : ObservableObject
 
         LoadDocument(
             GxtPath,
-            askForDictionary: false,
-            dictionaryPath,
-            selected?.Name,
-            selected?.RawTableName,
-            _manager?.Language ?? GxtLanguage.Auto);
+            dictionaryPath: dictionaryPath,
+            selectedName: selected?.Name,
+            selectedTable: selected?.RawTableName,
+            language: _manager?.Language ?? GxtLanguage.Auto);
     }
 
     [RelayCommand]
@@ -310,6 +325,17 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ImportJson()
     {
+        ImportJson(useCustomDictionary: false);
+    }
+
+    [RelayCommand]
+    private void ImportJsonWithDictionary()
+    {
+        ImportJson(useCustomDictionary: true);
+    }
+
+    private void ImportJson(bool useCustomDictionary)
+    {
         var sourcePath = _dialogs.OpenFile("Преобразовать JSON в GXT", JsonFileFilter);
         if (sourcePath is null)
         {
@@ -317,10 +343,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         string? dictionaryPath = null;
-        if (!_dialogs.Confirm(
-                "Использовать встроенный словарь символов для создаваемого GXT?\n\n" +
-                "Выберите «Нет», чтобы указать собственный .txt-словарь.",
-                "Словарь символов"))
+        if (useCustomDictionary)
         {
             dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
             if (dictionaryPath is null)
@@ -347,8 +370,7 @@ public partial class MainWindowViewModel : ObservableObject
             var result = GxtJsonImporter.Import(sourcePath, targetPath, dictionaryPath);
             if (LoadDocument(
                     targetPath,
-                    askForDictionary: false,
-                    dictionaryPath,
+                    dictionaryPath: dictionaryPath,
                     language: result.Language))
             {
                 var game = result.Type == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
@@ -470,7 +492,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool LoadDocument(
         string path,
-        bool askForDictionary,
         string? dictionaryPath = null,
         string? selectedName = null,
         string? selectedTable = null,
@@ -480,19 +501,6 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _dialogs.ShowError($"Файл '{path}' не существует или недоступен.");
             return false;
-        }
-
-        if (askForDictionary &&
-            !_dialogs.Confirm(
-                "Использовать встроенный словарь символов?\n\n" +
-                "Выберите «Нет», чтобы указать собственный .txt-словарь.",
-                "Словарь символов"))
-        {
-            dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
-            if (dictionaryPath is null)
-            {
-                return false;
-            }
         }
 
         try
