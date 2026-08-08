@@ -23,6 +23,21 @@ public sealed class WpfDialogService : IDialogService
             : null;
     }
 
+    public IReadOnlyList<string> OpenFiles(string title, string filter)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = title,
+            Filter = filter,
+            CheckFileExists = true,
+            Multiselect = true,
+        };
+
+        return dialog.ShowDialog(Application.Current.MainWindow) == true
+            ? dialog.FileNames
+            : [];
+    }
+
     public string? SaveFile(string title, string filter, string suggestedPath)
     {
         var dialog = new SaveFileDialog

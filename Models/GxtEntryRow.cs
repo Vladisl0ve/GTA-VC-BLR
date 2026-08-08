@@ -6,5 +6,5 @@ public sealed record GxtEntryRow(
     string Table,
     string? RawTableName)
 {
-    public string? ComparisonText { get; init; }
+    public IReadOnlyList<string?> ComparisonTexts { get; init; } = [];
 }

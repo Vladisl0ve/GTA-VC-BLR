@@ -1,4 +1,7 @@
+using System.Collections.Specialized;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using GTA_GXT_Editor.ViewModels;
 
@@ -10,6 +13,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.ComparisonColumns.CollectionChanged += ComparisonColumns_OnCollectionChanged;
     }
 
     private void EntriesGrid_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -17,6 +21,37 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel && viewModel.EditEntryCommand.CanExecute(null))
         {
             viewModel.EditEntryCommand.Execute(null);
+        }
+    }
+
+    private void ComparisonColumns_OnCollectionChanged(
+        object? sender,
+        NotifyCollectionChangedEventArgs e)
+    {
+        const int fixedColumnCount = 3;
+        const int comparisonColumnStartIndex = 2;
+
+        while (EntriesGrid.Columns.Count > fixedColumnCount)
+        {
+            EntriesGrid.Columns.RemoveAt(comparisonColumnStartIndex);
+        }
+
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        for (var index = 0; index < viewModel.ComparisonColumns.Count; index++)
+        {
+            var comparisonColumn = viewModel.ComparisonColumns[index];
+            EntriesGrid.Columns.Insert(
+                comparisonColumnStartIndex + index,
+                new DataGridTextColumn
+                {
+                    Header = comparisonColumn.Name,
+                    Width = new DataGridLength(2, DataGridLengthUnitType.Star),
+                    Binding = new Binding($"ComparisonTexts[{index}]"),
+                });
         }
     }
 }

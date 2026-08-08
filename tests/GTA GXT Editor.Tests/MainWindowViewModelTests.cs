@@ -105,31 +105,66 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenComparisonFile_ShowsMatchingValuesInEntryRows()
+    public void OpenComparisonFiles_AddColumnsAndMatchingValuesForEveryFile()
     {
         var primaryPath = CreateGxtWithEntries(
             "primary.gxt",
             ("HELLO", "Primary hello"),
             ("ONLYMAIN", "Only in primary"));
-        var comparisonPath = CreateGxtWithEntries(
-            "comparison.gxt",
-            ("HELLO", "Comparison hello"),
+        var firstComparisonPath = CreateGxtWithEntries(
+            "first comparison.gxt",
+            ("HELLO", "First comparison"),
             ("ONLYCOM", "Only in comparison"));
+        var secondComparisonPath = CreateGxtWithEntries(
+            "second-comparison.gxt",
+            ("HELLO", "Second comparison"),
+            ("ONLYMAIN", "Second-only match"));
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(primaryPath);
-        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        dialogs.OpenFilesResults.Enqueue([firstComparisonPath, secondComparisonPath]);
         var viewModel = CreateViewModel(dialogs);
 
         viewModel.OpenFileCommand.Execute(null);
         viewModel.OpenComparisonFileCommand.Execute(null);
 
         Assert.IsTrue(viewModel.IsComparisonLoaded);
-        Assert.AreEqual(comparisonPath, viewModel.ComparisonGxtPath);
-        Assert.AreEqual(
-            "Comparison hello",
-            viewModel.Entries.Single(entry => entry.Name == "HELLO").ComparisonText);
-        Assert.IsNull(viewModel.Entries.Single(entry => entry.Name == "ONLYMAIN").ComparisonText);
+        Assert.HasCount(2, viewModel.ComparisonColumns);
+        Assert.AreEqual("first comparison", viewModel.ComparisonColumns[0].Name);
+        Assert.AreEqual(firstComparisonPath, viewModel.ComparisonColumns[0].Path);
+        Assert.AreEqual("second-comparison", viewModel.ComparisonColumns[1].Name);
+        Assert.AreEqual(secondComparisonPath, viewModel.ComparisonColumns[1].Path);
+
+        var hello = viewModel.Entries.Single(entry => entry.Name == "HELLO");
+        CollectionAssert.AreEqual(
+            new string?[] { "First comparison", "Second comparison" },
+            hello.ComparisonTexts.ToArray());
+        var onlyMain = viewModel.Entries.Single(entry => entry.Name == "ONLYMAIN");
+        CollectionAssert.AreEqual(
+            new string?[] { null, "Second-only match" },
+            onlyMain.ComparisonTexts.ToArray());
         Assert.IsFalse(viewModel.Entries.Any(entry => entry.Name == "ONLYCOM"));
+    }
+
+    [TestMethod]
+    public void OpenComparisonFiles_NormalizesAndDisambiguatesColumnNames()
+    {
+        var primaryPath = CreateGxt("primary.gxt", text: "Primary");
+        var firstComparisonPath = CreateGxt("shared.gxt", text: "First");
+        var secondDirectory = Path.Combine(_testDirectory, "second");
+        Directory.CreateDirectory(secondDirectory);
+        var secondComparisonPath = Path.Combine(secondDirectory, "shared.gxt");
+        File.Copy(firstComparisonPath, secondComparisonPath);
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(primaryPath);
+        dialogs.OpenFilesResults.Enqueue([firstComparisonPath, secondComparisonPath]);
+        var viewModel = CreateViewModel(dialogs);
+
+        viewModel.OpenFileCommand.Execute(null);
+        viewModel.OpenComparisonFileCommand.Execute(null);
+
+        CollectionAssert.AreEqual(
+            new[] { "shared", "shared (2)" },
+            viewModel.ComparisonColumns.Select(column => column.Name).ToArray());
     }
 
     [TestMethod]
@@ -140,7 +175,7 @@ public sealed class MainWindowViewModelTests
         var nextPath = CreateGxt("next.gxt", text: "Next");
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(primaryPath);
-        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        dialogs.OpenFilesResults.Enqueue([comparisonPath]);
         var viewModel = CreateViewModel(dialogs);
         viewModel.OpenFileCommand.Execute(null);
         viewModel.OpenComparisonFileCommand.Execute(null);
@@ -148,14 +183,14 @@ public sealed class MainWindowViewModelTests
         viewModel.ReloadCommand.Execute(null);
 
         Assert.IsTrue(viewModel.IsComparisonLoaded);
-        Assert.AreEqual("Comparison", viewModel.Entries[0].ComparisonText);
+        Assert.AreEqual("Comparison", viewModel.Entries[0].ComparisonTexts[0]);
 
         dialogs.OpenFileResults.Enqueue(nextPath);
         viewModel.OpenFileCommand.Execute(null);
 
         Assert.IsFalse(viewModel.IsComparisonLoaded);
-        Assert.AreEqual(string.Empty, viewModel.ComparisonGxtPath);
-        Assert.IsNull(viewModel.Entries[0].ComparisonText);
+        Assert.IsEmpty(viewModel.ComparisonColumns);
+        Assert.IsEmpty(viewModel.Entries[0].ComparisonTexts);
     }
 
     [TestMethod]
@@ -171,7 +206,7 @@ public sealed class MainWindowViewModelTests
             ("SECOND", "Other"));
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(primaryPath);
-        dialogs.OpenFileResults.Enqueue(comparisonPath);
+        dialogs.OpenFilesResults.Enqueue([comparisonPath]);
         var viewModel = CreateViewModel(dialogs);
         viewModel.OpenFileCommand.Execute(null);
         viewModel.OpenComparisonFileCommand.Execute(null);
@@ -305,9 +340,13 @@ public sealed class MainWindowViewModelTests
     {
         public Queue<string?> OpenFileResults { get; } = new();
 
+        public Queue<IReadOnlyList<string>> OpenFilesResults { get; } = new();
+
         public Queue<string?> SaveFileResults { get; } = new();
 
         public List<(string Title, string Filter)> OpenFileCalls { get; } = [];
+
+        public List<(string Title, string Filter)> OpenFilesCalls { get; } = [];
 
         public List<(string Title, string Filter, string SuggestedPath)> SaveFileCalls { get; } = [];
 
@@ -317,6 +356,12 @@ public sealed class MainWindowViewModelTests
         {
             OpenFileCalls.Add((title, filter));
             return OpenFileResults.Count > 0 ? OpenFileResults.Dequeue() : null;
+        }
+
+        public IReadOnlyList<string> OpenFiles(string title, string filter)
+        {
+            OpenFilesCalls.Add((title, filter));
+            return OpenFilesResults.Count > 0 ? OpenFilesResults.Dequeue() : [];
         }
 
         public string? SaveFile(string title, string filter, string suggestedPath)

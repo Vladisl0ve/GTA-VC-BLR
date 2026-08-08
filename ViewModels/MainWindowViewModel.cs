@@ -27,8 +27,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private CommonGXTManager? _manager;
     private GXTType _loadedType = GXTType.None;
-    private Dictionary<EntryIdentity, string> _comparisonTexts = [];
-    private GXTType _comparisonType = GXTType.None;
+    private readonly List<ComparisonDocument> _comparisonDocuments = [];
 
     public MainWindowViewModel(GxtManagerFactory managerFactory, IDialogService dialogs)
     {
@@ -43,7 +42,7 @@ public partial class MainWindowViewModel : ObservableObject
             SearchColumnOption.All,
             new SearchColumnOption(SearchColumn.Name, "Ключ"),
             new SearchColumnOption(SearchColumn.Text, "Текст"),
-            new SearchColumnOption(SearchColumn.Comparison, "Текст для сравнения"),
+            new SearchColumnOption(SearchColumn.Comparison, "Файлы сравнения"),
             new SearchColumnOption(SearchColumn.Table, "Таблица"),
         ];
         selectedSearchColumn = SearchColumns[0];
@@ -51,18 +50,16 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<GxtEntryRow> Entries { get; } = [];
 
+    public ObservableCollection<GxtComparisonColumn> ComparisonColumns { get; } = [];
+
     public ICollectionView EntriesView { get; }
 
     public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
 
+    public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
+
     [ObservableProperty]
     private string gxtPath = string.Empty;
-
-    [ObservableProperty]
-    private string comparisonGxtPath = string.Empty;
-
-    [ObservableProperty]
-    private bool isComparisonLoaded;
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -163,20 +160,42 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void OpenComparisonFile()
     {
-        var path = _dialogs.OpenFile("Открыть GXT для сравнения", GxtFileFilter);
-        if (path is null)
+        var paths = _dialogs.OpenFiles("Добавить GXT для сравнения", GxtFileFilter);
+        if (paths.Count == 0)
         {
             return;
         }
 
+        var loadedCount = 0;
+        foreach (var path in paths)
+        {
+            if (TryAddComparisonFile(path))
+            {
+                loadedCount++;
+            }
+        }
+
+        if (loadedCount == 0)
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(IsComparisonLoaded));
+        var selected = SelectedEntry;
+        RefreshEntries(selected?.Name, selected?.RawTableName);
+        StatusText = $"Загружено файлов для сравнения: {loadedCount}; всего: {ComparisonColumns.Count}";
+    }
+
+    private bool TryAddComparisonFile(string path)
+    {
         try
         {
             var type = _managerFactory.DetectType(path);
             if (type != _loadedType)
             {
                 _dialogs.ShowError(
-                    "Тип выбранного GXT-файла не соответствует открытому файлу.");
-                return;
+                    $"Тип файла '{Path.GetFileName(path)}' не соответствует открытому GXT.");
+                return false;
             }
 
             var comparisonManager = _managerFactory.Open(path);
@@ -188,21 +207,32 @@ public partial class MainWindowViewModel : ObservableObject
                     .GetClearName();
             }
 
-            _comparisonTexts = comparisonTexts;
-            _comparisonType = type;
-            ComparisonGxtPath = path;
-            IsComparisonLoaded = true;
+            var existingIndex = _comparisonDocuments.FindIndex(document =>
+                string.Equals(document.Path, path, StringComparison.OrdinalIgnoreCase));
+            var columnName = existingIndex >= 0
+                ? ComparisonColumns[existingIndex].Name
+                : CreateComparisonColumnName(path);
+            var comparisonDocument = new ComparisonDocument(path, comparisonTexts);
 
-            var selected = SelectedEntry;
-            RefreshEntries(selected?.Name, selected?.RawTableName);
-            var matchingCount = Entries.Count(entry => entry.ComparisonText is not null);
-            StatusText = $"Для сравнения открыт {Path.GetFileName(path)} — совпадений: {matchingCount} из {Entries.Count}";
+            if (existingIndex >= 0)
+            {
+                _comparisonDocuments[existingIndex] = comparisonDocument;
+                ComparisonColumns[existingIndex] = new GxtComparisonColumn(columnName, path);
+            }
+            else
+            {
+                _comparisonDocuments.Add(comparisonDocument);
+                ComparisonColumns.Add(new GxtComparisonColumn(columnName, path));
+            }
+
+            return true;
         }
         catch (Exception exception)
         {
             _dialogs.ShowError(
                 $"Не удалось открыть '{Path.GetFileName(path)}' для сравнения.\n\n{exception.Message}",
                 "Ошибка открытия");
+            return false;
         }
     }
 
@@ -564,10 +594,11 @@ public partial class MainWindowViewModel : ObservableObject
             var manager = _managerFactory.Open(path, dictionaryPath, language);
             var type = _managerFactory.DetectType(path);
 
-            if (!string.Equals(path, GxtPath, StringComparison.OrdinalIgnoreCase) ||
-                _comparisonType != type)
+            if (_comparisonDocuments.Count > 0 &&
+                (!string.Equals(path, GxtPath, StringComparison.OrdinalIgnoreCase) ||
+                 _loadedType != type))
             {
-                ClearComparison();
+                ClearComparisons();
             }
 
             _manager = manager;
@@ -601,14 +632,16 @@ public partial class MainWindowViewModel : ObservableObject
         foreach (var entry in _manager.GXTEntries)
         {
             var rawTable = (entry as GTAVC.GXTEntry)?.TableName;
-            _comparisonTexts.TryGetValue(GetEntryIdentity(entry), out var comparisonText);
+            var identity = GetEntryIdentity(entry);
             Entries.Add(new GxtEntryRow(
                 entry.DatName.GetClearName(),
                 _manager.ConvertBytesToText(entry.Value).GetClearName(),
                 rawTable?.GetClearName() ?? string.Empty,
                 rawTable)
             {
-                ComparisonText = comparisonText,
+                ComparisonTexts = _comparisonDocuments
+                    .Select(document => document.Texts.GetValueOrDefault(identity))
+                    .ToArray(),
             });
         }
 
@@ -657,21 +690,48 @@ public partial class MainWindowViewModel : ObservableObject
         {
             SearchColumn.Name => entry.Name.Contains(SearchText, comparison),
             SearchColumn.Text => entry.Text.Contains(SearchText, comparison),
-            SearchColumn.Comparison => entry.ComparisonText?.Contains(SearchText, comparison) == true,
+            SearchColumn.Comparison => entry.ComparisonTexts.Any(
+                text => text?.Contains(SearchText, comparison) == true),
             SearchColumn.Table => entry.Table.Contains(SearchText, comparison),
             _ => entry.Name.Contains(SearchText, comparison) ||
                  entry.Text.Contains(SearchText, comparison) ||
-                 entry.ComparisonText?.Contains(SearchText, comparison) == true ||
+                 entry.ComparisonTexts.Any(
+                     text => text?.Contains(SearchText, comparison) == true) ||
                  entry.Table.Contains(SearchText, comparison),
         };
     }
 
-    private void ClearComparison()
+    private void ClearComparisons()
     {
-        _comparisonTexts = [];
-        _comparisonType = GXTType.None;
-        ComparisonGxtPath = string.Empty;
-        IsComparisonLoaded = false;
+        _comparisonDocuments.Clear();
+        ComparisonColumns.Clear();
+        OnPropertyChanged(nameof(IsComparisonLoaded));
+    }
+
+    private string CreateComparisonColumnName(string path)
+    {
+        var normalizedName = Path.GetFileNameWithoutExtension(path).Trim();
+        if (string.IsNullOrEmpty(normalizedName))
+        {
+            normalizedName = "GXT";
+        }
+
+        var usedNames = ComparisonColumns
+            .Select(column => column.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!usedNames.Contains(normalizedName))
+        {
+            return normalizedName;
+        }
+
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{normalizedName} ({suffix})";
+            if (!usedNames.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
     }
 
     private static EntryIdentity GetEntryIdentity(GXTBase entry) =>
@@ -697,4 +757,8 @@ public partial class MainWindowViewModel : ObservableObject
     private bool CanUseSelection() => CanUseDocument() && SelectedEntry is not null;
 
     private readonly record struct EntryIdentity(string Name, string? Table);
+
+    private sealed record ComparisonDocument(
+        string Path,
+        Dictionary<EntryIdentity, string> Texts);
 }

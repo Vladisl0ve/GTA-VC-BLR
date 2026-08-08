@@ -6,6 +6,8 @@ public interface IDialogService
 {
     string? OpenFile(string title, string filter);
 
+    IReadOnlyList<string> OpenFiles(string title, string filter);
+
     string? SaveFile(string title, string filter, string suggestedPath);
 
     bool Confirm(string message, string title);
