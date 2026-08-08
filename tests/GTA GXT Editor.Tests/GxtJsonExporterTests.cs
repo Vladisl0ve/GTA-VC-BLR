@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 
@@ -67,5 +68,31 @@ public sealed class GxtJsonExporterTests
         Assert.AreEqual("HELLO", entry.GetProperty("key").GetString());
         Assert.AreEqual("World", entry.GetProperty("text").GetString());
         Assert.AreEqual("MAIN", entry.GetProperty("table").GetString());
+    }
+
+    [TestMethod]
+    public void Export_Belarusian_WritesLanguageAndReadableUtf8Text()
+    {
+        var targetPath = Path.Combine(_testDirectory, "belarusian.json");
+        GxtEntryRow[] entries =
+        [
+            new("HELLO", "Прывітанне! Мой аўтамабіль тут.", string.Empty, null),
+        ];
+
+        GxtJsonExporter.Export(
+            targetPath,
+            "localized.gxt",
+            "GTA III",
+            entries,
+            GxtLanguage.Belarusian);
+
+        var json = File.ReadAllText(targetPath);
+        StringAssert.Contains(json, "Прывітанне");
+        StringAssert.Contains(json, "аўтамабіль");
+        using var document = JsonDocument.Parse(json);
+        Assert.AreEqual("be", document.RootElement.GetProperty("language").GetString());
+        Assert.AreEqual(
+            "Прывітанне! Мой аўтамабіль тут.",
+            document.RootElement.GetProperty("entries")[0].GetProperty("text").GetString());
     }
 }

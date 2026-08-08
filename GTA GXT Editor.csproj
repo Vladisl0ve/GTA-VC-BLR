@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Resource Include="icon.ico" />
+    <Content Include="belarusian_chars.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="russian_chars.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="russian_chars_vc.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

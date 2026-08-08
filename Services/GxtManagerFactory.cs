@@ -28,12 +28,15 @@ public sealed class GxtManagerFactory
         };
     }
 
-    public CommonGXTManager Open(string path, string? dictionaryPath = null)
+    public CommonGXTManager Open(
+        string path,
+        string? dictionaryPath = null,
+        GxtLanguage language = GxtLanguage.Auto)
     {
         return DetectType(path) switch
         {
-            GXTType.GtaIII => new GTAIII.GXTManager(path, dictionaryPath),
-            GXTType.GtaViceCity => new GTAVC.GXTManager(path, dictionaryPath),
+            GXTType.GtaIII => new GTAIII.GXTManager(path, dictionaryPath, language),
+            GXTType.GtaViceCity => new GTAVC.GXTManager(path, dictionaryPath, language),
             _ => throw new InvalidDataException(
                 $"Файл '{Path.GetFileName(path)}' повреждён или не является GXT-файлом GTA III/Vice City."),
         };
@@ -43,15 +46,22 @@ public sealed class GxtManagerFactory
         GXTType type,
         string? dictionaryPath = null,
         string? sourceName = null,
-        IEnumerable<string>? sourceTexts = null)
+        IEnumerable<string>? sourceTexts = null,
+        GxtLanguage language = GxtLanguage.Auto)
     {
+        var texts = sourceTexts ?? [];
         return type switch
         {
-            GXTType.GtaIII => GTAIII.GXTManager.Create(dictionaryPath),
+            GXTType.GtaIII => GTAIII.GXTManager.Create(
+                dictionaryPath,
+                sourceName,
+                texts,
+                language),
             GXTType.GtaViceCity => GTAVC.GXTManager.Create(
                 dictionaryPath,
                 sourceName,
-                sourceTexts ?? []),
+                texts,
+                language),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type),
                 type,

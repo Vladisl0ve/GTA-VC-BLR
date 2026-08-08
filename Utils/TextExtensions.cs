@@ -44,8 +44,20 @@ public static class TextExtensions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(charsFilePath);
 
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(
+                charsFilePath,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true));
+        }
+        catch (DecoderFallbackException)
+        {
+            lines = File.ReadAllLines(charsFilePath, Encoding.GetEncoding(1251));
+        }
+
         var dictionary = new Dictionary<int[], char>();
-        foreach (var (line, lineNumber) in File.ReadLines(charsFilePath, Encoding.GetEncoding(1251))
+        foreach (var (line, lineNumber) in lines
                      .Select((line, index) => (line, index + 1)))
         {
             if (string.IsNullOrWhiteSpace(line))

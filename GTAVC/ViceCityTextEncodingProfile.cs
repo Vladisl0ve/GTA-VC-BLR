@@ -16,11 +16,13 @@ internal sealed class ViceCityTextEncodingProfile
     private readonly HashSet<byte> _cyrillicAsciiAliases;
 
     private ViceCityTextEncodingProfile(
+        GxtLanguage language,
         string name,
         IEnumerable<(byte Code, char Character)> cyrillicCharacters,
         IEnumerable<(byte Code, char Character)>? latinCharacters = null,
         IEnumerable<(char Character, byte Code)>? encodingAliases = null)
     {
+        Language = language;
         Name = name;
         _cyrillicCharactersByByte = cyrillicCharacters.ToDictionary(pair => pair.Code, pair => pair.Character);
         _cyrillicAsciiAliases = _cyrillicCharactersByByte.Keys
@@ -51,10 +53,20 @@ internal sealed class ViceCityTextEncodingProfile
 
     public string Name { get; }
 
-    public static ViceCityTextEncodingProfile Detect(string path, IEnumerable<GXTBase> entries)
+    public GxtLanguage Language { get; }
+
+    public static ViceCityTextEncodingProfile Detect(
+        string path,
+        IEnumerable<GXTBase> entries,
+        GxtLanguage language = GxtLanguage.Auto)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(entries);
+
+        if (language != GxtLanguage.Auto)
+        {
+            return GetProfile(language);
+        }
 
         Span<int> counts = stackalloc int[byte.MaxValue + 1];
         var characterCount = 0;
@@ -84,60 +96,46 @@ internal sealed class ViceCityTextEncodingProfile
             return English;
         }
 
-        var fileName = Path.GetFileNameWithoutExtension(path);
-        if (fileName.Contains("ukrain", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("ukr", StringComparison.OrdinalIgnoreCase))
+        var nameLanguage = GxtLanguageDetector.DetectFromName(path);
+        if (nameLanguage != GxtLanguage.Auto)
+        {
+            return GetProfile(nameLanguage);
+        }
+
+        // Russian uses 0xA9 for 'ы' and ASCII 'y' for 'т'. Ukrainian instead
+        // uses ASCII 'i'/'t' for 'і'/'т' and 0xAF for 'ї'.
+        var russianScore = (counts[0xA9] * 4) + counts[(byte)'y'];
+        var ukrainianScore = (counts[(byte)'i'] * 2) + (counts[(byte)'t'] * 2) + (counts[0xAF] * 3);
+        if (ukrainianScore > russianScore)
         {
             return Ukrainian;
         }
 
-        if (fileName.Contains("russian", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("rus", StringComparison.OrdinalIgnoreCase))
-        {
-            return Russian;
-        }
-
-        // Russian uses 0xA9 for 'ы' and ASCII 'y' for 'т'. Ukrainian instead
-        // uses ASCII 'i'/'t' for 'і'/'т' and 0xAF for 'ї'. These markers also
-        // let renamed localization files be recognized without relying on names.
-        var russianScore = (counts[0xA9] * 4) + counts[(byte)'y'];
-        var ukrainianScore = (counts[(byte)'i'] * 2) + (counts[(byte)'t'] * 2) + (counts[0xAF] * 3);
-        return ukrainianScore > russianScore ? Ukrainian : Russian;
+        // In the Belarusian profile the Russian Щ/щ slots contain Ў/ў. Check
+        // this only after Ukrainian markers because Ukrainian also uses Щ/щ.
+        return counts[0x91] + counts[0xA8] > 0 ? Belarusian : Russian;
     }
 
     public static ViceCityTextEncodingProfile DetectForText(
         string? sourceName,
-        IEnumerable<string> texts)
+        IEnumerable<string> texts,
+        GxtLanguage language = GxtLanguage.Auto)
     {
         ArgumentNullException.ThrowIfNull(texts);
 
-        var text = string.Concat(texts);
-        if (!text.Any(character => character is >= '\u0400' and <= '\u04ff'))
-        {
-            return English;
-        }
-
-        const string ukrainianMarkers = "ҐґЄєІіЇї";
-        const string russianMarkers = "ЁёЪъЫыЭэ";
-        if (text.Any(ukrainianMarkers.Contains))
-        {
-            return Ukrainian;
-        }
-
-        if (text.Any(russianMarkers.Contains))
-        {
-            return Russian;
-        }
-
-        var fileName = Path.GetFileNameWithoutExtension(sourceName ?? string.Empty);
-        if (fileName.Contains("ukrain", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("ukr", StringComparison.OrdinalIgnoreCase))
-        {
-            return Ukrainian;
-        }
-
-        return Russian;
+        var detectedLanguage = language == GxtLanguage.Auto
+            ? GxtLanguageDetector.DetectForText(sourceName, texts)
+            : language;
+        return GetProfile(detectedLanguage);
     }
+
+    private static ViceCityTextEncodingProfile GetProfile(GxtLanguage language) => language switch
+    {
+        GxtLanguage.English => English,
+        GxtLanguage.Belarusian => Belarusian,
+        GxtLanguage.Ukrainian => Ukrainian,
+        _ => Russian,
+    };
 
     public string Decode(byte[] inputBytes)
     {
@@ -266,6 +264,11 @@ internal sealed class ViceCityTextEncodingProfile
 
     private static byte EncodeUnmappedCharacter(char character)
     {
+        if (character == '\u2014')
+        {
+            return (byte)'-';
+        }
+
         if (character > byte.MaxValue)
         {
             throw new InvalidDataException($"Символ '{character}' отсутствует в выбранной кодировке символов.");
@@ -274,9 +277,13 @@ internal sealed class ViceCityTextEncodingProfile
         return (byte)character;
     }
 
-    private static readonly ViceCityTextEncodingProfile English = new("English", []);
+    private static readonly ViceCityTextEncodingProfile English = new(
+        GxtLanguage.English,
+        "English",
+        []);
 
     private static readonly ViceCityTextEncodingProfile Russian = new(
+        GxtLanguage.Russian,
         "Русский",
         [
             ((byte)'A', 'А'), (0x80, 'Б'), (0x81, 'В'), ((byte)'B', 'В'), (0x82, 'Г'), (0x83, 'Д'),
@@ -295,7 +302,26 @@ internal sealed class ViceCityTextEncodingProfile
         [((byte)'y', 't')],
         [('Ё', (byte)'E'), ('ё', (byte)'e')]);
 
+    private static readonly ViceCityTextEncodingProfile Belarusian = new(
+        GxtLanguage.Belarusian,
+        "Беларуская",
+        [
+            ((byte)'A', 'А'), (0x80, 'Б'), (0x81, 'В'), ((byte)'B', 'В'), (0x82, 'Г'), (0x83, 'Д'),
+            ((byte)'E', 'Е'), (0x96, 'Ё'), (0x84, 'Ж'), (0x85, 'З'), (0x86, 'І'), (0x87, 'Й'), ((byte)'K', 'К'),
+            (0x88, 'Л'), (0x89, 'М'), ((byte)'M', 'М'), (0x8A, 'Н'), ((byte)'H', 'Н'), ((byte)'O', 'О'),
+            (0x8B, 'П'), ((byte)'P', 'Р'), ((byte)'C', 'С'), ((byte)'T', 'Т'), (0x8C, 'У'), (0x91, 'Ў'),
+            (0x8D, 'Ф'), ((byte)'X', 'Х'), (0x8E, 'Ц'), (0x8F, 'Ч'), (0x90, 'Ш'), (0x92, 'Ы'),
+            (0x93, 'Ь'), (0x94, 'Э'), (0x95, 'Ю'), (0xAD, 'Я'),
+            ((byte)'a', 'а'), (0x97, 'б'), (0x98, 'в'), (0x99, 'г'), (0x9A, 'д'), ((byte)'e', 'е'), (0xAF, 'ё'),
+            (0x9B, 'ж'), (0x9C, 'з'), (0x9D, 'і'), (0x9E, 'й'), ((byte)'k', 'к'), (0x9F, 'л'),
+            (0xA0, 'м'), (0xA1, 'н'), ((byte)'o', 'о'), (0xA2, 'п'), ((byte)'p', 'р'), ((byte)'c', 'с'),
+            ((byte)'y', 'т'), (0xA3, 'у'), (0xA8, 'ў'), (0xA4, 'ф'), ((byte)'x', 'х'), (0xA5, 'ц'),
+            (0xA6, 'ч'), (0xA7, 'ш'), (0xA9, 'ы'), (0xAA, 'ь'), (0xAB, 'э'), (0xAC, 'ю'), (0xAE, 'я'),
+        ],
+        [((byte)'y', 't')]);
+
     private static readonly ViceCityTextEncodingProfile Ukrainian = new(
+        GxtLanguage.Ukrainian,
         "Українська",
         [
             ((byte)'A', 'А'), (0x80, 'Б'), (0x81, 'В'), ((byte)'B', 'В'), (0x82, 'Г'), (0x92, 'Ґ'),

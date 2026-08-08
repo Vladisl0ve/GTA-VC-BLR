@@ -145,7 +145,8 @@ public partial class MainWindowViewModel : ObservableObject
             askForDictionary: false,
             dictionaryPath,
             selected?.Name,
-            selected?.RawTableName);
+            selected?.RawTableName,
+            _manager?.Language ?? GxtLanguage.Auto);
     }
 
     [RelayCommand]
@@ -292,7 +293,12 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            GxtJsonExporter.Export(targetPath, GxtPath, DocumentType, Entries);
+            GxtJsonExporter.Export(
+                targetPath,
+                GxtPath,
+                DocumentType,
+                Entries,
+                _manager?.Language ?? GxtLanguage.Auto);
             StatusText = $"Экспортировано в JSON: {targetPath}";
         }
         catch (Exception exception)
@@ -339,7 +345,11 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var result = GxtJsonImporter.Import(sourcePath, targetPath, dictionaryPath);
-            if (LoadDocument(targetPath, askForDictionary: false, dictionaryPath))
+            if (LoadDocument(
+                    targetPath,
+                    askForDictionary: false,
+                    dictionaryPath,
+                    language: result.Language))
             {
                 var game = result.Type == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
                 StatusText = $"JSON преобразован в {game} GXT: {result.EntryCount} ключей";
@@ -463,7 +473,8 @@ public partial class MainWindowViewModel : ObservableObject
         bool askForDictionary,
         string? dictionaryPath = null,
         string? selectedName = null,
-        string? selectedTable = null)
+        string? selectedTable = null,
+        GxtLanguage language = GxtLanguage.Auto)
     {
         if (!File.Exists(path))
         {
@@ -486,7 +497,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var manager = _managerFactory.Open(path, dictionaryPath);
+            var manager = _managerFactory.Open(path, dictionaryPath, language);
             var type = _managerFactory.DetectType(path);
 
             _manager = manager;

@@ -131,6 +131,75 @@ public sealed class GxtJsonImporterTests
     }
 
     [TestMethod]
+    public void Import_GtaIII_UsesBuiltInBelarusianEncoding()
+    {
+        var jsonPath = WriteJson(
+            "belarusian-gta3.json",
+            """
+            {
+              "game": "GTA III",
+              "language": "be",
+              "entries": [
+                { "key": "HELLO", "text": "Прывітанне, свет!" }
+              ]
+            }
+            """);
+        var gxtPath = Path.Combine(_testDirectory, "belarusian-gta3.gxt");
+
+        var result = GxtJsonImporter.Import(jsonPath, gxtPath);
+
+        var manager = _factory.Open(gxtPath, language: result.Language);
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual("Прывітанне, свет!", GetText(manager, "HELLO"));
+    }
+
+    [TestMethod]
+    public void Import_ViceCity_UsesExplicitBelarusianEncoding()
+    {
+        var jsonPath = WriteJson(
+            "belarusian-vice-city.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "source": "localized.gxt",
+              "language": "be",
+              "entries": [
+                { "key": "HELLO", "text": "Прывітанне, свет!" }
+              ]
+            }
+            """);
+        var gxtPath = Path.Combine(_testDirectory, "localized.gxt");
+
+        var result = GxtJsonImporter.Import(jsonPath, gxtPath);
+
+        var manager = _factory.Open(gxtPath, language: result.Language);
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual("Прывітанне, свет!", GetText(manager, "HELLO"));
+    }
+
+    [TestMethod]
+    public void Import_ViceCity_ReplacesEmDashWithAsciiHyphen()
+    {
+        var jsonPath = WriteJson(
+            "belarusian-em-dash.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "language": "be",
+              "entries": [
+                { "key": "HELLO", "text": "Слова — словы" }
+              ]
+            }
+            """);
+        var gxtPath = Path.Combine(_testDirectory, "belarusian-em-dash.gxt");
+
+        var result = GxtJsonImporter.Import(jsonPath, gxtPath);
+
+        var manager = _factory.Open(gxtPath, language: result.Language);
+        Assert.AreEqual("Слова - словы", GetText(manager, "HELLO"));
+    }
+
+    [TestMethod]
     public void Import_DuplicateKey_DoesNotOverwriteTarget()
     {
         var jsonPath = WriteJson(

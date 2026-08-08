@@ -9,37 +9,72 @@ namespace GTA_GXT_Editor.GTAIII
     public class GXTManager : CommonGXTManager
     {
         private const string RUSSIAN_CHARS_FILENAME = "russian_chars.txt";
+        private const string BELARUSIAN_CHARS_FILENAME = "belarusian_chars.txt";
 
         private List<GXTBase> _gxtEntries;
         private Dictionary<int[], char> _cyrillicCharsDictionary;
+        private GxtLanguage _language;
 
+        public override GxtLanguage Language => _language;
         public override string? CyrillicCharsDictionaryPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
         public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
 
-        public GXTManager(string gxtPath, string? dictionaryPath = null)
-            : this(dictionaryPath)
-        {
-            _gxtEntries = ReadGXTFile(gxtPath);
-        }
-
-        private GXTManager(string? dictionaryPath)
+        public GXTManager(
+            string gxtPath,
+            string? dictionaryPath = null,
+            GxtLanguage language = GxtLanguage.Auto)
         {
             CyrillicCharsDictionaryPath = dictionaryPath;
+            _gxtEntries = ReadGXTFile(gxtPath);
+            var resolvedLanguage = language == GxtLanguage.Auto
+                ? GxtLanguageDetector.DetectFromName(gxtPath)
+                : language;
+            if (resolvedLanguage == GxtLanguage.Auto)
+            {
+                resolvedLanguage = _gxtEntries.Any(entry => entry.Value
+                    .Where((_, index) => index % 2 == 0)
+                    .Any(value => value >= 0x80))
+                    ? GxtLanguage.Russian
+                    : GxtLanguage.English;
+            }
 
-            if (CyrillicCharsDictionaryPath == null)
-            {
-                _cyrillicCharsDictionary = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME).LoadCyrillicCharsDictionary();
-            }
-            else
-            {
-                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
-            }
-            _gxtEntries = [];
+            _cyrillicCharsDictionary = LoadCharacterDictionary(dictionaryPath, resolvedLanguage);
+            _language = resolvedLanguage;
         }
 
-        internal static GXTManager Create(string? dictionaryPath = null) =>
-            new(dictionaryPath);
+        private GXTManager(
+            string? dictionaryPath,
+            string? sourceName,
+            IEnumerable<string> sourceTexts,
+            GxtLanguage language)
+        {
+            CyrillicCharsDictionaryPath = dictionaryPath;
+            _gxtEntries = [];
+            _language = language == GxtLanguage.Auto
+                ? GxtLanguageDetector.DetectForText(sourceName, sourceTexts)
+                : language;
+            _cyrillicCharsDictionary = LoadCharacterDictionary(dictionaryPath, _language);
+        }
+
+        internal static GXTManager Create(
+            string? dictionaryPath,
+            string? sourceName,
+            IEnumerable<string> sourceTexts,
+            GxtLanguage language) =>
+            new(dictionaryPath, sourceName, sourceTexts, language);
+
+        private static Dictionary<int[], char> LoadCharacterDictionary(
+            string? dictionaryPath,
+            GxtLanguage language)
+        {
+            var path = dictionaryPath ?? Path.Combine(
+                AppContext.BaseDirectory,
+                language == GxtLanguage.Belarusian
+                    ? BELARUSIAN_CHARS_FILENAME
+                    : RUSSIAN_CHARS_FILENAME);
+            return path.LoadCyrillicCharsDictionary();
+        }
 
 
         public override void AddGXTEntry(string newDatName, string newDatValue, string? tableName = null)

@@ -6,6 +6,8 @@ namespace GTA_GXT_Editor.Contracts;
 
 public abstract class CommonGXTManager
 {
+    public abstract GxtLanguage Language { get; }
+
     public abstract string? CyrillicCharsDictionaryPath { get; set; }
 
     public abstract Dictionary<int[], char> CyrillicCharsDictionary { get; set; }

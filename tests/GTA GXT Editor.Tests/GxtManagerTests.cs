@@ -118,6 +118,21 @@ public sealed class GxtManagerTests
     }
 
     [TestMethod]
+    public void ViceCity_BelarusianEncoding_RoundTripsDistinctLetters()
+    {
+        const string text = "ЁёІіЎў";
+        var manager = GxtManagerFactory.Create(
+            GXTType.GtaViceCity,
+            sourceTexts: [text],
+            language: GxtLanguage.Belarusian);
+
+        var bytes = manager.ConvertTextToBytes(text);
+
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual(text, manager.ConvertBytesToText(bytes));
+    }
+
+    [TestMethod]
     public void ViceCity_AutomaticEncoding_DecodesRussianTextAndEmbeddedEnglish()
     {
         byte[] sourceCodes =

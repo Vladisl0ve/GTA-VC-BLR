@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
@@ -20,17 +21,23 @@ public static class GxtJsonExporter
         string targetPath,
         string sourcePath,
         string game,
-        IEnumerable<GxtEntryRow> entries)
+        IEnumerable<GxtEntryRow> entries,
+        GxtLanguage language = GxtLanguage.Auto)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(game);
         ArgumentNullException.ThrowIfNull(entries);
 
+        var entryList = entries.ToList();
+        var resolvedLanguage = language == GxtLanguage.Auto
+            ? GxtLanguageDetector.DetectForText(sourcePath, entryList.Select(entry => entry.Text))
+            : language;
         var document = new GxtJsonDocument(
             game,
             Path.GetFileName(sourcePath),
-            entries.Select(entry => new GxtJsonEntry(
+            GxtLanguageDetector.ToJsonCode(resolvedLanguage),
+            entryList.Select(entry => new GxtJsonEntry(
                 entry.Name,
                 entry.Text,
                 entry.RawTableName is null ? null : entry.Table)));
@@ -42,6 +49,7 @@ public static class GxtJsonExporter
     private sealed record GxtJsonDocument(
         [property: JsonPropertyName("game")] string Game,
         [property: JsonPropertyName("source")] string Source,
+        [property: JsonPropertyName("language")] string? Language,
         [property: JsonPropertyName("entries")] IEnumerable<GxtJsonEntry> Entries);
 
     private sealed record GxtJsonEntry(

@@ -22,12 +22,14 @@ public static class GxtJsonImporter
 
         var document = ReadDocument(sourcePath);
         var type = ParseGame(document.Game);
+        var language = GxtLanguageDetector.ParseJsonLanguage(document.Language);
         var entries = ValidateEntries(document.Entries, type);
         var manager = GxtManagerFactory.Create(
             type,
             dictionaryPath,
             document.Source,
-            entries.Select(entry => entry.Text));
+            entries.Select(entry => entry.Text),
+            language);
 
         foreach (var entry in entries)
         {
@@ -44,7 +46,10 @@ public static class GxtJsonImporter
         }
 
         SaveAtomically(manager.SaveGXTChanges, targetPath);
-        return new GxtJsonImportResult(type, entries.Count);
+        return new GxtJsonImportResult(type, entries.Count)
+        {
+            Language = manager.Language,
+        };
     }
 
     private static JsonGxtDocument ReadDocument(string sourcePath)
@@ -176,6 +181,9 @@ public static class GxtJsonImporter
         [JsonPropertyName("source")]
         public string? Source { get; init; }
 
+        [JsonPropertyName("language")]
+        public string? Language { get; init; }
+
         [JsonPropertyName("entries")]
         public List<JsonGxtEntry?>? Entries { get; init; }
     }
@@ -199,4 +207,7 @@ public static class GxtJsonImporter
         string? Table);
 }
 
-public sealed record GxtJsonImportResult(GXTType Type, int EntryCount);
+public sealed record GxtJsonImportResult(GXTType Type, int EntryCount)
+{
+    public GxtLanguage Language { get; init; }
+}

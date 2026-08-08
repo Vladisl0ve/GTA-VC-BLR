@@ -13,7 +13,9 @@ namespace GTA_GXT_Editor.GTAVC
         private List<GXTBase> _gxtEntries;
         private Dictionary<int[], char> _cyrillicCharsDictionary;
         private ViceCityTextEncodingProfile? _builtInTextEncoding;
+        private GxtLanguage _language;
 
+        public override GxtLanguage Language => _language;
         public override string? CyrillicCharsDictionaryPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
         public override Dictionary<int[], char> CyrillicCharsDictionary
@@ -26,7 +28,10 @@ namespace GTA_GXT_Editor.GTAVC
             }
         }
 
-        public GXTManager(string gxtPath, string? dictionaryPath = null)
+        public GXTManager(
+            string gxtPath,
+            string? dictionaryPath = null,
+            GxtLanguage language = GxtLanguage.Auto)
         {
             CyrillicCharsDictionaryPath = dictionaryPath;
             _cyrillicCharsDictionary = [];
@@ -34,28 +39,40 @@ namespace GTA_GXT_Editor.GTAVC
 
             if (CyrillicCharsDictionaryPath == null)
             {
-                _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(gxtPath, _gxtEntries);
+                _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(
+                    gxtPath,
+                    _gxtEntries,
+                    language);
                 _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+                _language = _builtInTextEncoding.Language;
             }
             else
             {
                 _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
+                _language = language == GxtLanguage.Auto
+                    ? GxtLanguageDetector.DetectFromName(gxtPath)
+                    : language;
             }
         }
 
         private GXTManager(
             string? dictionaryPath,
             string? sourceName,
-            IEnumerable<string> sourceTexts)
+            IEnumerable<string> sourceTexts,
+            GxtLanguage language)
         {
             CyrillicCharsDictionaryPath = dictionaryPath;
             _gxtEntries = [];
+            _language = language == GxtLanguage.Auto
+                ? GxtLanguageDetector.DetectForText(sourceName, sourceTexts)
+                : language;
 
             if (CyrillicCharsDictionaryPath is null)
             {
                 _builtInTextEncoding = ViceCityTextEncodingProfile.DetectForText(
                     sourceName,
-                    sourceTexts);
+                    sourceTexts,
+                    _language);
                 _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
             }
             else
@@ -67,8 +84,9 @@ namespace GTA_GXT_Editor.GTAVC
         internal static GXTManager Create(
             string? dictionaryPath,
             string? sourceName,
-            IEnumerable<string> sourceTexts) =>
-            new(dictionaryPath, sourceName, sourceTexts);
+            IEnumerable<string> sourceTexts,
+            GxtLanguage language) =>
+            new(dictionaryPath, sourceName, sourceTexts, language);
 
         public override string ConvertBytesToText(byte[] inputBytes) =>
             _builtInTextEncoding?.Decode(inputBytes) ?? base.ConvertBytesToText(inputBytes);
