@@ -1,3 +1,4 @@
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
@@ -8,7 +9,8 @@ public static class GlyphAtlasService
 
     public static IReadOnlyList<GlyphCell> CreateCells(
         TxdTexture texture,
-        IReadOnlyDictionary<byte, char> customCharacters)
+        IReadOnlyDictionary<byte, char> customCharacters,
+        GXTType gameType = GXTType.None)
     {
         ArgumentNullException.ThrowIfNull(texture);
         ArgumentNullException.ThrowIfNull(customCharacters);
@@ -20,7 +22,11 @@ public static class GlyphAtlasService
 
         const int columns = 16;
         var cellWidth = Math.Max(1, texture.Width / columns);
-        var cellHeight = texture.Name.Equals("font2", StringComparison.OrdinalIgnoreCase)
+        var usesViceCityFontRows = gameType == GXTType.GtaViceCity &&
+            (texture.Name.Equals("font1", StringComparison.OrdinalIgnoreCase) ||
+             texture.Name.Equals("font2", StringComparison.OrdinalIgnoreCase));
+        var cellHeight = usesViceCityFontRows ||
+                         texture.Name.Equals("font2", StringComparison.OrdinalIgnoreCase)
             ? Math.Max(1, (int)Math.Round(texture.Height / 12.8, MidpointRounding.AwayFromZero))
             : Math.Max(1, texture.Height / 16);
         var rows = (texture.Height + cellHeight - 1) / cellHeight;

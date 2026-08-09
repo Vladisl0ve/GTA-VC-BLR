@@ -1,3 +1,4 @@
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 
@@ -180,12 +181,15 @@ public sealed class TxdReaderTests
 
         var regular = GlyphAtlasService.CreateCells(font1, mapping);
         var bank = GlyphAtlasService.CreateCells(font2, mapping);
+        var viceCityRegular = GlyphAtlasService.CreateCells(font1, mapping, GXTType.GtaViceCity);
 
         Assert.AreEqual(256, regular.Count);
         Assert.AreEqual(208, bank.Count);
+        Assert.AreEqual(208, viceCityRegular.Count);
         Assert.AreEqual('А', regular.Single(cell => cell.Code == 0x80).Character);
         Assert.AreEqual(32, regular[0].Height);
         Assert.AreEqual(40, bank[0].Height);
+        Assert.AreEqual(40, viceCityRegular[0].Height);
     }
 
     [TestMethod]

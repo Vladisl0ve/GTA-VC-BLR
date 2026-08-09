@@ -1,5 +1,6 @@
 using System.Text;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
@@ -132,21 +133,96 @@ public sealed class GxtManagerTests
 
         Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
         CollectionAssert.AreEqual(
-            Enumerable.Range(0x80, 64).Select(code => (byte)code).ToArray(),
+            new byte[]
+            {
+                0x41, 0x80, 0x81, 0x82, 0x83, 0x45, 0x96, 0x84,
+                0x85, 0x49, 0x87, 0x4B, 0x88, 0x89, 0x8A, 0x4F,
+                0x8B, 0x50, 0x43, 0x54, 0x8C, 0x86, 0x8D, 0x58,
+                0x8E, 0x8F, 0x90, 0x92, 0x93, 0x94, 0x95, 0xAD,
+                0x61, 0x97, 0x98, 0x99, 0x9A, 0x65, 0xAF, 0x9B,
+                0x9C, 0x69, 0x9E, 0x6B, 0x9F, 0xA0, 0xA1, 0x6F,
+                0xA2, 0x70, 0x63, 0x79, 0xA3, 0x9D, 0xA4, 0x78,
+                0xA5, 0xA6, 0xA7, 0xA9, 0xAA, 0xAB, 0xAC, 0xAE,
+            },
             bytes.Where((_, index) => index % 2 == 0).Take(text.Length).ToArray());
         Assert.AreEqual(text, manager.ConvertBytesToText(bytes));
     }
 
     [TestMethod]
-    public void ViceCity_AutomaticEncoding_DetectsCanonicalBelarusianExtendedRange()
+    public void ViceCity_AutomaticEncoding_DecodesLegacyProjectMapping()
     {
-        var sourcePath = Path.Combine(_testDirectory, "american.gxt");
-        WriteViceCityFile(sourcePath, "MAIN", "HELLO", EncodeRawValue(0xB5));
+        byte[] sourceCodes = [0x83, 0x61, 0x6B, 0x9F, 0x61, 0x9A, 0xA1, 0x61, 0x63, 0xA5, 0xAA];
+        var sourcePath = Path.Combine(_testDirectory, "belarusian-modified.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "ACCURA", EncodeRawValue(sourceCodes));
 
         var manager = new GTAVC.GXTManager(sourcePath);
 
         Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
-        Assert.AreEqual("ў", manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+        Assert.AreEqual("Дакладнасць", manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+    }
+
+    [TestMethod]
+    public void ViceCity_LegacyBelarusian_ReencodesToTxdCompatiblePreset()
+    {
+        byte[] sourceCodes =
+        [
+            0x54, 0xA9, 0x20, 0xA8, 0xA2, 0xAB, 0xA8, 0xA1, 0x65, 0xA1, 0xA9, 0x2C, 0x20,
+            0xA7, 0x79, 0x6F, 0x20, 0x78, 0x6F, 0xA6, 0x61, 0xA7, 0x20, 0x98, 0xA9, 0x9E,
+            0x63, 0xA5, 0x9D, 0x20, 0x9C, 0x20, 0x99, 0xA3, 0x9F, 0xAA, 0xA1, 0x9D, 0x3F,
+        ];
+        const string expected = "Ты ўпэўнены, што хочаш выйсці з гульні?";
+        var sourcePath = Path.Combine(_testDirectory, "belarusian.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "FEQ_SRW", EncodeRawValue(sourceCodes));
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(expected, manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+
+        CharacterMapService.Apply(
+            manager,
+            CharacterMapPresets.Belarusian,
+            CharacterMapApplyMode.Reencode);
+
+        var migratedCodes = manager.GXTEntries[0].Value
+            .Where((_, index) => index % 2 == 0)
+            .Take(expected.Length)
+            .ToArray();
+        Assert.AreEqual(expected, manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+        Assert.IsFalse(migratedCodes.Contains((byte)0xA8));
+        Assert.IsTrue(migratedCodes.Contains((byte)0x9D));
+        Assert.IsTrue(migratedCodes.Contains((byte)'i'));
+    }
+
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_DetectsSequentialBelarusianLegacyRange()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "american.gxt");
+        WriteViceCityFile(
+            sourcePath,
+            "MAIN",
+            "HELLO",
+            EncodeRawValue(0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7));
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual("прстуўфх", manager.ConvertBytesToText(manager.GXTEntries[0].Value));
+    }
+
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_DetectsTxdCompatibleBelarusianAsAmericanGxt()
+    {
+        const string text = "Ты ўпэўнены, што хочаш выйсці з гульні?";
+        var encoder = GxtManagerFactory.Create(
+            GXTType.GtaViceCity,
+            sourceTexts: [text],
+            language: GxtLanguage.Belarusian);
+        var sourcePath = Path.Combine(_testDirectory, "american.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "FEQ_SRW", encoder.ConvertTextToBytes(text));
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual(text, manager.ConvertBytesToText(manager.GXTEntries[0].Value));
     }
 
     [TestMethod]

@@ -9,7 +9,7 @@ namespace GTA_GXT_Editor.Tests;
 public sealed class CharacterMapTests
 {
     [TestMethod]
-    public void BelarusianPreset_LoadsCanonicalAssetAndMapsExactContinuousRange()
+    public void BelarusianPreset_LoadsTxdCompatible1CLayout()
     {
         const string expected =
             "АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ" +
@@ -32,16 +32,19 @@ public sealed class CharacterMapTests
             assetProfile.Mappings.Select(mapping => mapping.PreferredCode).ToArray(),
             profile.Mappings.Select(mapping => mapping.PreferredCode).ToArray());
         Assert.HasCount(64, profile.Mappings);
-        Assert.HasCount(64, decodeMap);
-        Assert.AreEqual(expected, new string(
-            Enumerable.Range(0x80, 64).Select(code => decodeMap[(byte)code]).ToArray()));
-        Assert.AreEqual('Ё', decodeMap[0x86]);
-        Assert.AreEqual('І', decodeMap[0x89]);
-        Assert.AreEqual('Ў', decodeMap[0x95]);
-        Assert.AreEqual('ё', decodeMap[0xA6]);
-        Assert.AreEqual('і', decodeMap[0xA9]);
-        Assert.AreEqual('ў', decodeMap[0xB5]);
-        Assert.AreEqual('я', decodeMap[0xBF]);
+        Assert.AreEqual(expected, new string(profile.Mappings.Select(mapping => mapping.Character).ToArray()));
+        Assert.HasCount(64, profile.Mappings);
+        Assert.HasCount(67, decodeMap);
+        Assert.AreEqual('Ё', decodeMap[0x96]);
+        Assert.AreEqual('І', decodeMap[(byte)'I']);
+        Assert.AreEqual('Ў', decodeMap[0x86]);
+        Assert.AreEqual('ё', decodeMap[0xAF]);
+        Assert.AreEqual('і', decodeMap[(byte)'i']);
+        Assert.AreEqual('ў', decodeMap[0x9D]);
+        Assert.AreEqual('т', decodeMap[(byte)'y']);
+        Assert.AreEqual('В', decodeMap[(byte)'B']);
+        Assert.AreEqual('М', decodeMap[(byte)'M']);
+        Assert.AreEqual('Н', decodeMap[(byte)'H']);
     }
 
     [TestMethod]
@@ -52,7 +55,7 @@ public sealed class CharacterMapTests
 
         var second = CharacterMapPresets.Belarusian;
 
-        Assert.AreEqual((byte)0x80, second.Mappings[0].PreferredCode);
+        Assert.AreEqual((byte)0x41, second.Mappings[0].PreferredCode);
     }
 
     [TestMethod]

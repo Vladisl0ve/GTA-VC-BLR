@@ -282,7 +282,7 @@ public partial class TxdViewerViewModel : ObservableObject
                           $"{value.Depth} бит, mipmap: {value.MipmapCount}, {value.Platform}";
 
         var decodeMap = _profile.ToDecodeMap();
-        foreach (var cell in GlyphAtlasService.CreateCells(value, decodeMap))
+        foreach (var cell in GlyphAtlasService.CreateCells(value, decodeMap, _request.GameType))
         {
             Glyphs.Add(new GlyphPreviewItem(
                 cell,

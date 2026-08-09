@@ -203,7 +203,7 @@ public sealed class GxtJsonImporterTests
         var value = manager.GXTEntries.Single().Value;
 
         CollectionAssert.AreEqual(
-            new byte[] { 0x86, 0x89, 0x95, 0xA6, 0xA9, 0xB5 },
+            new byte[] { 0x96, 0x49, 0x86, 0xAF, 0x69, 0x9D },
             value.Where((_, index) => index % 2 == 0).Take(6).ToArray());
         Assert.AreEqual("ЁІЎёіў", GetText(manager, "LETTERS"));
     }

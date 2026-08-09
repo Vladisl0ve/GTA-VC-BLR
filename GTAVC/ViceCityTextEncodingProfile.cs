@@ -98,16 +98,49 @@ internal sealed class ViceCityTextEncodingProfile
             return English;
         }
 
+        var sequentialRangeCount = 0;
+        var sequentialRangeDistinctCount = 0;
         for (var code = 0xB0; code <= LastCustomCharacter; code++)
         {
             if (counts[code] > 0)
             {
-                return Belarusian;
+                sequentialRangeCount += counts[code];
+                sequentialRangeDistinctCount++;
             }
         }
 
         var nameLanguage = GxtLanguageDetector.DetectFromName(path);
-        if (nameLanguage != GxtLanguage.Auto)
+        if (sequentialRangeDistinctCount >= 8 &&
+            sequentialRangeCount * 100 >= characterCount)
+        {
+            return BelarusianSequential;
+        }
+
+        if (nameLanguage == GxtLanguage.Belarusian)
+        {
+            return counts[0x91] + counts[0xA8] > 0
+                ? BelarusianLegacy
+                : Belarusian;
+        }
+
+        // The legacy project mapping stored Ў/ў in the old Щ/щ slots.  In a
+        // complete Belarusian GXT, lowercase ў is much more common than Russian щ.
+        if (counts[0xA8] >= 4 && counts[0xA8] * 200 >= characterCount)
+        {
+            return BelarusianLegacy;
+        }
+
+        // The TXD-compatible mapping uses ASCII I/i for І/і, ASCII y for т and
+        // keeps 0xA9 for ы.  Together they distinguish it from both 1C Russian
+        // and the Ukrainian mapping even when the installed file is american.gxt.
+        if (counts[(byte)'i'] * 200 >= characterCount &&
+            counts[(byte)'y'] * 200 >= characterCount &&
+            counts[0xA9] * 200 >= characterCount)
+        {
+            return Belarusian;
+        }
+
+        if (nameLanguage is GxtLanguage.Russian or GxtLanguage.Ukrainian)
         {
             return GetProfile(nameLanguage);
         }
@@ -288,13 +321,34 @@ internal sealed class ViceCityTextEncodingProfile
     private static ViceCityTextEncodingProfile FromCharacterMap(
         GxtLanguage language,
         string name,
-        CharacterMapProfile profile) => new(
+        CharacterMapProfile profile,
+        IEnumerable<(byte Code, char Character)>? latinCharacters = null) => new(
             language,
             name,
             profile.Mappings.SelectMany(mapping => mapping.Codes
                 .OrderBy(code => code == mapping.PreferredCode ? 0 : 1)
                 .ThenBy(code => code)
-                .Select(code => (code, mapping.Character))));
+                .Select(code => (code, mapping.Character))),
+            latinCharacters);
+
+    private static CharacterMapProfile CreateLegacyBelarusianMap()
+    {
+        var profile = BundledCharacterMapProvider.BelarusianViceCity;
+
+        SetCode('І', 0x86);
+        SetCode('Ў', 0x91);
+        SetCode('і', 0x9D);
+        SetCode('ў', 0xA8);
+        return profile;
+
+        void SetCode(char character, byte code)
+        {
+            var mapping = profile.Mappings.Single(item => item.Character == character);
+            mapping.Codes.Clear();
+            mapping.Codes.Add(code);
+            mapping.PreferredCode = code;
+        }
+    }
 
     private static readonly ViceCityTextEncodingProfile English = new(
         GxtLanguage.English,
@@ -325,6 +379,20 @@ internal sealed class ViceCityTextEncodingProfile
         GxtLanguage.Belarusian,
         "Беларуская",
         BundledCharacterMapProvider.BelarusianViceCity);
+
+    private static readonly ViceCityTextEncodingProfile BelarusianLegacy = FromCharacterMap(
+        GxtLanguage.Belarusian,
+        "Беларуская (legacy)",
+        CreateLegacyBelarusianMap(),
+        [((byte)'y', 't')]);
+
+    private static readonly ViceCityTextEncodingProfile BelarusianSequential = new(
+        GxtLanguage.Belarusian,
+        "Беларуская (0x80–0xBF legacy)",
+        ("АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ" +
+         "абвгдеёжзійклмнопрстуўфхцчшыьэюя")
+            .Select((character, index) =>
+                (Code: checked((byte)(FirstCustomCharacter + index)), Character: character)));
 
     private static readonly ViceCityTextEncodingProfile Ukrainian = new(
         GxtLanguage.Ukrainian,
