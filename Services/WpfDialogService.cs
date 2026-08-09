@@ -111,12 +111,12 @@ public sealed class WpfDialogService : IDialogService
         };
     }
 
-    public void ShowTxdViewer(TxdViewerRequest request)
+    public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
     {
         var dialog = new TxdViewerWindow(request)
         {
             Owner = Application.Current.MainWindow,
         };
-        dialog.ShowDialog();
+        return dialog.ShowDialog() == true ? dialog.Result : null;
     }
 }

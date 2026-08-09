@@ -53,20 +53,36 @@ public sealed class ByxProjectSerializerTests
         Assert.AreEqual(
             "ЖЖ",
             loaded.GxtManager.ConvertBytesToText(loaded.GxtManager.GXTEntries.Single().Value));
-        Assert.HasCount(2, loaded.TxdAttachments);
-        CollectionAssert.AreEqual(project.TxdAttachments[0].Data, loaded.TxdAttachments[0].Data);
-        CollectionAssert.AreEqual(project.TxdAttachments[1].Data, loaded.TxdAttachments[1].Data);
-        CollectionAssert.AreEqual(
-            new[] { "fonts", "fonts (2)" },
-            loaded.TxdAttachments.Select(attachment => attachment.DisplayName).ToArray());
-        Assert.IsTrue(loaded.TxdAttachments.All(attachment => attachment.SourcePath is null));
+        Assert.IsNotNull(loaded.AttachedTxd);
+        CollectionAssert.AreEqual(project.AttachedTxd!.Data, loaded.AttachedTxd.Data);
+        Assert.AreEqual("fonts", loaded.AttachedTxd.DisplayName);
+        Assert.IsNull(loaded.AttachedTxd.SourcePath);
+        Assert.IsNotNull(loaded.CharacterMap);
+        Assert.IsTrue(loaded.CharacterMap.IsVerified);
+        using var archive = ZipFile.OpenRead(path);
+        using var reader = new StreamReader(archive.GetEntry("manifest.json")!.Open());
+        Assert.AreEqual(2, JsonNode.Parse(reader.ReadToEnd())!["version"]!.GetValue<int>());
+    }
+
+    [TestMethod]
+    public void SaveAndLoad_PreservesUnverifiedCharacterMapDraft()
+    {
+        var project = CreateProject();
+        project.CharacterMap!.IsVerified = false;
+        var path = Path.Combine(_testDirectory, "unverified.byx");
+
+        _serializer.Save(path, project);
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.CharacterMap);
+        Assert.IsFalse(loaded.CharacterMap.IsVerified);
     }
 
     [TestMethod]
     public void Load_NewerManifestVersion_IsRejected()
     {
         var path = SaveProject();
-        MutateManifest(path, manifest => manifest["version"] = 2);
+        MutateManifest(path, manifest => manifest["version"] = 3);
 
         Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
     }
@@ -81,10 +97,10 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void Load_WrongDictionaryHash_IsRejected()
+    public void Load_WrongCharacterMapHash_IsRejected()
     {
         var path = SaveProject();
-        ReplaceEntry(path, "dictionary/characters.json", [1]);
+        ReplaceEntry(path, "mapping/characters.json", [1]);
 
         Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
     }
@@ -103,13 +119,12 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void Load_DuplicateManifestTxdId_IsRejected()
+    public void Load_EmptyManifestTxdId_IsRejected()
     {
         var path = SaveProject();
         MutateManifest(path, manifest =>
         {
-            var txd = manifest["txd"]!.AsArray();
-            txd[1]!["id"] = txd[0]!["id"]!.GetValue<string>();
+            manifest["txd"]!["id"] = Guid.Empty.ToString();
         });
 
         Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
@@ -151,6 +166,35 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
+    public void Load_Version1WithMultipleTxd_IsRejected()
+    {
+        var path = Path.Combine(_testDirectory, "legacy-multiple.byx");
+        CreateVersion1Project(path, includeSecondTxd: true);
+
+        var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+
+        StringAssert.Contains(exception.Message, "несколько TXD");
+    }
+
+    [TestMethod]
+    public void Load_Version1WithSingleTxd_MigratesAndSavesAsVersion2()
+    {
+        var path = Path.Combine(_testDirectory, "legacy-single.byx");
+        var migratedPath = Path.Combine(_testDirectory, "migrated.byx");
+        CreateVersion1Project(path, includeSecondTxd: false);
+
+        var project = _serializer.Load(path);
+        _serializer.Save(migratedPath, project);
+
+        Assert.IsNotNull(project.AttachedTxd);
+        Assert.IsNotNull(project.CharacterMap);
+        Assert.AreEqual('Ж', project.CharacterMap.ToDecodeMap()[200]);
+        using var archive = ZipFile.OpenRead(migratedPath);
+        using var reader = new StreamReader(archive.GetEntry("manifest.json")!.Open());
+        Assert.AreEqual(2, JsonNode.Parse(reader.ReadToEnd())!["version"]!.GetValue<int>());
+    }
+
+    [TestMethod]
     public void Save_GtaIIIProjectWithTxd_IsRejected()
     {
         var project = CreateProject();
@@ -159,7 +203,8 @@ public sealed class ByxProjectSerializerTests
             GxtSourceName = "american.gxt",
             GameType = GXTType.GtaIII,
             GxtManager = GxtManagerFactory.Create(GXTType.GtaIII),
-            TxdAttachments = project.TxdAttachments,
+            AttachedTxd = project.AttachedTxd,
+            CharacterMap = project.CharacterMap,
         };
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -189,8 +234,6 @@ public sealed class ByxProjectSerializerTests
 
         var firstBytes = TestTxdFactory.Create(
             TestTxdFactory.Bgra32("font1", 1, 1, [1, 2, 3, 255]));
-        var secondBytes = TestTxdFactory.Create(
-            TestTxdFactory.Bgra32("font2", 1, 1, [4, 5, 6, 128]));
         return new EditorProject
         {
             GxtSourceName = "american.gxt",
@@ -199,11 +242,13 @@ public sealed class ByxProjectSerializerTests
             GxtManager = manager,
             UsesCustomDictionary = true,
             IsDirty = true,
-            TxdAttachments =
-            [
-                CreateAttachment(Guid.Parse("11111111-1111-1111-1111-111111111111"), "fonts", firstBytes),
-                CreateAttachment(Guid.Parse("22222222-2222-2222-2222-222222222222"), "fonts (2)", secondBytes),
-            ],
+            AttachedTxd = CreateAttachment(
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                "fonts",
+                firstBytes),
+            CharacterMap = CharacterMapProfile.FromDictionary(
+                manager.CyrillicCharsDictionary,
+                isVerified: true),
         };
     }
 
@@ -216,6 +261,81 @@ public sealed class ByxProjectSerializerTests
         Data = data,
         Document = _txdReader.Read(data, "fonts.txd"),
     };
+
+    private void CreateVersion1Project(string path, bool includeSecondTxd)
+    {
+        var project = CreateProject();
+        using var gxtStream = new MemoryStream();
+        project.GxtManager.WriteGXT(gxtStream);
+        var gxtData = gxtStream.ToArray();
+        var first = project.AttachedTxd!;
+        var secondData = TestTxdFactory.Create(
+            TestTxdFactory.Bgra32("font2", 1, 1, [4, 5, 6, 128]));
+        var second = CreateAttachment(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            "fonts (2)",
+            secondData);
+        var dictionaryData = JsonSerializer.SerializeToUtf8Bytes(new[]
+        {
+            new ByxCharacterMapping { Codes = [200], Character = "Ж" },
+        }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        var gxtHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(gxtData));
+        var dictionaryHash = Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(dictionaryData));
+        var manifest = new ByxManifestV1
+        {
+            Format = "BYX",
+            Version = 1,
+            Game = "GTA Vice City",
+            Language = "be",
+            Gxt = new ByxGxtItem
+            {
+                OriginalFileName = "american.gxt",
+                Entry = "gxt/main.gxt",
+                Sha256 = gxtHash,
+            },
+            Dictionary = new ByxDictionaryItem
+            {
+                Entry = "dictionary/characters.json",
+                Sha256 = dictionaryHash,
+            },
+            Txd = includeSecondTxd
+                ? [LegacyTxdItem(first), LegacyTxdItem(second)]
+                : [LegacyTxdItem(first)],
+        };
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true,
+        };
+
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        WriteArchiveEntry(archive, "manifest.json", JsonSerializer.SerializeToUtf8Bytes(manifest, options));
+        WriteArchiveEntry(archive, "gxt/main.gxt", gxtData);
+        WriteArchiveEntry(archive, "dictionary/characters.json", dictionaryData);
+        WriteArchiveEntry(archive, manifest.Txd[0].Entry, first.Data);
+        if (includeSecondTxd)
+        {
+            WriteArchiveEntry(archive, manifest.Txd[1].Entry, second.Data);
+        }
+    }
+
+    private static ByxTxdItem LegacyTxdItem(TxdAttachment attachment) => new()
+    {
+        Id = attachment.Id,
+        OriginalFileName = attachment.OriginalFileName,
+        DisplayName = attachment.DisplayName,
+        Entry = $"txd/{attachment.Id:N}.txd",
+        Sha256 = Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(attachment.Data)),
+    };
+
+    private static void WriteArchiveEntry(ZipArchive archive, string name, byte[] data)
+    {
+        using var stream = archive.CreateEntry(name).Open();
+        stream.Write(data);
+    }
 
     private static void MutateManifest(string path, Action<JsonObject> mutation)
     {

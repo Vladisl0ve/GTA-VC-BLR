@@ -67,15 +67,13 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<GxtComparisonColumn> ComparisonColumns { get; } = [];
 
-    public ObservableCollection<TxdAttachment> TxdAttachments { get; } = [];
-
     public ICollectionView EntriesView { get; }
 
     public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
 
     public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
 
-    public bool HasTxdAttachments => TxdAttachments.Count > 0;
+    public bool HasTxdAttachment => AttachedTxd is not null;
 
     public bool CanAttachTxd => IsDocumentLoaded && _loadedType == GXTType.GtaViceCity;
 
@@ -125,7 +123,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportTxdCommand))]
-    private TxdAttachment? selectedTxd;
+    private TxdAttachment? attachedTxd;
 
     [ObservableProperty]
     private string documentType = "Файл не открыт";
@@ -432,7 +430,7 @@ public partial class MainWindowViewModel : ObservableObject
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(_project.ProjectPath) || TxdAttachments.Count > 0)
+        if (!string.IsNullOrWhiteSpace(_project.ProjectPath) || AttachedTxd is not null)
         {
             return SaveProject(forceSaveAs: false);
         }
@@ -472,6 +470,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             StatusText = $"Сохранено: {targetPath}";
+            OfferCharacterMapExport(targetPath);
             return true;
         }
         catch (Exception exception)
@@ -523,7 +522,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAddTxd))]
     private void AddTxd()
     {
-        var path = _dialogs.OpenFile("Добавить TXD GTA Vice City", TxdFileFilter);
+        var path = _dialogs.OpenFile("Подключить или заменить TXD GTA Vice City", TxdFileFilter);
         if (path is null)
         {
             return;
@@ -533,30 +532,38 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var data = File.ReadAllBytes(path);
             var document = _txdReader.Read(data, path);
-            var existing = TxdAttachments.FirstOrDefault(attachment =>
-                string.Equals(attachment.SourcePath, path, StringComparison.OrdinalIgnoreCase));
+            var existing = AttachedTxd;
+            if (existing is not null &&
+                !string.Equals(existing.SourcePath, path, StringComparison.OrdinalIgnoreCase) &&
+                !_dialogs.Confirm(
+                    $"Заменить подключённый TXD '{existing.DisplayName}' на '{Path.GetFileName(path)}'? " +
+                    "Текущий маппинг будет сохранён как непроверенный черновик.",
+                    "Замена TXD"))
+            {
+                return;
+            }
+
             var attachment = new TxdAttachment
             {
                 Id = existing?.Id ?? Guid.NewGuid(),
                 OriginalFileName = Path.GetFileName(path),
-                DisplayName = existing?.DisplayName ?? CreateTxdDisplayName(path),
+                DisplayName = Path.GetFileNameWithoutExtension(path),
                 SourcePath = path,
                 Data = data,
                 Document = document,
             };
 
-            if (existing is null)
+            if (_project is not null)
             {
-                TxdAttachments.Add(attachment);
-            }
-            else
-            {
-                var index = TxdAttachments.IndexOf(existing);
-                TxdAttachments[index] = attachment;
+                _project.CharacterMap ??= CharacterMapProfile.FromDictionary(
+                    _manager?.CyrillicCharsDictionary ?? [],
+                    isVerified: false);
+                _project.CharacterMap.IsVerified = false;
+                _project.AttachedTxd = attachment;
             }
 
-            SelectedTxd = attachment;
-            OnTxdAttachmentsChanged();
+            AttachedTxd = attachment;
+            OnTxdAttachmentChanged();
             SetDirty(true);
             StatusText = $"Подключён TXD: {attachment.OriginalFileName} — {document.Textures.Count} текстур";
         }
@@ -566,26 +573,34 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanUseSelectedTxd))]
+    [RelayCommand(CanExecute = nameof(CanUseAttachedTxd))]
     private void RemoveTxd()
     {
-        if (SelectedTxd is not { } selected ||
+        if (AttachedTxd is not { } selected ||
             !_dialogs.Confirm($"Удалить '{selected.DisplayName}' из проекта?", "Удаление TXD"))
         {
             return;
         }
 
-        TxdAttachments.Remove(selected);
-        SelectedTxd = TxdAttachments.FirstOrDefault();
-        OnTxdAttachmentsChanged();
+        AttachedTxd = null;
+        if (_project is not null)
+        {
+            _project.AttachedTxd = null;
+            if (_project.CharacterMap is not null)
+            {
+                _project.UsesCustomDictionary = true;
+            }
+        }
+
+        OnTxdAttachmentChanged();
         SetDirty(true);
         StatusText = $"TXD удалён из проекта: {selected.OriginalFileName}";
     }
 
-    [RelayCommand(CanExecute = nameof(CanUseSelectedTxd))]
+    [RelayCommand(CanExecute = nameof(CanUseAttachedTxd))]
     private void ExportTxd()
     {
-        if (SelectedTxd is not { } selected)
+        if (AttachedTxd is not { } selected)
         {
             return;
         }
@@ -605,6 +620,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             File.WriteAllBytes(targetPath, selected.Data);
             StatusText = $"TXD экспортирован: {targetPath}";
+            OfferCharacterMapExport(targetPath);
         }
         catch (Exception exception)
         {
@@ -615,14 +631,69 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanViewTxd))]
     private void ViewTxd()
     {
-        if (_manager is null)
+        if (_manager is null || _project is null || AttachedTxd is null)
         {
             return;
         }
 
-        _dialogs.ShowTxdViewer(new TxdViewerRequest(
-            TxdAttachments.ToArray(),
-            _manager.GetCharacterMap()));
+        var profile = _project.CharacterMap?.Clone() ?? CharacterMapProfile.FromDictionary(
+            _manager.CyrillicCharsDictionary,
+            isVerified: false);
+        var result = _dialogs.EditCharacterMap(new CharacterMapEditorRequest(
+            AttachedTxd,
+            profile,
+            Entries.Select(entry => entry.Text).ToArray(),
+            _manager.GXTEntries.Select(entry => entry.Value.ToArray()).ToArray(),
+            _manager.Language));
+        if (result is null)
+        {
+            return;
+        }
+
+        var preview = CharacterMapService.Preview(_manager, result.Profile, result.ApplyMode);
+        if (!preview.CanApply)
+        {
+            _dialogs.ShowError(
+                "Профиль нельзя применить:\n\n" + string.Join(Environment.NewLine, preview.Issues),
+                "Проверка маппинга");
+            return;
+        }
+
+        var operation = result.ApplyMode == CharacterMapApplyMode.Interpret
+            ? "заново интерпретировать исходные байты"
+            : "перекодировать текущий Unicode-текст";
+        var changeDetails = preview.Changes.Count == 0
+            ? "Нет различий в текущих данных."
+            : string.Join(Environment.NewLine, preview.Changes.Take(10)) +
+              (preview.Changes.Count > 10
+                  ? $"{Environment.NewLine}…и ещё {preview.Changes.Count - 10}"
+                  : string.Empty);
+        if (!_dialogs.Confirm(
+                $"Будет выполнено действие: {operation}.\n" +
+                $"Затронуто строк: {preview.ChangedEntryCount}; изменено байтов: {preview.ChangedByteCount}.\n\n" +
+                changeDetails + "\n\n" +
+                "Применить профиль?",
+                "Применение маппинга"))
+        {
+            return;
+        }
+
+        try
+        {
+            CharacterMapService.Apply(_manager, result.Profile, result.ApplyMode);
+            _project.CharacterMap = result.Profile.Clone();
+            _project.CharacterMap.IsVerified = true;
+            _project.UsesCustomDictionary = true;
+            SetDirty(true);
+            RefreshEntries();
+            StatusText = result.ApplyMode == CharacterMapApplyMode.Interpret
+                ? "Маппинг применён без изменения байтов GXT"
+                : $"GXT перекодирован под TXD: изменено байтов {preview.ChangedByteCount}";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось применить маппинг.\n\n{exception.Message}");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
@@ -832,6 +903,9 @@ public partial class MainWindowViewModel : ObservableObject
             if (_project is not null)
             {
                 _project.UsesCustomDictionary = true;
+                _project.CharacterMap = CharacterMapProfile.FromDictionary(
+                    _manager.CyrillicCharsDictionary,
+                    isVerified: false);
             }
 
             SetDirty(true);
@@ -869,7 +943,8 @@ public partial class MainWindowViewModel : ObservableObject
                 GameType = type,
                 GxtManager = manager,
                 UsesCustomDictionary = dictionaryPath is not null,
-                TxdAttachments = [],
+                AttachedTxd = null,
+                CharacterMap = null,
                 IsDirty = false,
             };
             CommitProject(project, selectedName, selectedTable, clearTransientState: true);
@@ -1022,7 +1097,7 @@ public partial class MainWindowViewModel : ObservableObject
             var project = _projectSerializer.Load(path);
             CommitProject(project, clearTransientState: true);
             StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
-                         $"TXD: {TxdAttachments.Count}";
+                         $"TXD: {(AttachedTxd is null ? 0 : 1)}";
             return true;
         }
         catch (Exception exception)
@@ -1052,7 +1127,8 @@ public partial class MainWindowViewModel : ObservableObject
                 GameType = _managerFactory.DetectType(path),
                 GxtManager = manager,
                 UsesCustomDictionary = dictionaryPath is not null,
-                TxdAttachments = [],
+                AttachedTxd = null,
+                CharacterMap = null,
                 IsDirty = false,
             };
             CommitProject(project, selectedName, selectedTable, clearTransientState: false);
@@ -1078,14 +1154,6 @@ public partial class MainWindowViewModel : ObservableObject
             ClearComparisons();
         }
 
-        var attachments = project.TxdAttachments.ToArray();
-        TxdAttachments.Clear();
-        foreach (var attachment in attachments)
-        {
-            TxdAttachments.Add(attachment);
-        }
-
-        project.TxdAttachments = TxdAttachments;
         _project = project;
         _manager = project.GxtManager;
         _loadedType = project.GameType;
@@ -1095,8 +1163,8 @@ public partial class MainWindowViewModel : ObservableObject
         DocumentType = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
         IsDocumentLoaded = true;
         SetDirty(project.IsDirty);
-        SelectedTxd = TxdAttachments.FirstOrDefault();
-        OnTxdAttachmentsChanged();
+        AttachedTxd = project.AttachedTxd;
+        OnTxdAttachmentChanged();
         RefreshEntries(selectedName, selectedTable);
     }
 
@@ -1111,7 +1179,12 @@ public partial class MainWindowViewModel : ObservableObject
             path,
             _manager?.CyrillicCharsDictionaryPath,
             _manager?.Language ?? GxtLanguage.Auto);
-        if (_project?.UsesCustomDictionary == true &&
+        if (_project?.CharacterMap is not null &&
+            _manager is not null)
+        {
+            manager.CyrillicCharsDictionary = _project.CharacterMap.ToCharacterDictionary();
+        }
+        else if (_project?.UsesCustomDictionary == true &&
             string.IsNullOrWhiteSpace(_manager?.CyrillicCharsDictionaryPath) &&
             _manager is not null)
         {
@@ -1140,9 +1213,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanAddTxd() => CanAttachTxd;
 
-    private bool CanUseSelectedTxd() => SelectedTxd is not null;
+    private bool CanUseAttachedTxd() => AttachedTxd is not null;
 
-    private bool CanViewTxd() => TxdAttachments.Count > 0;
+    private bool CanViewTxd() => AttachedTxd is not null;
 
     private bool CanUseSelection() => CanUseDocument() && SelectedEntry is not null;
 
@@ -1172,9 +1245,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void OnTxdAttachmentsChanged()
+    private void OnTxdAttachmentChanged()
     {
-        OnPropertyChanged(nameof(HasTxdAttachments));
+        OnPropertyChanged(nameof(HasTxdAttachment));
         OnPropertyChanged(nameof(CanAttachTxd));
         ViewTxdCommand.NotifyCanExecuteChanged();
         AddTxdCommand.NotifyCanExecuteChanged();
@@ -1182,29 +1255,34 @@ public partial class MainWindowViewModel : ObservableObject
         ExportTxdCommand.NotifyCanExecuteChanged();
     }
 
-    private string CreateTxdDisplayName(string path)
+    private void OfferCharacterMapExport(string exportedPath)
     {
-        var normalizedName = Path.GetFileNameWithoutExtension(path).Trim();
-        if (string.IsNullOrEmpty(normalizedName))
+        if (_project?.CharacterMap is not { } profile ||
+            !_dialogs.Confirm(
+                "Маппинг не хранится внутри отдельных GXT/TXD. Экспортировать рядом файл .gxtmap.json?",
+                "Экспорт маппинга"))
         {
-            normalizedName = "TXD";
+            return;
         }
 
-        var usedNames = TxdAttachments
-            .Select(attachment => attachment.DisplayName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!usedNames.Contains(normalizedName))
+        var suggestedPath = Path.ChangeExtension(exportedPath, ".gxtmap.json");
+        var targetPath = _dialogs.SaveFile(
+            "Экспортировать маппинг GXT + TXD",
+            "Маппинг GXT/TXD (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json",
+            suggestedPath);
+        if (targetPath is null)
         {
-            return normalizedName;
+            return;
         }
 
-        for (var suffix = 2; ; suffix++)
+        try
         {
-            var candidate = $"{normalizedName} ({suffix})";
-            if (!usedNames.Contains(candidate))
-            {
-                return candidate;
-            }
+            CharacterMapFileSerializer.Save(targetPath, profile);
+            StatusText = $"Файл и маппинг экспортированы: {exportedPath}";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось экспортировать маппинг.\n\n{exception.Message}");
         }
     }
 

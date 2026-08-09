@@ -20,9 +20,7 @@ public interface IDialogService
 
     UnsavedChangesChoice ConfirmUnsavedChanges() => UnsavedChangesChoice.Discard;
 
-    void ShowTxdViewer(TxdViewerRequest request)
-    {
-    }
+    CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request) => null;
 }
 
 public enum UnsavedChangesChoice

@@ -297,7 +297,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void AddTxd_DisambiguatesSameNamesAndReloadsSameSourcePath()
+    public void AddTxd_ReplacesExistingAttachmentAndKeepsSingleId()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var firstPath = WriteTxd(Path.Combine("one", "fonts.txd"), [1, 2, 3, 255]);
@@ -312,11 +312,10 @@ public sealed class MainWindowViewModelTests
         viewModel.AddTxdCommand.Execute(null);
         viewModel.AddTxdCommand.Execute(null);
 
-        Assert.HasCount(2, viewModel.TxdAttachments);
-        CollectionAssert.AreEqual(
-            new[] { "fonts", "fonts (2)" },
-            viewModel.TxdAttachments.Select(attachment => attachment.DisplayName).ToArray());
-        var originalId = viewModel.TxdAttachments[0].Id;
+        Assert.IsNotNull(viewModel.AttachedTxd);
+        Assert.AreEqual("fonts", viewModel.AttachedTxd.DisplayName);
+        CollectionAssert.AreEqual(File.ReadAllBytes(secondPath), viewModel.AttachedTxd.Data);
+        var originalId = viewModel.AttachedTxd.Id;
 
         var updatedData = TestTxdFactory.Create(
             TestTxdFactory.Bgra32("font1", 1, 1, [9, 8, 7, 128]));
@@ -324,9 +323,9 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(firstPath);
         viewModel.AddTxdCommand.Execute(null);
 
-        Assert.HasCount(2, viewModel.TxdAttachments);
-        Assert.AreEqual(originalId, viewModel.TxdAttachments[0].Id);
-        CollectionAssert.AreEqual(updatedData, viewModel.TxdAttachments[0].Data);
+        Assert.IsNotNull(viewModel.AttachedTxd);
+        Assert.AreEqual(originalId, viewModel.AttachedTxd.Id);
+        CollectionAssert.AreEqual(updatedData, viewModel.AttachedTxd.Data);
         Assert.IsTrue(viewModel.IsProjectDirty);
     }
 
@@ -344,7 +343,7 @@ public sealed class MainWindowViewModelTests
         viewModel.OpenFileCommand.Execute(null);
         viewModel.AddTxdCommand.Execute(null);
 
-        Assert.IsEmpty(viewModel.TxdAttachments);
+        Assert.IsNull(viewModel.AttachedTxd);
         Assert.IsFalse(viewModel.IsProjectDirty);
         Assert.HasCount(1, dialogs.Errors);
     }
@@ -384,7 +383,7 @@ public sealed class MainWindowViewModelTests
         reopened.OpenFromCommandLine(byxPath);
         Assert.AreEqual(byxPath, reopened.ProjectPath);
         Assert.AreEqual("vice.gxt", reopened.GxtSourceName);
-        Assert.HasCount(1, reopened.TxdAttachments);
+        Assert.IsNotNull(reopened.AttachedTxd);
         Assert.IsFalse(reopened.IsComparisonLoaded);
     }
 
@@ -407,9 +406,9 @@ public sealed class MainWindowViewModelTests
         viewModel.ViewTxdCommand.Execute(null);
         viewModel.ExportTxdCommand.Execute(null);
 
-        Assert.IsNotNull(dialogs.ViewerRequest);
-        Assert.HasCount(1, dialogs.ViewerRequest.Attachments);
-        Assert.IsTrue(dialogs.ViewerRequest.CharacterMap.Count > 0);
+        Assert.IsNotNull(dialogs.CharacterMapRequest);
+        Assert.AreEqual(viewModel.AttachedTxd, dialogs.CharacterMapRequest.Attachment);
+        Assert.IsTrue(dialogs.CharacterMapRequest.Profile.Mappings.Count > 0);
         CollectionAssert.AreEqual(File.ReadAllBytes(txdPath), File.ReadAllBytes(exportPath));
     }
 
@@ -431,7 +430,7 @@ public sealed class MainWindowViewModelTests
         viewModel.OpenFileCommand.Execute(null);
 
         Assert.AreEqual(viceCityPath, viewModel.GxtPath);
-        Assert.HasCount(1, viewModel.TxdAttachments);
+        Assert.IsNotNull(viewModel.AttachedTxd);
         Assert.AreEqual(2, dialogs.UnsavedConfirmationCount);
     }
 
@@ -452,7 +451,7 @@ public sealed class MainWindowViewModelTests
         viewModel.AddTxdCommand.Execute(null);
         viewModel.ReloadCommand.Execute(null);
 
-        Assert.IsEmpty(viewModel.TxdAttachments);
+        Assert.IsNull(viewModel.AttachedTxd);
         Assert.IsFalse(viewModel.IsProjectDirty);
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.AreEqual("Comparison", viewModel.Entries[0].ComparisonTexts[0]);
@@ -581,7 +580,7 @@ public sealed class MainWindowViewModelTests
 
         public List<(string Message, string Title)> Errors { get; } = [];
 
-        public TxdViewerRequest? ViewerRequest { get; private set; }
+        public CharacterMapEditorRequest? CharacterMapRequest { get; private set; }
 
         public string? OpenFile(string title, string filter)
         {
@@ -628,9 +627,10 @@ public sealed class MainWindowViewModelTests
             return UnsavedChoice;
         }
 
-        public void ShowTxdViewer(TxdViewerRequest request)
+        public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
         {
-            ViewerRequest = request;
+            CharacterMapRequest = request;
+            return null;
         }
     }
 }

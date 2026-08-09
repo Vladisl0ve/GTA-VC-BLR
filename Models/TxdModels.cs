@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-
 namespace GTA_GXT_Editor.Models;
 
 public enum TxdPlatform : uint
@@ -113,11 +111,9 @@ public sealed class EditorProject
 
     public bool UsesCustomDictionary { get; set; }
 
-    public ObservableCollection<TxdAttachment> TxdAttachments { get; set; } = [];
+    public TxdAttachment? AttachedTxd { get; set; }
+
+    public CharacterMapProfile? CharacterMap { get; set; }
 
     public bool IsDirty { get; set; }
 }
-
-public sealed record TxdViewerRequest(
-    IReadOnlyList<TxdAttachment> Attachments,
-    IReadOnlyDictionary<byte, char> CharacterMap);

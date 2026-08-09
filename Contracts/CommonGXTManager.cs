@@ -67,58 +67,13 @@ public abstract class CommonGXTManager
     public virtual string ConvertBytesToText(byte[] inputBytes)
     {
         ArgumentNullException.ThrowIfNull(inputBytes);
-
-        if (inputBytes.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        var charactersByByte = CyrillicCharsDictionary
-            .SelectMany(pair => pair.Key.Select(index => (Index: index, pair.Value)))
-            .ToDictionary(pair => pair.Index, pair => pair.Value);
-        var result = new char[(inputBytes.Length + 1) / 2];
-        var resultLength = 0;
-
-        for (var index = 0; index < inputBytes.Length; index += 2)
-        {
-            var value = inputBytes[index];
-            if (value == 0)
-            {
-                break;
-            }
-
-            result[resultLength++] = charactersByByte.GetValueOrDefault(value, (char)value);
-        }
-
-        return new string(result, 0, resultLength);
+        return Services.CharacterMapCodec.Decode(inputBytes, CyrillicCharsDictionary);
     }
 
     public virtual byte[] ConvertTextToBytes(string inputString)
     {
         ArgumentNullException.ThrowIfNull(inputString);
-
-        var bytesByCharacter = CyrillicCharsDictionary
-            .ToDictionary(pair => pair.Value, pair => checked((byte)pair.Key[0]));
-        var targetBytes = new byte[(inputString.Length + 1) * 2];
-
-        for (var index = 0; index < inputString.Length; index++)
-        {
-            if (bytesByCharacter.TryGetValue(inputString[index], out var dictionaryByte))
-            {
-                targetBytes[index * 2] = dictionaryByte;
-            }
-            else if (inputString[index] <= byte.MaxValue)
-            {
-                targetBytes[index * 2] = (byte)inputString[index];
-            }
-            else
-            {
-                throw new InvalidDataException(
-                    $"Символ '{inputString[index]}' отсутствует в выбранном словаре символов.");
-            }
-        }
-
-        return targetBytes;
+        return Services.CharacterMapCodec.Encode(inputString, CyrillicCharsDictionary);
     }
 
     public void ReloadCyrillicCharsDictionary()

@@ -200,17 +200,16 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock VerticalAlignment="Center" Text="Шрифты TXD" />
-                <ComboBox Grid.Column="1"
-                          Margin="10,0,0,0"
-                          Padding="8,5"
-                          ItemsSource="{Binding TxdAttachments}"
-                          SelectedItem="{Binding SelectedTxd}"
-                          DisplayMemberPath="DisplayName" />
+                <TextBox Grid.Column="1"
+                         Margin="10,0,0,0"
+                         Padding="8,5"
+                         IsReadOnly="True"
+                         Text="{Binding AttachedTxd.DisplayName, TargetNullValue='Не подключён'}" />
                 <TextBlock Grid.Column="2"
                            Margin="12,0,0,0"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
-                           Text="{Binding TxdAttachments.Count, StringFormat='Подключено: {0}'}" />
+                           Text="{Binding HasTxdAttachment, StringFormat='Подключён: {0}'}" />
                 <TextBlock Grid.Column="3"
                            Margin="12,0"
                            VerticalAlignment="Center"
@@ -219,13 +218,13 @@
                 <Button Grid.Column="4"
                         MinWidth="110"
                         Padding="12,6"
-                        Content="Добавить TXD…"
+                        Content="Подключить/заменить…"
                         Command="{Binding AddTxdCommand}" />
                 <Button Grid.Column="5"
                         MinWidth="110"
                         Margin="8,0,0,0"
                         Padding="12,6"
-                        Content="Просмотреть"
+                        Content="Маппинг…"
                         Command="{Binding ViewTxdCommand}" />
                 <StackPanel Grid.Row="1"
                             Grid.ColumnSpan="6"
