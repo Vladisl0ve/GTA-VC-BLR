@@ -17,4 +17,17 @@ public interface IDialogService
     void ShowError(string message, string title = "Ошибка");
 
     EntryEditorResult? EditEntry(EntryEditorRequest request);
+
+    UnsavedChangesChoice ConfirmUnsavedChanges() => UnsavedChangesChoice.Discard;
+
+    void ShowTxdViewer(TxdViewerRequest request)
+    {
+    }
+}
+
+public enum UnsavedChangesChoice
+{
+    Save,
+    Discard,
+    Cancel,
 }

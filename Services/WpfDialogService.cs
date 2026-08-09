@@ -94,4 +94,29 @@ public sealed class WpfDialogService : IDialogService
 
         return dialog.ShowDialog() == true ? dialog.Result : null;
     }
+
+    public UnsavedChangesChoice ConfirmUnsavedChanges()
+    {
+        var result = MessageBox.Show(
+            Application.Current.MainWindow,
+            "В проекте есть несохранённые изменения. Сохранить их?",
+            "Несохранённые изменения",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
+        return result switch
+        {
+            MessageBoxResult.Yes => UnsavedChangesChoice.Save,
+            MessageBoxResult.No => UnsavedChangesChoice.Discard,
+            _ => UnsavedChangesChoice.Cancel,
+        };
+    }
+
+    public void ShowTxdViewer(TxdViewerRequest request)
+    {
+        var dialog = new TxdViewerWindow(request)
+        {
+            Owner = Application.Current.MainWindow,
+        };
+        dialog.ShowDialog();
+    }
 }

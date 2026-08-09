@@ -27,11 +27,42 @@ public abstract class CommonGXTManager
 
     public abstract void RemoveGXTEntry(string datName, string? tableName = null);
 
-    public abstract void SaveGXTChanges(string gxtFilePath);
+    public virtual void SaveGXTChanges(string gxtFilePath) => WriteGXTFile(gxtFilePath);
 
-    public abstract List<GXTBase> ReadGXTFile(string gxtFilePath);
+    public virtual List<GXTBase> ReadGXTFile(string gxtFilePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gxtFilePath);
+        using var stream = File.OpenRead(gxtFilePath);
+        return ReadGXT(stream, Path.GetFileName(gxtFilePath));
+    }
 
-    public abstract void WriteGXTFile(string gxtFilePath);
+    public virtual void WriteGXTFile(string gxtFilePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gxtFilePath);
+        using var stream = new FileStream(gxtFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        WriteGXT(stream);
+    }
+
+    public abstract List<GXTBase> ReadGXT(Stream stream, string sourceName);
+
+    public abstract void WriteGXT(Stream stream);
+
+    public virtual IReadOnlyDictionary<byte, char> GetCharacterMap()
+    {
+        var result = new Dictionary<byte, char>();
+        foreach (var pair in CyrillicCharsDictionary)
+        {
+            foreach (var index in pair.Key)
+            {
+                if (index is >= byte.MinValue and <= byte.MaxValue)
+                {
+                    result.TryAdd((byte)index, pair.Value);
+                }
+            }
+        }
+
+        return result;
+    }
 
     public virtual string ConvertBytesToText(byte[] inputBytes)
     {

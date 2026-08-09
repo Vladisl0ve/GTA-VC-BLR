@@ -15,8 +15,14 @@ namespace GTA_GXT_Editor.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
+    private const string DocumentFileFilter =
+        "GXT или проект BYX (*.gxt;*.byx)|*.gxt;*.byx|GXT (*.gxt)|*.gxt|Проект BYX (*.byx)|*.byx|Все файлы (*.*)|*.*";
     private const string GxtFileFilter =
         "GTA III/Vice City GXT (*.gxt)|*.gxt|Все файлы (*.*)|*.*";
+    private const string TxdFileFilter =
+        "Vice City TXD (*.txd)|*.txd|Все файлы (*.*)|*.*";
+    private const string ByxFileFilter =
+        "Проект BYX (*.byx)|*.byx|Все файлы (*.*)|*.*";
     private const string JsonFileFilter =
         "JSON (*.json)|*.json|Все файлы (*.*)|*.*";
     private const string DictionaryFileFilter =
@@ -24,15 +30,24 @@ public partial class MainWindowViewModel : ObservableObject
 
     private readonly GxtManagerFactory _managerFactory;
     private readonly IDialogService _dialogs;
+    private readonly ITxdReader _txdReader;
+    private readonly IProjectSerializer _projectSerializer;
 
     private CommonGXTManager? _manager;
+    private EditorProject? _project;
     private GXTType _loadedType = GXTType.None;
     private readonly List<ComparisonDocument> _comparisonDocuments = [];
 
-    public MainWindowViewModel(GxtManagerFactory managerFactory, IDialogService dialogs)
+    public MainWindowViewModel(
+        GxtManagerFactory managerFactory,
+        IDialogService dialogs,
+        ITxdReader? txdReader = null,
+        IProjectSerializer? projectSerializer = null)
     {
         _managerFactory = managerFactory;
         _dialogs = dialogs;
+        _txdReader = txdReader ?? new TxdReader();
+        _projectSerializer = projectSerializer ?? new ByxProjectSerializer(managerFactory, _txdReader);
 
         EntriesView = CollectionViewSource.GetDefaultView(Entries);
         EntriesView.Filter = FilterEntry;
@@ -52,14 +67,30 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<GxtComparisonColumn> ComparisonColumns { get; } = [];
 
+    public ObservableCollection<TxdAttachment> TxdAttachments { get; } = [];
+
     public ICollectionView EntriesView { get; }
 
     public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
 
     public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
 
+    public bool HasTxdAttachments => TxdAttachments.Count > 0;
+
+    public bool CanAttachTxd => IsDocumentLoaded && _loadedType == GXTType.GtaViceCity;
+
     [ObservableProperty]
     private string gxtPath = string.Empty;
+
+    [ObservableProperty]
+    private string projectPath = string.Empty;
+
+    [ObservableProperty]
+    private string gxtSourceName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    private bool isProjectDirty;
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -81,12 +112,20 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(OpenComparisonFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddMissingEntriesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConvertDictionaryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddTxdCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProjectAsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportGxtCommand))]
     private bool isDocumentLoaded;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditEntryCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteEntryCommand))]
     private GxtEntryRow? selectedEntry;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportTxdCommand))]
+    private TxdAttachment? selectedTxd;
 
     [ObservableProperty]
     private string documentType = "Файл не открыт";
@@ -96,7 +135,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void OpenFromCommandLine(string path)
     {
-        LoadDocument(path);
+        if (TryContinueAfterUnsavedChanges())
+        {
+            OpenDocument(path);
+        }
     }
 
     partial void OnSearchTextChanged(string value)
@@ -134,10 +176,10 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void OpenFile()
     {
-        var path = _dialogs.OpenFile("Открыть GXT-файл", GxtFileFilter);
-        if (path is not null)
+        var path = _dialogs.OpenFile("Открыть GXT или проект BYX", DocumentFileFilter);
+        if (path is not null && TryContinueAfterUnsavedChanges())
         {
-            LoadDocument(path);
+            OpenDocument(path);
         }
     }
 
@@ -151,7 +193,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
-        if (dictionaryPath is not null)
+        if (dictionaryPath is not null && TryContinueAfterUnsavedChanges())
         {
             LoadDocument(path, dictionaryPath);
         }
@@ -198,7 +240,7 @@ public partial class MainWindowViewModel : ObservableObject
                 return false;
             }
 
-            var comparisonManager = _managerFactory.Open(path);
+            var comparisonManager = OpenRelatedGxt(path);
             var comparisonTexts = new Dictionary<EntryIdentity, string>();
             foreach (var entry in comparisonManager.GXTEntries)
             {
@@ -239,11 +281,28 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void Reload()
     {
+        if (!TryContinueAfterUnsavedChanges())
+        {
+            return;
+        }
+
+        if (_project?.ProjectPath is { Length: > 0 } projectPath)
+        {
+            LoadProject(projectPath);
+            return;
+        }
+
+        if (_project?.GxtSourcePath is not { Length: > 0 } sourcePath)
+        {
+            _dialogs.ShowError("Исходный GXT недоступен для перезагрузки.");
+            return;
+        }
+
         var selected = SelectedEntry;
         var dictionaryPath = _manager?.CyrillicCharsDictionaryPath;
 
-        LoadDocument(
-            GxtPath,
+        ReloadGxtInProject(
+            sourcePath,
             dictionaryPath: dictionaryPath,
             selectedName: selected?.Name,
             selectedTable: selected?.RawTableName,
@@ -292,6 +351,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         _manager.AddGXTEntry(result.Name, result.Text, result.RawTableName);
+        SetDirty(true);
         RefreshEntries(result.Name, result.RawTableName);
         StatusText = $"Добавлен ключ {result.Name}";
     }
@@ -321,6 +381,7 @@ public partial class MainWindowViewModel : ObservableObject
             result.Text,
             selected.RawTableName,
             result.RawTableName);
+        SetDirty(true);
         RefreshEntries(selected.Name, result.RawTableName);
         StatusText = $"Изменён ключ {selected.Name}";
     }
@@ -341,6 +402,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         _manager.RemoveGXTEntry(selected.Name, selected.RawTableName);
+        SetDirty(true);
         RefreshEntries();
         StatusText = $"Удалён ключ {selected.Name}";
     }
@@ -348,17 +410,192 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void Save()
     {
-        if (_manager is null)
+        _ = SaveCurrentDocument();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void ExportGxt()
+    {
+        _ = SaveGxtAs(markProjectSaved: false);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void SaveProjectAs()
+    {
+        _ = SaveProject(forceSaveAs: true);
+    }
+
+    private bool SaveCurrentDocument()
+    {
+        if (_project is null || _manager is null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_project.ProjectPath) || TxdAttachments.Count > 0)
+        {
+            return SaveProject(forceSaveAs: false);
+        }
+
+        return SaveGxtAs(markProjectSaved: true);
+    }
+
+    private bool SaveGxtAs(bool markProjectSaved)
+    {
+        if (_manager is null || _project is null)
+        {
+            return false;
+        }
+
+        var sourcePath = _project.GxtSourcePath ?? GxtPath;
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var suggestedPath = Path.Combine(
+            directory,
+            $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}_modified.gxt");
+        var targetPath = _dialogs.SaveFile("Сохранить GXT-файл", GxtFileFilter, suggestedPath);
+
+        if (targetPath is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            _manager.SaveGXTChanges(targetPath);
+            if (markProjectSaved)
+            {
+                _project.GxtSourcePath = targetPath;
+                _project.GxtSourceName = Path.GetFileName(targetPath);
+                GxtPath = targetPath;
+                GxtSourceName = _project.GxtSourceName;
+                SetDirty(false);
+            }
+
+            StatusText = $"Сохранено: {targetPath}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+            return false;
+        }
+    }
+
+    private bool SaveProject(bool forceSaveAs)
+    {
+        if (_project is null)
+        {
+            return false;
+        }
+
+        var targetPath = forceSaveAs ? null : _project.ProjectPath;
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            var sourcePath = _project.GxtSourcePath ?? GxtPath;
+            var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+            var suggestedPath = Path.Combine(
+                directory,
+                $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}.byx");
+            targetPath = _dialogs.SaveFile("Сохранить проект BYX", ByxFileFilter, suggestedPath);
+        }
+
+        if (targetPath is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            _projectSerializer.Save(targetPath, _project);
+            _project.ProjectPath = targetPath;
+            ProjectPath = targetPath;
+            SetDirty(false);
+            StatusText = $"Проект сохранён: {targetPath}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось сохранить проект BYX.\n\n{exception.Message}");
+            return false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddTxd))]
+    private void AddTxd()
+    {
+        var path = _dialogs.OpenFile("Добавить TXD GTA Vice City", TxdFileFilter);
+        if (path is null)
         {
             return;
         }
 
-        var directory = Path.GetDirectoryName(GxtPath) ?? Environment.CurrentDirectory;
-        var suggestedPath = Path.Combine(
-            directory,
-            $"{Path.GetFileNameWithoutExtension(GxtPath)}_modified.gxt");
-        var targetPath = _dialogs.SaveFile("Сохранить GXT-файл", GxtFileFilter, suggestedPath);
+        try
+        {
+            var data = File.ReadAllBytes(path);
+            var document = _txdReader.Read(data, path);
+            var existing = TxdAttachments.FirstOrDefault(attachment =>
+                string.Equals(attachment.SourcePath, path, StringComparison.OrdinalIgnoreCase));
+            var attachment = new TxdAttachment
+            {
+                Id = existing?.Id ?? Guid.NewGuid(),
+                OriginalFileName = Path.GetFileName(path),
+                DisplayName = existing?.DisplayName ?? CreateTxdDisplayName(path),
+                SourcePath = path,
+                Data = data,
+                Document = document,
+            };
 
+            if (existing is null)
+            {
+                TxdAttachments.Add(attachment);
+            }
+            else
+            {
+                var index = TxdAttachments.IndexOf(existing);
+                TxdAttachments[index] = attachment;
+            }
+
+            SelectedTxd = attachment;
+            OnTxdAttachmentsChanged();
+            SetDirty(true);
+            StatusText = $"Подключён TXD: {attachment.OriginalFileName} — {document.Textures.Count} текстур";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось подключить TXD.\n\n{exception.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedTxd))]
+    private void RemoveTxd()
+    {
+        if (SelectedTxd is not { } selected ||
+            !_dialogs.Confirm($"Удалить '{selected.DisplayName}' из проекта?", "Удаление TXD"))
+        {
+            return;
+        }
+
+        TxdAttachments.Remove(selected);
+        SelectedTxd = TxdAttachments.FirstOrDefault();
+        OnTxdAttachmentsChanged();
+        SetDirty(true);
+        StatusText = $"TXD удалён из проекта: {selected.OriginalFileName}";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedTxd))]
+    private void ExportTxd()
+    {
+        if (SelectedTxd is not { } selected)
+        {
+            return;
+        }
+
+        var source = selected.SourcePath ?? _project?.ProjectPath ?? Environment.CurrentDirectory;
+        var directory = Path.GetDirectoryName(source) ?? Environment.CurrentDirectory;
+        var targetPath = _dialogs.SaveFile(
+            "Экспортировать TXD",
+            TxdFileFilter,
+            Path.Combine(directory, selected.OriginalFileName));
         if (targetPath is null)
         {
             return;
@@ -366,22 +603,37 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            _manager.SaveGXTChanges(targetPath);
-            StatusText = $"Сохранено: {targetPath}";
+            File.WriteAllBytes(targetPath, selected.Data);
+            StatusText = $"TXD экспортирован: {targetPath}";
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+            _dialogs.ShowError($"Не удалось экспортировать TXD.\n\n{exception.Message}");
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanViewTxd))]
+    private void ViewTxd()
+    {
+        if (_manager is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowTxdViewer(new TxdViewerRequest(
+            TxdAttachments.ToArray(),
+            _manager.GetCharacterMap()));
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void ExportJson()
     {
-        var directory = Path.GetDirectoryName(GxtPath) ?? Environment.CurrentDirectory;
+        var sourcePath = _project?.GxtSourcePath ?? _project?.ProjectPath ?? GxtPath;
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var sourceName = _project?.GxtSourceName ?? Path.GetFileName(GxtPath);
         var suggestedPath = Path.Combine(
             directory,
-            $"{Path.GetFileNameWithoutExtension(GxtPath)}.json");
+            $"{Path.GetFileNameWithoutExtension(sourceName)}.json");
         var targetPath = _dialogs.SaveFile(
             "Экспортировать GXT в JSON",
             JsonFileFilter,
@@ -396,7 +648,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             GxtJsonExporter.Export(
                 targetPath,
-                GxtPath,
+                sourceName,
                 DocumentType,
                 Entries,
                 _manager?.Language ?? GxtLanguage.Auto);
@@ -422,6 +674,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void ImportJson(bool useCustomDictionary)
     {
+        if (!TryContinueAfterUnsavedChanges())
+        {
+            return;
+        }
+
         var sourcePath = _dialogs.OpenFile("Преобразовать JSON в GXT", JsonFileFilter);
         if (sourcePath is null)
         {
@@ -494,7 +751,7 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
             }
 
-            var sourceManager = _managerFactory.Open(path, _manager.CyrillicCharsDictionaryPath);
+            var sourceManager = OpenRelatedGxt(path);
             var missingEntries = sourceManager.GXTEntries
                 .Except(_manager.GXTEntries, new GXTEntryEqualityComparer())
                 .ToList();
@@ -504,6 +761,11 @@ public partial class MainWindowViewModel : ObservableObject
                 var text = sourceManager.ConvertBytesToText(entry.Value);
                 var table = (entry as GTAVC.GXTEntry)?.TableName;
                 _manager.AddGXTEntry(entry.DatName.GetClearName(), text, table);
+            }
+
+            if (missingEntries.Count > 0)
+            {
+                SetDirty(true);
             }
 
             RefreshEntries();
@@ -567,6 +829,12 @@ public partial class MainWindowViewModel : ObservableObject
 
             _manager.CyrillicCharsDictionaryPath = targetPath;
             _manager.ReloadCyrillicCharsDictionary();
+            if (_project is not null)
+            {
+                _project.UsesCustomDictionary = true;
+            }
+
+            SetDirty(true);
             RefreshEntries();
             _dialogs.ShowInfo("Словарь символов успешно преобразован.");
         }
@@ -593,21 +861,18 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var manager = _managerFactory.Open(path, dictionaryPath, language);
             var type = _managerFactory.DetectType(path);
-
-            if (_comparisonDocuments.Count > 0 &&
-                (!string.Equals(path, GxtPath, StringComparison.OrdinalIgnoreCase) ||
-                 _loadedType != type))
+            var project = new EditorProject
             {
-                ClearComparisons();
-            }
-
-            _manager = manager;
-            _loadedType = type;
-            GxtPath = path;
-            DocumentType = type == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
-            IsDocumentLoaded = true;
-
-            RefreshEntries(selectedName, selectedTable);
+                ProjectPath = null,
+                GxtSourceName = Path.GetFileName(path),
+                GxtSourcePath = path,
+                GameType = type,
+                GxtManager = manager,
+                UsesCustomDictionary = dictionaryPath is not null,
+                TxdAttachments = [],
+                IsDirty = false,
+            };
+            CommitProject(project, selectedName, selectedTable, clearTransientState: true);
             StatusText = $"Открыт {Path.GetFileName(path)} — {Entries.Count} ключей";
             return true;
         }
@@ -734,10 +999,129 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private void OpenDocument(string path)
+    {
+        switch (Path.GetExtension(path).ToLowerInvariant())
+        {
+            case ".byx":
+                LoadProject(path);
+                break;
+            case ".gxt":
+                LoadDocument(path);
+                break;
+            default:
+                _dialogs.ShowError("Поддерживаются только файлы GXT и проекты BYX.");
+                break;
+        }
+    }
+
+    private bool LoadProject(string path)
+    {
+        try
+        {
+            var project = _projectSerializer.Load(path);
+            CommitProject(project, clearTransientState: true);
+            StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
+                         $"TXD: {TxdAttachments.Count}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(
+                $"Не удалось открыть проект '{Path.GetFileName(path)}'.\n\n{exception.Message}",
+                "Ошибка открытия BYX");
+            return false;
+        }
+    }
+
+    private bool ReloadGxtInProject(
+        string path,
+        string? dictionaryPath,
+        string? selectedName,
+        string? selectedTable,
+        GxtLanguage language)
+    {
+        try
+        {
+            var manager = _managerFactory.Open(path, dictionaryPath, language);
+            var project = new EditorProject
+            {
+                ProjectPath = null,
+                GxtSourceName = Path.GetFileName(path),
+                GxtSourcePath = path,
+                GameType = _managerFactory.DetectType(path),
+                GxtManager = manager,
+                UsesCustomDictionary = dictionaryPath is not null,
+                TxdAttachments = [],
+                IsDirty = false,
+            };
+            CommitProject(project, selectedName, selectedTable, clearTransientState: false);
+            StatusText = $"Перезагружен {Path.GetFileName(path)}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось перезагрузить GXT.\n\n{exception.Message}");
+            return false;
+        }
+    }
+
+    private void CommitProject(
+        EditorProject project,
+        string? selectedName = null,
+        string? selectedTable = null,
+        bool clearTransientState = false)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        if (clearTransientState)
+        {
+            ClearComparisons();
+        }
+
+        var attachments = project.TxdAttachments.ToArray();
+        TxdAttachments.Clear();
+        foreach (var attachment in attachments)
+        {
+            TxdAttachments.Add(attachment);
+        }
+
+        project.TxdAttachments = TxdAttachments;
+        _project = project;
+        _manager = project.GxtManager;
+        _loadedType = project.GameType;
+        GxtSourceName = project.GxtSourceName;
+        GxtPath = project.GxtSourcePath ?? project.GxtSourceName;
+        ProjectPath = project.ProjectPath ?? string.Empty;
+        DocumentType = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
+        IsDocumentLoaded = true;
+        SetDirty(project.IsDirty);
+        SelectedTxd = TxdAttachments.FirstOrDefault();
+        OnTxdAttachmentsChanged();
+        RefreshEntries(selectedName, selectedTable);
+    }
+
     private static EntryIdentity GetEntryIdentity(GXTBase entry) =>
         new(
             entry.DatName.GetClearName(),
             (entry as GTAVC.GXTEntry)?.TableName);
+
+    private CommonGXTManager OpenRelatedGxt(string path)
+    {
+        var manager = _managerFactory.Open(
+            path,
+            _manager?.CyrillicCharsDictionaryPath,
+            _manager?.Language ?? GxtLanguage.Auto);
+        if (_project?.UsesCustomDictionary == true &&
+            string.IsNullOrWhiteSpace(_manager?.CyrillicCharsDictionaryPath) &&
+            _manager is not null)
+        {
+            manager.CyrillicCharsDictionary = _manager.CyrillicCharsDictionary.ToDictionary(
+                pair => pair.Key.ToArray(),
+                pair => pair.Value);
+        }
+
+        return manager;
+    }
 
     private void UpdateStatus()
     {
@@ -754,7 +1138,75 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanUseDocument() => IsDocumentLoaded && _manager is not null;
 
+    private bool CanAddTxd() => CanAttachTxd;
+
+    private bool CanUseSelectedTxd() => SelectedTxd is not null;
+
+    private bool CanViewTxd() => TxdAttachments.Count > 0;
+
     private bool CanUseSelection() => CanUseDocument() && SelectedEntry is not null;
+
+    public bool CanClose() => TryContinueAfterUnsavedChanges();
+
+    private bool TryContinueAfterUnsavedChanges()
+    {
+        if (!IsProjectDirty)
+        {
+            return true;
+        }
+
+        return _dialogs.ConfirmUnsavedChanges() switch
+        {
+            UnsavedChangesChoice.Save => SaveCurrentDocument(),
+            UnsavedChangesChoice.Discard => true,
+            _ => false,
+        };
+    }
+
+    private void SetDirty(bool value)
+    {
+        IsProjectDirty = value;
+        if (_project is not null)
+        {
+            _project.IsDirty = value;
+        }
+    }
+
+    private void OnTxdAttachmentsChanged()
+    {
+        OnPropertyChanged(nameof(HasTxdAttachments));
+        OnPropertyChanged(nameof(CanAttachTxd));
+        ViewTxdCommand.NotifyCanExecuteChanged();
+        AddTxdCommand.NotifyCanExecuteChanged();
+        RemoveTxdCommand.NotifyCanExecuteChanged();
+        ExportTxdCommand.NotifyCanExecuteChanged();
+    }
+
+    private string CreateTxdDisplayName(string path)
+    {
+        var normalizedName = Path.GetFileNameWithoutExtension(path).Trim();
+        if (string.IsNullOrEmpty(normalizedName))
+        {
+            normalizedName = "TXD";
+        }
+
+        var usedNames = TxdAttachments
+            .Select(attachment => attachment.DisplayName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!usedNames.Contains(normalizedName))
+        {
+            return normalizedName;
+        }
+
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{normalizedName} ({suffix})";
+            if (!usedNames.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
 
     private readonly record struct EntryIdentity(string Name, string? Table);
 

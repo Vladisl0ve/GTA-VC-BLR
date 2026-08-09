@@ -22,6 +22,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -107,11 +108,12 @@
                     </Popup>
                 </Grid>
 
-                <Button MinWidth="120"
-                        Margin="8,0,0,0"
-                        Padding="14,8"
-                        Content="Сохранить как…"
-                        Command="{Binding SaveCommand}" />
+                <Button MinWidth="110"
+                         Margin="8,0,0,0"
+                         Padding="14,8"
+                         Content="Сохранить"
+                         ToolTip="Сохранить GXT или текущий проект BYX (Ctrl+S)"
+                         Command="{Binding SaveCommand}" />
                 <Button MinWidth="140"
                         Margin="8,0,0,0"
                         Padding="14,8"
@@ -129,6 +131,10 @@
         </DockPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -156,11 +162,100 @@
                     MinWidth="110"
                     Margin="10,0,0,0"
                     Padding="12,6"
-                    Content="Перезагрузить"
-                    Command="{Binding ReloadCommand}" />
+                     Content="Перезагрузить"
+                     Command="{Binding ReloadCommand}" />
+
+            <TextBlock Grid.Row="1"
+                       Margin="0,10,10,0"
+                       VerticalAlignment="Center"
+                       Text="Проект BYX" />
+            <TextBox Grid.Row="1"
+                     Grid.Column="1"
+                     Grid.ColumnSpan="3"
+                     Margin="0,10,0,0"
+                     MinHeight="34"
+                     Padding="10,6"
+                     IsReadOnly="True"
+                     ToolTip="Пусто, пока проект не сохранён в BYX"
+                     Text="{Binding ProjectPath}" />
         </Grid>
 
         <Border Grid.Row="2"
+                Margin="0,0,0,12"
+                Padding="10"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                CornerRadius="6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Text="Шрифты TXD" />
+                <ComboBox Grid.Column="1"
+                          Margin="10,0,0,0"
+                          Padding="8,5"
+                          ItemsSource="{Binding TxdAttachments}"
+                          SelectedItem="{Binding SelectedTxd}"
+                          DisplayMemberPath="DisplayName" />
+                <TextBlock Grid.Column="2"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="{Binding TxdAttachments.Count, StringFormat='Подключено: {0}'}" />
+                <TextBlock Grid.Column="3"
+                           Margin="12,0"
+                           VerticalAlignment="Center"
+                           Opacity="0.65"
+                           Text="TXD доступны только для GTA Vice City PC" />
+                <Button Grid.Column="4"
+                        MinWidth="110"
+                        Padding="12,6"
+                        Content="Добавить TXD…"
+                        Command="{Binding AddTxdCommand}" />
+                <Button Grid.Column="5"
+                        MinWidth="110"
+                        Margin="8,0,0,0"
+                        Padding="12,6"
+                        Content="Просмотреть"
+                        Command="{Binding ViewTxdCommand}" />
+                <StackPanel Grid.Row="1"
+                            Grid.ColumnSpan="6"
+                            Margin="0,10,0,0"
+                            HorizontalAlignment="Right"
+                            Orientation="Horizontal">
+                    <Button MinWidth="90"
+                            Padding="12,6"
+                            Content="Удалить"
+                            Command="{Binding RemoveTxdCommand}" />
+                    <Button MinWidth="110"
+                            Margin="8,0,0,0"
+                            Padding="12,6"
+                            Content="Экспорт TXD…"
+                            Command="{Binding ExportTxdCommand}" />
+                    <Button MinWidth="110"
+                            Margin="8,0,0,0"
+                            Padding="12,6"
+                            Content="Экспорт GXT…"
+                            Command="{Binding ExportGxtCommand}" />
+                    <Button MinWidth="120"
+                            Margin="8,0,0,0"
+                            Padding="12,6"
+                            Content="Проект как…"
+                            Command="{Binding SaveProjectAsCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3"
                 Margin="0,0,0,12"
                 Padding="12"
                 BorderThickness="1"
@@ -214,7 +309,7 @@
         </Border>
 
         <DataGrid x:Name="EntriesGrid"
-                  Grid.Row="3"
+                  Grid.Row="4"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
@@ -242,7 +337,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="4" Margin="0,14,0,12">
+        <Grid Grid.Row="5" Margin="0,14,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -290,7 +385,7 @@
                     Command="{Binding ConvertDictionaryCommand}" />
         </Grid>
 
-        <StatusBar Grid.Row="5">
+        <StatusBar Grid.Row="6">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText}" />
             </StatusBarItem>

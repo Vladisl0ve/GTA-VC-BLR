@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -14,6 +15,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.ComparisonColumns.CollectionChanged += ComparisonColumns_OnCollectionChanged;
+        Closing += MainWindow_OnClosing;
     }
 
     private void EntriesGrid_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -21,6 +23,14 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel && viewModel.EditEntryCommand.CanExecute(null))
         {
             viewModel.EditEntryCommand.Execute(null);
+        }
+    }
+
+    private void MainWindow_OnClosing(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel && !viewModel.CanClose())
+        {
+            e.Cancel = true;
         }
     }
 

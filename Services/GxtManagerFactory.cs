@@ -42,6 +42,35 @@ public sealed class GxtManagerFactory
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1822:Mark members as static",
+        Justification = "Kept as an instance operation so callers can depend on one factory abstraction.")]
+    public CommonGXTManager Open(
+        ReadOnlyMemory<byte> data,
+        GXTType type,
+        string sourceName,
+        GxtLanguage language,
+        Dictionary<int[], char>? characterDictionary = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
+        using var stream = new MemoryStream(data.ToArray(), writable: false);
+        return type switch
+        {
+            GXTType.GtaIII => new GTAIII.GXTManager(
+                stream,
+                sourceName,
+                language,
+                characterDictionary),
+            GXTType.GtaViceCity => new GTAVC.GXTManager(
+                stream,
+                sourceName,
+                language,
+                characterDictionary),
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Неподдерживаемый тип GXT."),
+        };
+    }
+
     public static CommonGXTManager Create(
         GXTType type,
         string? dictionaryPath = null,

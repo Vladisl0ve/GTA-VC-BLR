@@ -43,6 +43,32 @@ namespace GTA_GXT_Editor.GTAIII
             _language = resolvedLanguage;
         }
 
+        internal GXTManager(
+            Stream stream,
+            string sourceName,
+            GxtLanguage language,
+            Dictionary<int[], char>? characterDictionary)
+        {
+            CyrillicCharsDictionaryPath = null;
+            _gxtEntries = ReadGXT(stream, sourceName);
+            var resolvedLanguage = language == GxtLanguage.Auto
+                ? GxtLanguageDetector.DetectFromName(sourceName)
+                : language;
+            if (resolvedLanguage == GxtLanguage.Auto)
+            {
+                resolvedLanguage = _gxtEntries.Any(entry => entry.Value
+                    .Where((_, index) => index % 2 == 0)
+                    .Any(value => value >= 0x80))
+                    ? GxtLanguage.Russian
+                    : GxtLanguage.English;
+            }
+
+            _cyrillicCharsDictionary = characterDictionary is null
+                ? LoadCharacterDictionary(null, resolvedLanguage)
+                : CloneDictionary(characterDictionary);
+            _language = resolvedLanguage;
+        }
+
         private GXTManager(
             string? dictionaryPath,
             string? sourceName,
@@ -108,18 +134,18 @@ namespace GTA_GXT_Editor.GTAIII
             _gxtEntries.RemoveAt(removeIndex);
         }
 
-        public override void SaveGXTChanges(string gxtFilePath)
+        public override List<GXTBase> ReadGXT(Stream stream, string sourceName)
         {
-            WriteGXTFile(gxtFilePath);
-        }
-
-
-        public override List<GXTBase> ReadGXTFile(string gxtFilePath)
-        {
+            var fsStream = stream;
             List<GXTEntry> localGXTEntries = new List<GXTEntry>();
 
-            using (FileStream fsStream = new FileStream(gxtFilePath, FileMode.Open, FileAccess.Read))
+            ArgumentNullException.ThrowIfNull(fsStream);
+            if (!fsStream.CanRead || !fsStream.CanSeek)
             {
+                throw new ArgumentException("Поток GXT должен поддерживать чтение и позиционирование.", nameof(stream));
+            }
+
+            var startPosition = fsStream.Position;
                 //TKEY
                 string tKeyString = fsStream.ReadString(4);
                 if (!string.Equals(tKeyString, "TKEY", StringComparison.Ordinal))
@@ -172,7 +198,7 @@ namespace GTA_GXT_Editor.GTAIII
                         readLength = (int)fsStream.Length - 16 - tKeyBlockSize - orderedOffsets[orderedOffsetsIndex];
                     }
 
-                    fsStream.Seek(16 + tKeyBlockSize + orderedOffsets[orderedOffsetsIndex], SeekOrigin.Begin);
+                    fsStream.Seek(startPosition + 16 + tKeyBlockSize + orderedOffsets[orderedOffsetsIndex], SeekOrigin.Begin);
 
                     var valueName = valueOffsets.First(x => x.Key == orderedOffsets[orderedOffsetsIndex]).Value;
                     var valueBlock = fsStream.ReadBytes(readLength);
@@ -183,20 +209,23 @@ namespace GTA_GXT_Editor.GTAIII
                         throw new InvalidDataException("Обнаружено некорректное значение TDAT.");
                     }
                 }
-                if (tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
+                if (startPosition + tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
                 {
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
-            }
             throw new InvalidDataException("Ошибка при чтении GXT-файла.");
         }
 
-        public override void WriteGXTFile(string gxtFilePath)
+        public override void WriteGXT(Stream stream)
         {
-            _gxtEntries = _gxtEntries.OrderBy(x => x.DatName, new ASCIIStringComparer()).ToList();
-
-            using (FileStream fsStream = new FileStream(gxtFilePath, FileMode.Create, FileAccess.Write))
+            var fsStream = stream;
+            ArgumentNullException.ThrowIfNull(fsStream);
+            if (!fsStream.CanWrite)
             {
+                throw new ArgumentException("Поток GXT должен поддерживать запись.", nameof(stream));
+            }
+
+            _gxtEntries = _gxtEntries.OrderBy(x => x.DatName, new ASCIIStringComparer()).ToList();
                 fsStream.WriteString("TKEY");
                 fsStream.WriteInt(12 * _gxtEntries.Count);
 
@@ -216,7 +245,9 @@ namespace GTA_GXT_Editor.GTAIII
                 {
                     fsStream.WriteBytes(_gxtEntries[gtxEntryIndex].Value);
                 }
-            }
         }
+
+        private static Dictionary<int[], char> CloneDictionary(Dictionary<int[], char> source) =>
+            source.ToDictionary(pair => pair.Key.ToArray(), pair => pair.Value);
     }
 }

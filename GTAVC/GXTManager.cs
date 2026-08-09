@@ -55,6 +55,37 @@ namespace GTA_GXT_Editor.GTAVC
             }
         }
 
+        internal GXTManager(
+            Stream stream,
+            string sourceName,
+            GxtLanguage language,
+            Dictionary<int[], char>? characterDictionary)
+        {
+            CyrillicCharsDictionaryPath = null;
+            _cyrillicCharsDictionary = [];
+            _gxtEntries = ReadGXT(stream, sourceName);
+
+            if (characterDictionary is null)
+            {
+                _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(
+                    sourceName,
+                    _gxtEntries,
+                    language);
+                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+                _language = _builtInTextEncoding.Language;
+            }
+            else
+            {
+                _builtInTextEncoding = null;
+                _cyrillicCharsDictionary = characterDictionary.ToDictionary(
+                    pair => pair.Key.ToArray(),
+                    pair => pair.Value);
+                _language = language == GxtLanguage.Auto
+                    ? GxtLanguageDetector.DetectFromName(sourceName)
+                    : language;
+            }
+        }
+
         private GXTManager(
             string? dictionaryPath,
             string? sourceName,
@@ -146,21 +177,22 @@ namespace GTA_GXT_Editor.GTAVC
                 .FillWithZeros(8);
         }
 
-        public override void SaveGXTChanges(string gxtFilePath)
+        public override List<GXTBase> ReadGXT(Stream stream, string sourceName)
         {
-            WriteGXTFile(gxtFilePath);
-        }
-
-
-        public override List<GXTBase> ReadGXTFile(string gxtFilePath)
-        {
-            using (FileStream fsStream = new FileStream(gxtFilePath, FileMode.Open, FileAccess.Read))
+            var fsStream = stream;
+            ArgumentNullException.ThrowIfNull(fsStream);
+            if (!fsStream.CanRead || !fsStream.CanSeek)
             {
+                throw new ArgumentException("Поток GXT должен поддерживать чтение и позиционирование.", nameof(stream));
+            }
+
+            _emptyBlockKeySetsList.Clear();
+            var startPosition = fsStream.Position;
                 //Читаем идентификатор блока - "TABL"
                 string tablIdentifier = fsStream.ReadString(4);
                 if (!string.Equals(tablIdentifier, "TABL", StringComparison.Ordinal))
                 {
-                    throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                    throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                 }
 
                 //Читаем полный размер блока "TABL"
@@ -200,7 +232,7 @@ namespace GTA_GXT_Editor.GTAVC
                     }
 
                     //Двигаемся к началу блока ключей
-                    fsStream.Seek(keySets[keySetIndex].Key, SeekOrigin.Begin);
+                    fsStream.Seek(startPosition + keySets[keySetIndex].Key, SeekOrigin.Begin);
 
                     //Устанавливаем сдвиг для текущего набора ключей
                     var gxtEntriesShift = localGXTEntries.Count;
@@ -221,7 +253,7 @@ namespace GTA_GXT_Editor.GTAVC
                     string tKeyIdentifier = fsStream.ReadString(4);
                     if (!string.Equals(tKeyIdentifier, "TKEY", StringComparison.Ordinal))
                     {
-                        throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                     }
 
                     //Читаем полный размер блока "TKEY"
@@ -252,7 +284,7 @@ namespace GTA_GXT_Editor.GTAVC
                     var tDatIdentifier = fsStream.ReadString(4);
                     if (!string.Equals(tDatIdentifier, "TDAT", StringComparison.Ordinal))
                     {
-                        throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                     }
 
                     //Читаем полный размер блока "TDAT"
@@ -279,12 +311,12 @@ namespace GTA_GXT_Editor.GTAVC
                         }
 
                         //Высчитываем позицию, в которой находится блок текстовых данных
-                        var tDatPosition = 16 + (keySetIndex == 0 ? 0 : 8) + keySets[keySetIndex].Key + tKeyBlockSize + readedBytes;
+                        var tDatPosition = startPosition + 16 + (keySetIndex == 0 ? 0 : 8) + keySets[keySetIndex].Key + tKeyBlockSize + readedBytes;
 
                         //Позиция должна соответствовать текущей позиции считывания в файле
                         if (tDatPosition != fsStream.Position)
                         {
-                            throw new InvalidDataException($"В файле '{Path.GetFileName(gxtFilePath)}' обнаружена неверная последовательность данных.");
+                            throw new InvalidDataException($"В файле '{Path.GetFileName(sourceName)}' обнаружена неверная последовательность данных.");
                         }
 
                         //Записываем в элемент блок текстовых данных
@@ -296,7 +328,7 @@ namespace GTA_GXT_Editor.GTAVC
                         //Проверяем правильность блока текстовых данных. Два нулевых байта должны быть строго в конце блока
                         if (!localGXTEntries.Last().Value.GXTValueIsValid())
                         {
-                            throw new InvalidDataException($"Файл '{Path.GetFileName(gxtFilePath)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                            throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
                         }
 
                         readedBytes += readLength;
@@ -307,16 +339,19 @@ namespace GTA_GXT_Editor.GTAVC
                 {
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
-            }
             throw new InvalidDataException("Ошибка при чтении GXT-файла.");
         }
 
-        public override void WriteGXTFile(string gxtFilePath)
+        public override void WriteGXT(Stream stream)
         {
-            var nextOffset = 0;
-
-            using (FileStream fsStream = new FileStream(gxtFilePath, FileMode.Create, FileAccess.Write))
+            var fsStream = stream;
+            ArgumentNullException.ThrowIfNull(fsStream);
+            if (!fsStream.CanWrite)
             {
+                throw new ArgumentException("Поток GXT должен поддерживать запись.", nameof(stream));
+            }
+
+            var nextOffset = 0;
                 //Получаем список названий всех наборов ключей (таблиц) и сортируем по алфавиту
                 var gxtKeysSetNames = _gxtEntries
                     .OfType<GXTEntry>()
@@ -417,7 +452,6 @@ namespace GTA_GXT_Editor.GTAVC
                 {
                     tableMemoryStreams[tableMemoryStreamsIndex].WriteTo(fsStream);
                 }
-            }
         }
     }
 }
