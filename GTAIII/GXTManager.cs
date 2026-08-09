@@ -2,6 +2,7 @@ using System.IO;
 using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
+using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
 namespace GTA_GXT_Editor.GTAIII
@@ -9,7 +10,6 @@ namespace GTA_GXT_Editor.GTAIII
     public class GXTManager : CommonGXTManager
     {
         private const string RUSSIAN_CHARS_FILENAME = "russian_chars.txt";
-        private const string BELARUSIAN_CHARS_FILENAME = "belarusian_chars.txt";
 
         private List<GXTBase> _gxtEntries;
         private Dictionary<int[], char> _cyrillicCharsDictionary;
@@ -94,12 +94,18 @@ namespace GTA_GXT_Editor.GTAIII
             string? dictionaryPath,
             GxtLanguage language)
         {
-            var path = dictionaryPath ?? Path.Combine(
-                AppContext.BaseDirectory,
-                language == GxtLanguage.Belarusian
-                    ? BELARUSIAN_CHARS_FILENAME
-                    : RUSSIAN_CHARS_FILENAME);
-            return path.LoadCyrillicCharsDictionary();
+            if (dictionaryPath is not null)
+            {
+                return CharacterMapFileSerializer.LoadDictionary(dictionaryPath);
+            }
+
+            if (language == GxtLanguage.Belarusian)
+            {
+                return BundledCharacterMapProvider.BelarusianViceCity.ToCharacterDictionary();
+            }
+
+            var path = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME);
+            return CharacterMapFileSerializer.LoadDictionary(path);
         }
 
 

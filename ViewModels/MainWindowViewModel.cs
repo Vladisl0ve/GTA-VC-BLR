@@ -25,8 +25,10 @@ public partial class MainWindowViewModel : ObservableObject
         "Проект BYX (*.byx)|*.byx|Все файлы (*.*)|*.*";
     private const string JsonFileFilter =
         "JSON (*.json)|*.json|Все файлы (*.*)|*.*";
-    private const string DictionaryFileFilter =
-        "Словарь символов (*.txt)|*.txt|Все файлы (*.*)|*.*";
+    private const string CharacterMapFileFilter =
+        "Маппинг символов (*.gxtmap.json;*.json;*.txt)|*.gxtmap.json;*.json;*.txt|" +
+        "Маппинг JSON (*.gxtmap.json;*.json)|*.gxtmap.json;*.json|" +
+        "Старый словарь (*.txt)|*.txt|Все файлы (*.*)|*.*";
 
     private readonly GxtManagerFactory _managerFactory;
     private readonly IDialogService _dialogs;
@@ -184,13 +186,13 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void OpenFileWithDictionary()
     {
-        var path = _dialogs.OpenFile("Открыть GXT-файл со словарём", GxtFileFilter);
+        var path = _dialogs.OpenFile("Открыть GXT-файл с маппингом", GxtFileFilter);
         if (path is null)
         {
             return;
         }
 
-        var dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
+        var dictionaryPath = _dialogs.OpenFile("Выбрать маппинг символов", CharacterMapFileFilter);
         if (dictionaryPath is not null && TryContinueAfterUnsavedChanges())
         {
             LoadDocument(path, dictionaryPath);
@@ -760,7 +762,7 @@ public partial class MainWindowViewModel : ObservableObject
         string? dictionaryPath = null;
         if (useCustomDictionary)
         {
-            dictionaryPath = _dialogs.OpenFile("Выбрать словарь символов", DictionaryFileFilter);
+            dictionaryPath = _dialogs.OpenFile("Выбрать маппинг символов", CharacterMapFileFilter);
             if (dictionaryPath is null)
             {
                 return;
@@ -858,8 +860,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var targetPath = _dialogs.OpenFile(
-            "Выбрать целевой словарь символов",
-            DictionaryFileFilter);
+            "Выбрать целевой маппинг символов",
+            CharacterMapFileFilter);
         if (targetPath is null)
         {
             return;
@@ -868,13 +870,13 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var sourceDictionary = _manager.CyrillicCharsDictionary;
-            var targetDictionary = targetPath.LoadCyrillicCharsDictionary();
+            var targetDictionary = CharacterMapFileSerializer.LoadDictionary(targetPath);
 
             if (sourceDictionary.Count != targetDictionary.Count ||
                 !sourceDictionary.Values.ToHashSet().SetEquals(targetDictionary.Values))
             {
                 _dialogs.ShowError(
-                    "Словари должны содержать одинаковое количество и одинаковый набор символов.");
+                    "Маппинги должны содержать одинаковое количество и одинаковый набор символов.");
                 return;
             }
 
@@ -911,11 +913,11 @@ public partial class MainWindowViewModel : ObservableObject
 
             SetDirty(true);
             RefreshEntries();
-            _dialogs.ShowInfo("Словарь символов успешно преобразован.");
+            _dialogs.ShowInfo("Маппинг символов успешно преобразован.");
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось преобразовать словарь.\n\n{exception.Message}");
+            _dialogs.ShowError($"Не удалось преобразовать маппинг.\n\n{exception.Message}");
         }
     }
 

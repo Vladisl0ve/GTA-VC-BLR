@@ -9,15 +9,28 @@ namespace GTA_GXT_Editor.Tests;
 public sealed class CharacterMapTests
 {
     [TestMethod]
-    public void BelarusianPreset_MapsExactContinuousRange()
+    public void BelarusianPreset_LoadsCanonicalAssetAndMapsExactContinuousRange()
     {
         const string expected =
             "АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ" +
             "абвгдеёжзійклмнопрстуўфхцчшыьэюя";
+        var assetPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Assets",
+            "ViceCity",
+            "belarusian.gxtmap.json");
 
+        Assert.IsTrue(File.Exists(assetPath));
+        var assetProfile = CharacterMapFileSerializer.Load(assetPath);
         var profile = CharacterMapPresets.Belarusian;
         var decodeMap = profile.ToDecodeMap();
 
+        CollectionAssert.AreEqual(
+            assetProfile.Mappings.Select(mapping => mapping.Character).ToArray(),
+            profile.Mappings.Select(mapping => mapping.Character).ToArray());
+        CollectionAssert.AreEqual(
+            assetProfile.Mappings.Select(mapping => mapping.PreferredCode).ToArray(),
+            profile.Mappings.Select(mapping => mapping.PreferredCode).ToArray());
         Assert.HasCount(64, profile.Mappings);
         Assert.HasCount(64, decodeMap);
         Assert.AreEqual(expected, new string(
@@ -29,6 +42,17 @@ public sealed class CharacterMapTests
         Assert.AreEqual('і', decodeMap[0xA9]);
         Assert.AreEqual('ў', decodeMap[0xB5]);
         Assert.AreEqual('я', decodeMap[0xBF]);
+    }
+
+    [TestMethod]
+    public void BelarusianPreset_ReturnsIndependentCopies()
+    {
+        var first = CharacterMapPresets.Belarusian;
+        first.Mappings[0].PreferredCode = 0x81;
+
+        var second = CharacterMapPresets.Belarusian;
+
+        Assert.AreEqual((byte)0x80, second.Mappings[0].PreferredCode);
     }
 
     [TestMethod]

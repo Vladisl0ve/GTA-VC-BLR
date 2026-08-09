@@ -239,14 +239,18 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ImportJsonWithDictionary_UsesSelectedDictionary()
+    public void ImportJsonWithDictionary_UsesSelectedJsonMapping()
     {
-        WriteDictionary("200 Ў");
+        var mappingPath = Path.Combine(_testDirectory, "characters.gxtmap.json");
+        File.WriteAllText(
+            mappingPath,
+            "{\"Ў\":\"0xC8\"}",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         var jsonPath = WriteJson("custom.json", "Ў", "be");
         var targetPath = Path.Combine(_testDirectory, "custom-import.gxt");
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(jsonPath);
-        dialogs.OpenFileResults.Enqueue(_dictionaryPath);
+        dialogs.OpenFileResults.Enqueue(mappingPath);
         dialogs.SaveFileResults.Enqueue(targetPath);
         var viewModel = CreateViewModel(dialogs);
 
@@ -256,7 +260,8 @@ public sealed class MainWindowViewModelTests
         Assert.HasCount(1, viewModel.Entries);
         Assert.AreEqual("Ў", viewModel.Entries[0].Text);
         Assert.HasCount(2, dialogs.OpenFileCalls);
-        StringAssert.Contains(dialogs.OpenFileCalls[1].Title, "словарь");
+        StringAssert.Contains(dialogs.OpenFileCalls[1].Title, "маппинг");
+        StringAssert.Contains(dialogs.OpenFileCalls[1].Filter, "*.gxtmap.json");
         Assert.AreEqual(0, dialogs.ConfirmCallCount);
     }
 

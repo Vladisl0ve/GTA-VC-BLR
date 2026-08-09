@@ -1,13 +1,15 @@
 using System.IO;
 using System.Text;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.GTAVC;
 
 internal sealed class ViceCityTextEncodingProfile
 {
     private const byte FirstCustomCharacter = 0x80;
-    private const byte LastCustomCharacter = 0xAF;
+    private const byte LastCustomCharacter = 0xBF;
 
     private readonly IReadOnlyDictionary<byte, char> _cyrillicCharactersByByte;
     private readonly Dictionary<char, byte> _bytesByCyrillicCharacter;
@@ -96,6 +98,14 @@ internal sealed class ViceCityTextEncodingProfile
             return English;
         }
 
+        for (var code = 0xB0; code <= LastCustomCharacter; code++)
+        {
+            if (counts[code] > 0)
+            {
+                return Belarusian;
+            }
+        }
+
         var nameLanguage = GxtLanguageDetector.DetectFromName(path);
         if (nameLanguage != GxtLanguage.Auto)
         {
@@ -111,9 +121,7 @@ internal sealed class ViceCityTextEncodingProfile
             return Ukrainian;
         }
 
-        // In the Belarusian profile the Russian Щ/щ slots contain Ў/ў. Check
-        // this only after Ukrainian markers because Ukrainian also uses Щ/щ.
-        return counts[0x91] + counts[0xA8] > 0 ? Belarusian : Russian;
+        return Russian;
     }
 
     public static ViceCityTextEncodingProfile DetectForText(
@@ -277,6 +285,17 @@ internal sealed class ViceCityTextEncodingProfile
         return (byte)character;
     }
 
+    private static ViceCityTextEncodingProfile FromCharacterMap(
+        GxtLanguage language,
+        string name,
+        CharacterMapProfile profile) => new(
+            language,
+            name,
+            profile.Mappings.SelectMany(mapping => mapping.Codes
+                .OrderBy(code => code == mapping.PreferredCode ? 0 : 1)
+                .ThenBy(code => code)
+                .Select(code => (code, mapping.Character))));
+
     private static readonly ViceCityTextEncodingProfile English = new(
         GxtLanguage.English,
         "English",
@@ -302,23 +321,10 @@ internal sealed class ViceCityTextEncodingProfile
         [((byte)'y', 't')],
         [('Ё', (byte)'E'), ('ё', (byte)'e')]);
 
-    private static readonly ViceCityTextEncodingProfile Belarusian = new(
+    private static readonly ViceCityTextEncodingProfile Belarusian = FromCharacterMap(
         GxtLanguage.Belarusian,
         "Беларуская",
-        [
-            ((byte)'A', 'А'), (0x80, 'Б'), (0x81, 'В'), ((byte)'B', 'В'), (0x82, 'Г'), (0x83, 'Д'),
-            ((byte)'E', 'Е'), (0x96, 'Ё'), (0x84, 'Ж'), (0x85, 'З'), (0x86, 'І'), (0x87, 'Й'), ((byte)'K', 'К'),
-            (0x88, 'Л'), (0x89, 'М'), ((byte)'M', 'М'), (0x8A, 'Н'), ((byte)'H', 'Н'), ((byte)'O', 'О'),
-            (0x8B, 'П'), ((byte)'P', 'Р'), ((byte)'C', 'С'), ((byte)'T', 'Т'), (0x8C, 'У'), (0x91, 'Ў'),
-            (0x8D, 'Ф'), ((byte)'X', 'Х'), (0x8E, 'Ц'), (0x8F, 'Ч'), (0x90, 'Ш'), (0x92, 'Ы'),
-            (0x93, 'Ь'), (0x94, 'Э'), (0x95, 'Ю'), (0xAD, 'Я'),
-            ((byte)'a', 'а'), (0x97, 'б'), (0x98, 'в'), (0x99, 'г'), (0x9A, 'д'), ((byte)'e', 'е'), (0xAF, 'ё'),
-            (0x9B, 'ж'), (0x9C, 'з'), (0x9D, 'і'), (0x9E, 'й'), ((byte)'k', 'к'), (0x9F, 'л'),
-            (0xA0, 'м'), (0xA1, 'н'), ((byte)'o', 'о'), (0xA2, 'п'), ((byte)'p', 'р'), ((byte)'c', 'с'),
-            ((byte)'y', 'т'), (0xA3, 'у'), (0xA8, 'ў'), (0xA4, 'ф'), ((byte)'x', 'х'), (0xA5, 'ц'),
-            (0xA6, 'ч'), (0xA7, 'ш'), (0xA9, 'ы'), (0xAA, 'ь'), (0xAB, 'э'), (0xAC, 'ю'), (0xAE, 'я'),
-        ],
-        [((byte)'y', 't')]);
+        BundledCharacterMapProvider.BelarusianViceCity);
 
     private static readonly ViceCityTextEncodingProfile Ukrainian = new(
         GxtLanguage.Ukrainian,

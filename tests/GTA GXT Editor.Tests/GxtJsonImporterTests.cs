@@ -178,6 +178,37 @@ public sealed class GxtJsonImporterTests
     }
 
     [TestMethod]
+    public void Import_ViceCity_UsesCanonicalJsonCharacterMap()
+    {
+        var jsonPath = WriteJson(
+            "belarusian-canonical-map.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "language": "be",
+              "entries": [
+                { "key": "LETTERS", "text": "ЁІЎёіў" }
+              ]
+            }
+            """);
+        var gxtPath = Path.Combine(_testDirectory, "canonical-map.gxt");
+        var mapPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Assets",
+            "ViceCity",
+            "belarusian.gxtmap.json");
+
+        var result = GxtJsonImporter.Import(jsonPath, gxtPath, mapPath);
+        var manager = _factory.Open(gxtPath, mapPath, result.Language);
+        var value = manager.GXTEntries.Single().Value;
+
+        CollectionAssert.AreEqual(
+            new byte[] { 0x86, 0x89, 0x95, 0xA6, 0xA9, 0xB5 },
+            value.Where((_, index) => index % 2 == 0).Take(6).ToArray());
+        Assert.AreEqual("ЁІЎёіў", GetText(manager, "LETTERS"));
+    }
+
+    [TestMethod]
     public void Import_ViceCity_ReplacesEmDashWithAsciiHyphen()
     {
         var jsonPath = WriteJson(
@@ -220,6 +251,60 @@ public sealed class GxtJsonImporterTests
             GxtJsonImporter.Import(jsonPath, gxtPath, _dictionaryPath));
 
         StringAssert.Contains(exception.Message, "дублирует ключ");
+        Assert.AreEqual("keep me", File.ReadAllText(gxtPath));
+    }
+
+    [TestMethod]
+    public void Import_InvalidJsonCharacterMap_DoesNotOverwriteTarget()
+    {
+        var jsonPath = WriteJson(
+            "invalid-map-source.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "entries": [
+                { "key": "HELLO", "text": "А" }
+              ]
+            }
+            """);
+        var mapPath = WriteJson(
+            "invalid.gxtmap.json",
+            """
+            {
+              "А": "0x80",
+              "Б": "0x80"
+            }
+            """);
+        var gxtPath = Path.Combine(_testDirectory, "existing-invalid-map.gxt");
+        File.WriteAllText(gxtPath, "keep me");
+
+        Assert.Throws<InvalidDataException>(() =>
+            GxtJsonImporter.Import(jsonPath, gxtPath, mapPath));
+
+        Assert.AreEqual("keep me", File.ReadAllText(gxtPath));
+    }
+
+    [TestMethod]
+    public void Import_CharacterMissingFromJsonMap_DoesNotOverwriteTarget()
+    {
+        var jsonPath = WriteJson(
+            "missing-character-source.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "language": "be",
+              "entries": [
+                { "key": "HELLO", "text": "Ў" }
+              ]
+            }
+            """);
+        var mapPath = WriteJson("incomplete.gxtmap.json", "{\"А\":\"0x80\"}");
+        var gxtPath = Path.Combine(_testDirectory, "existing-missing-character.gxt");
+        File.WriteAllText(gxtPath, "keep me");
+
+        Assert.Throws<InvalidDataException>(() =>
+            GxtJsonImporter.Import(jsonPath, gxtPath, mapPath));
+
         Assert.AreEqual("keep me", File.ReadAllText(gxtPath));
     }
 

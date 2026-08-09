@@ -2,6 +2,7 @@ using System.IO;
 using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
+using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
 namespace GTA_GXT_Editor.GTAVC
@@ -48,7 +49,8 @@ namespace GTA_GXT_Editor.GTAVC
             }
             else
             {
-                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
+                _cyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
+                    CyrillicCharsDictionaryPath);
                 _language = language == GxtLanguage.Auto
                     ? GxtLanguageDetector.DetectFromName(gxtPath)
                     : language;
@@ -108,7 +110,8 @@ namespace GTA_GXT_Editor.GTAVC
             }
             else
             {
-                _cyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
+                _cyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
+                    CyrillicCharsDictionaryPath);
             }
         }
 

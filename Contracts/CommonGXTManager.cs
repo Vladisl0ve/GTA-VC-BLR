@@ -1,6 +1,6 @@
 using System.IO;
 using GTA_GXT_Editor.Common;
-using GTA_GXT_Editor.Utils;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Contracts;
 
@@ -83,6 +83,7 @@ public abstract class CommonGXTManager
             throw new InvalidOperationException("Путь к пользовательскому словарю не задан.");
         }
 
-        CyrillicCharsDictionary = CyrillicCharsDictionaryPath.LoadCyrillicCharsDictionary();
+        CyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
+            CyrillicCharsDictionaryPath);
     }
 }

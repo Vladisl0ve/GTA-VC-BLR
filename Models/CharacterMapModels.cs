@@ -1,4 +1,5 @@
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Models;
 
@@ -108,18 +109,6 @@ public sealed record CharacterMapPreview(
 
 public static class CharacterMapPresets
 {
-    private const string BelarusianCharacters =
-        "АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ" +
-        "абвгдеёжзійклмнопрстуўфхцчшыьэюя";
-
-    public static CharacterMapProfile Belarusian => new()
-    {
-        IsVerified = false,
-        Mappings = BelarusianCharacters.Select((character, index) => new CharacterMapEntry
-        {
-            Character = character,
-            Codes = [(byte)(0x80 + index)],
-            PreferredCode = (byte)(0x80 + index),
-        }).ToList(),
-    };
+    public static CharacterMapProfile Belarusian =>
+        BundledCharacterMapProvider.BelarusianViceCity;
 }

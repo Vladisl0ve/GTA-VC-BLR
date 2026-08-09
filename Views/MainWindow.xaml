@@ -63,7 +63,7 @@
                                 CornerRadius="4">
                             <Button Padding="12,7"
                                     HorizontalContentAlignment="Left"
-                                    Content="Открыть со словарём…"
+                                    Content="Открыть с маппингом…"
                                     Command="{Binding OpenFileWithDictionaryCommand}" />
                         </Border>
                     </Popup>
@@ -102,7 +102,7 @@
                                 CornerRadius="4">
                             <Button Padding="12,7"
                                     HorizontalContentAlignment="Left"
-                                    Content="JSON → GXT со словарём…"
+                                    Content="JSON → GXT с маппингом…"
                                     Command="{Binding ImportJsonWithDictionaryCommand}" />
                         </Border>
                     </Popup>
@@ -380,7 +380,7 @@
                     MinWidth="200"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Преобразовать словарь…"
+                    Content="Преобразовать маппинг…"
                     Command="{Binding ConvertDictionaryCommand}" />
         </Grid>
 

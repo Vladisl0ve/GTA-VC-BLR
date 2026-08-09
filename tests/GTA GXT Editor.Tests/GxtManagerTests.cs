@@ -118,9 +118,11 @@ public sealed class GxtManagerTests
     }
 
     [TestMethod]
-    public void ViceCity_BelarusianEncoding_RoundTripsDistinctLetters()
+    public void ViceCity_BelarusianEncoding_MapsAndRoundTripsEntireAlphabet()
     {
-        const string text = "ЁёІіЎў";
+        const string text =
+            "АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ" +
+            "абвгдеёжзійклмнопрстуўфхцчшыьэюя";
         var manager = GxtManagerFactory.Create(
             GXTType.GtaViceCity,
             sourceTexts: [text],
@@ -129,7 +131,22 @@ public sealed class GxtManagerTests
         var bytes = manager.ConvertTextToBytes(text);
 
         Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        CollectionAssert.AreEqual(
+            Enumerable.Range(0x80, 64).Select(code => (byte)code).ToArray(),
+            bytes.Where((_, index) => index % 2 == 0).Take(text.Length).ToArray());
         Assert.AreEqual(text, manager.ConvertBytesToText(bytes));
+    }
+
+    [TestMethod]
+    public void ViceCity_AutomaticEncoding_DetectsCanonicalBelarusianExtendedRange()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "american.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "HELLO", EncodeRawValue(0xB5));
+
+        var manager = new GTAVC.GXTManager(sourcePath);
+
+        Assert.AreEqual(GxtLanguage.Belarusian, manager.Language);
+        Assert.AreEqual("ў", manager.ConvertBytesToText(manager.GXTEntries[0].Value));
     }
 
     [TestMethod]

@@ -28,6 +28,9 @@ public static class CharacterMapFileSerializer
         return Deserialize(File.ReadAllBytes(path));
     }
 
+    public static Dictionary<int[], char> LoadDictionary(string path) =>
+        Load(path).ToCharacterDictionary();
+
     public static void Save(string path, CharacterMapProfile profile)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
