@@ -92,7 +92,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Ячейки font1 / font2 / pager" />
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="{Binding GlyphAtlasHeading}" />
                 <ListBox Grid.Row="1" ItemsSource="{Binding Glyphs}" SelectedItem="{Binding SelectedGlyph}"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemsPanel>

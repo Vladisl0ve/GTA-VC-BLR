@@ -3,6 +3,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 
@@ -30,7 +31,7 @@ public partial class TxdViewerViewModel : ObservableObject
         ];
         selectedApplyMode = ApplyModes[0];
 
-        foreach (var texture in Attachment.Document.Textures.Where(texture => texture.IsFontAtlas))
+        foreach (var texture in Attachment.Document.Textures.Where(IsVisibleFontAtlas))
         {
             Textures.Add(texture);
         }
@@ -49,6 +50,10 @@ public partial class TxdViewerViewModel : ObservableObject
     public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; }
 
     public CharacterMapProfile Profile => _profile;
+
+    public string GlyphAtlasHeading => _request.GameType == GXTType.GtaViceCity
+        ? "Ячейки font1 / font2"
+        : "Ячейки font1 / font2 / pager";
 
     public string VerificationText => _profile.IsVerified
         ? "Профиль проверен для текущей пары"
@@ -324,6 +329,11 @@ public partial class TxdViewerViewModel : ObservableObject
               "Использование локализованных символов:" + Environment.NewLine +
               string.Join(", ", usage);
     }
+
+    private bool IsVisibleFontAtlas(TxdTexture texture) =>
+        texture.IsFontAtlas &&
+        (_request.GameType != GXTType.GtaViceCity ||
+         !texture.Name.Equals("pager", StringComparison.OrdinalIgnoreCase));
 
     private static string FormatCellLabel(
         byte? code,

@@ -641,6 +641,7 @@ public partial class MainWindowViewModel : ObservableObject
             isVerified: false);
         var result = _dialogs.EditCharacterMap(new CharacterMapEditorRequest(
             AttachedTxd,
+            _project.GameType,
             profile,
             Entries.Select(entry => entry.Text).ToArray(),
             _manager.GXTEntries.Select(entry => entry.Value.ToArray()).ToArray(),

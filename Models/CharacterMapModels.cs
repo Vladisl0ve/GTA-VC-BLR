@@ -85,6 +85,7 @@ public enum CharacterMapApplyMode
 
 public sealed record CharacterMapEditorRequest(
     TxdAttachment Attachment,
+    GXTType GameType,
     CharacterMapProfile Profile,
     IReadOnlyList<string> CurrentTexts,
     IReadOnlyList<byte[]> RawValues,

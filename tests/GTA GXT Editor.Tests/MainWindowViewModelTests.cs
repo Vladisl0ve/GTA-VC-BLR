@@ -408,6 +408,7 @@ public sealed class MainWindowViewModelTests
 
         Assert.IsNotNull(dialogs.CharacterMapRequest);
         Assert.AreEqual(viewModel.AttachedTxd, dialogs.CharacterMapRequest.Attachment);
+        Assert.AreEqual(GXTType.GtaViceCity, dialogs.CharacterMapRequest.GameType);
         Assert.IsTrue(dialogs.CharacterMapRequest.Profile.Mappings.Count > 0);
         CollectionAssert.AreEqual(File.ReadAllBytes(txdPath), File.ReadAllBytes(exportPath));
     }
