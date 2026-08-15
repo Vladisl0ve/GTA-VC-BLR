@@ -4,26 +4,34 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GTA_GXT_Editor.Common;
-using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
 
 public sealed class ByxProjectSerializer : IProjectSerializer
 {
-    private const int CurrentVersion = 2;
+    private const int CurrentVersion = 3;
     private const string ManifestEntryName = "manifest.json";
     private const string GxtEntryName = "gxt/main.gxt";
-    private const string DictionaryEntryName = "dictionary/characters.json";
+    private const string TxdEntryName = "txd/fonts.txd";
     private const string CharacterMapEntryName = "mapping/characters.json";
+    private const string MetadataEntryName = "metadata/entries.json";
     private const long MaximumArchiveSize = 512L * 1024 * 1024;
     private const long MaximumManifestSize = 1024 * 1024;
+    private const long MaximumCharacterMapSize = 4L * 1024 * 1024;
+    private const long MaximumMetadataSize = 64L * 1024 * 1024;
     private const int MaximumEntries = 64;
+
+    private static readonly JsonSerializerOptions HeaderJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         Converters = { new JsonStringEnumConverter() },
     };
 
@@ -54,26 +62,61 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
         ValidateArchive(archive);
 
-        var manifestEntry = GetRequiredEntry(archive, ManifestEntryName);
-        if (manifestEntry.Length > MaximumManifestSize)
-        {
-            throw new InvalidDataException("Manifest проекта BYX слишком велик.");
-        }
-
-        var manifestData = ReadEntry(manifestEntry, MaximumManifestSize);
-        var header = Deserialize<ByxManifestHeader>(manifestData);
+        var manifestData = ReadEntry(GetRequiredEntry(archive, ManifestEntryName), MaximumManifestSize);
+        var header = Deserialize<ByxManifestHeader>(manifestData, HeaderJsonOptions);
         if (!string.Equals(header.Format, "BYX", StringComparison.Ordinal))
         {
             throw new InvalidDataException("Некорректный формат проекта BYX.");
         }
 
-        return header.Version switch
+        if (header.Version != CurrentVersion)
         {
-            1 => LoadVersion1(path, archive, Deserialize<ByxManifestV1>(manifestData)),
-            CurrentVersion => LoadVersion2(path, archive, Deserialize<ByxManifest>(manifestData)),
-            > CurrentVersion => throw new InvalidDataException(
-                $"Версия BYX {header.Version} пока не поддерживается."),
-            _ => throw new InvalidDataException("Некорректная версия проекта BYX."),
+            var description = header.Version > CurrentVersion
+                ? "пока не поддерживается"
+                : "больше не поддерживается";
+            throw new InvalidDataException($"Версия BYX {header.Version} {description}.");
+        }
+
+        var manifest = Deserialize<ByxManifest>(manifestData, JsonOptions);
+        ValidateManifest(manifest);
+        ValidateManifestEntries(archive, manifest);
+
+        var characterMap = manifest.CharacterMap is null
+            ? null
+            : LoadCharacterMap(archive, manifest.CharacterMap);
+        var dictionary = characterMap?.ToCharacterDictionary();
+
+        var gxtData = ReadValidatedEntry(archive, manifest.Gxt, MaximumArchiveSize);
+        var txdData = manifest.Txd is null
+            ? null
+            : ReadValidatedEntry(archive, manifest.Txd, MaximumArchiveSize);
+        var metadataData = ReadValidatedEntry(archive, manifest.Metadata, MaximumMetadataSize);
+        var metadata = Deserialize<ProjectMetadata>(metadataData, JsonOptions);
+        ValidateMetadata(metadata);
+
+        var gameType = ParseGame(manifest.Game);
+        var manager = _gxtManagerFactory.Open(
+            gxtData,
+            gameType,
+            manifest.Gxt.OriginalFileName,
+            ParseLanguage(manifest.Language),
+            dictionary);
+        var attachment = manifest.Txd is null || txdData is null
+            ? null
+            : LoadTxd(manifest.Txd, txdData, gameType);
+
+        return new EditorProject
+        {
+            ProjectPath = path,
+            GxtSourceName = manifest.Gxt.OriginalFileName,
+            GxtSourcePath = null,
+            GameType = gameType,
+            GxtManager = manager,
+            UsesCustomDictionary = characterMap is not null,
+            AttachedTxd = attachment,
+            CharacterMap = characterMap,
+            Metadata = metadata,
+            IsDirty = false,
         };
     }
 
@@ -81,20 +124,70 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(project);
-        if (project.GameType is not (GXTType.GtaIII or GXTType.GtaViceCity))
+        ValidateProject(project);
+        ValidateMetadata(project.Metadata);
+
+        using var gxtStream = new MemoryStream();
+        project.GxtManager.WriteGXT(gxtStream);
+        var gxtData = gxtStream.ToArray();
+
+        var profile = project.CharacterMap?.Clone();
+        if (profile is null && project.UsesCustomDictionary)
         {
-            throw new InvalidOperationException("Проект содержит неподдерживаемый тип GXT.");
+            profile = CharacterMapProfile.FromDictionary(
+                project.GxtManager.CyrillicCharsDictionary,
+                isVerified: false);
         }
 
-        if (project.GameType != GXTType.GtaViceCity && project.AttachedTxd is not null)
-        {
-            throw new InvalidOperationException("TXD можно подключать только к проекту GTA Vice City.");
-        }
+        var characterMapData = profile is null
+            ? null
+            : CharacterMapFileSerializer.Serialize(profile);
+        var metadataData = JsonSerializer.SerializeToUtf8Bytes(project.Metadata, JsonOptions);
+        var txdData = project.AttachedTxd?.Data;
 
-        if (project.AttachedTxd?.Id == Guid.Empty)
+        var manifest = new ByxManifest
         {
-            throw new InvalidOperationException("Проект содержит пустой идентификатор TXD.");
-        }
+            Format = "BYX",
+            Version = CurrentVersion,
+            Game = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City",
+            Language = ToLanguageCode(project.GxtManager.Language),
+            Gxt = new ByxGxtItem
+            {
+                OriginalFileName = SanitizeFileName(project.GxtSourceName, "main.gxt"),
+                Entry = GxtEntryName,
+                Sha256 = ComputeHash(gxtData),
+            },
+            Txd = project.AttachedTxd is null || txdData is null
+                ? null
+                : new ByxTxdItem
+                {
+                    OriginalFileName = SanitizeFileName(
+                        project.AttachedTxd.OriginalFileName,
+                        "fonts.txd"),
+                    Entry = TxdEntryName,
+                    Sha256 = ComputeHash(txdData),
+                },
+            CharacterMap = characterMapData is null
+                ? null
+                : new ByxCharacterMapItem
+                {
+                    Entry = CharacterMapEntryName,
+                    Sha256 = ComputeHash(characterMapData),
+                    IsVerified = profile!.IsVerified,
+                },
+            Metadata = new ByxArchiveItem
+            {
+                Entry = MetadataEntryName,
+                Sha256 = ComputeHash(metadataData),
+            },
+        };
+        var manifestData = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
+        ValidateSaveLimits(
+            manifestData,
+            gxtData,
+            txdData,
+            characterMapData,
+            metadataData);
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath)
@@ -106,78 +199,6 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
         try
         {
-            using var gxtStream = new MemoryStream();
-            project.GxtManager.WriteGXT(gxtStream);
-            var gxtData = gxtStream.ToArray();
-
-            var profile = project.CharacterMap?.Clone();
-            byte[]? characterMapData = null;
-            byte[]? dictionaryData = null;
-            ByxDictionaryItem? dictionaryItem = null;
-            ByxTxdItem? txdItem = null;
-            if (project.AttachedTxd is { } attachment)
-            {
-                profile ??= CharacterMapProfile.FromDictionary(
-                    project.GxtManager.CyrillicCharsDictionary,
-                    isVerified: false);
-                characterMapData = CharacterMapFileSerializer.Serialize(profile);
-                txdItem = new ByxTxdItem
-                {
-                    Id = attachment.Id,
-                    OriginalFileName = SanitizeFileName(attachment.OriginalFileName, "fonts.txd"),
-                    DisplayName = attachment.DisplayName,
-                    Entry = $"txd/{attachment.Id:N}.txd",
-                    Sha256 = ComputeHash(attachment.Data),
-                    CharacterMap = new ByxDictionaryItem
-                    {
-                        Entry = CharacterMapEntryName,
-                        Sha256 = ComputeHash(characterMapData),
-                    },
-                    CharacterMapVerified = profile.IsVerified,
-                };
-            }
-            else if (project.UsesCustomDictionary)
-            {
-                profile ??= CharacterMapProfile.FromDictionary(
-                    project.GxtManager.CyrillicCharsDictionary,
-                    isVerified: false);
-                dictionaryData = CharacterMapFileSerializer.Serialize(profile);
-                dictionaryItem = new ByxDictionaryItem
-                {
-                    Entry = DictionaryEntryName,
-                    Sha256 = ComputeHash(dictionaryData),
-                };
-            }
-
-            var manifest = new ByxManifest
-            {
-                Format = "BYX",
-                Version = CurrentVersion,
-                Game = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City",
-                Language = ToLanguageCode(project.GxtManager.Language),
-                Gxt = new ByxGxtItem
-                {
-                    OriginalFileName = SanitizeFileName(project.GxtSourceName, "main.gxt"),
-                    Entry = GxtEntryName,
-                    Sha256 = ComputeHash(gxtData),
-                },
-                Dictionary = dictionaryItem,
-                Txd = txdItem,
-            };
-            var manifestData = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
-            var entryCount = 2 + (txdItem is null ? 0 : 2) + (dictionaryItem is null ? 0 : 1);
-            var totalLength = checked(
-                gxtData.LongLength +
-                manifestData.LongLength +
-                (project.AttachedTxd?.Data.LongLength ?? 0) +
-                (characterMapData?.LongLength ?? 0) +
-                (dictionaryData?.LongLength ?? 0));
-            if (entryCount > MaximumEntries || manifestData.LongLength > MaximumManifestSize ||
-                totalLength > MaximumArchiveSize)
-            {
-                throw new InvalidOperationException("Проект превышает допустимые лимиты формата BYX.");
-            }
-
             using (var fileStream = new FileStream(
                        temporaryPath,
                        FileMode.CreateNew,
@@ -186,10 +207,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             using (var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, leaveOpen: false))
             {
                 WriteEntry(archive, GxtEntryName, gxtData, CompressionLevel.Optimal);
-                if (project.AttachedTxd is { } attached && txdItem is not null &&
-                    characterMapData is not null)
+                if (txdData is not null)
                 {
-                    WriteEntry(archive, txdItem.Entry, attached.Data, CompressionLevel.Optimal);
+                    WriteEntry(archive, TxdEntryName, txdData, CompressionLevel.Optimal);
+                }
+
+                if (characterMapData is not null)
+                {
                     WriteEntry(
                         archive,
                         CharacterMapEntryName,
@@ -197,15 +221,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                         CompressionLevel.Optimal);
                 }
 
-                if (dictionaryData is not null)
-                {
-                    WriteEntry(
-                        archive,
-                        DictionaryEntryName,
-                        dictionaryData,
-                        CompressionLevel.Optimal);
-                }
-
+                WriteEntry(archive, MetadataEntryName, metadataData, CompressionLevel.Optimal);
                 WriteEntry(archive, ManifestEntryName, manifestData, CompressionLevel.Optimal);
             }
 
@@ -220,278 +236,202 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         }
     }
 
-    private EditorProject LoadVersion1(
-        string path,
-        ZipArchive archive,
-        ByxManifestV1 manifest)
+    private static void ValidateProject(EditorProject project)
     {
-        ValidateManifestVersion1(manifest);
-        ValidateManifestEntriesVersion1(archive, manifest);
-        if (manifest.Txd.Count > 1)
+        if (project.GameType is not (GXTType.GtaIII or GXTType.GtaViceCity))
         {
-            throw new InvalidDataException(
-                "BYX v1 содержит несколько TXD. Эта версия приложения поддерживает только один TXD на GXT.");
+            throw new InvalidOperationException("Проект содержит неподдерживаемый тип GXT.");
         }
 
-        var dictionary = LoadLegacyDictionary(archive, manifest.Dictionary);
-        var manager = LoadManager(archive, manifest.Game, manifest.Language, manifest.Gxt, dictionary);
-        var gameType = ParseGame(manifest.Game);
-        var attachment = manifest.Txd.SingleOrDefault() is { } item
-            ? LoadTxd(archive, item, gameType)
-            : null;
-        var profile = attachment is null
-            ? null
-            : CharacterMapProfile.FromDictionary(
-                dictionary ?? manager.CyrillicCharsDictionary,
-                isVerified: false);
-
-        return new EditorProject
+        if (project.GameType != GXTType.GtaViceCity && project.AttachedTxd is not null)
         {
-            ProjectPath = path,
-            GxtSourceName = manifest.Gxt.OriginalFileName,
-            GxtSourcePath = null,
-            GameType = gameType,
-            GxtManager = manager,
-            UsesCustomDictionary = dictionary is not null || profile is not null,
-            AttachedTxd = attachment,
-            CharacterMap = profile,
-            IsDirty = false,
-        };
-    }
-
-    private EditorProject LoadVersion2(
-        string path,
-        ZipArchive archive,
-        ByxManifest manifest)
-    {
-        ValidateManifestVersion2(manifest);
-        ValidateManifestEntriesVersion2(archive, manifest);
-
-        CharacterMapProfile? profile = null;
-        Dictionary<int[], char>? dictionary = null;
-        if (manifest.Txd?.CharacterMap is { } mapItem)
-        {
-            profile = LoadProfile(archive, mapItem);
-            profile.IsVerified = manifest.Txd.CharacterMapVerified;
-            dictionary = profile.ToCharacterDictionary();
+            throw new InvalidOperationException("TXD можно подключать только к проекту GTA Vice City.");
         }
-        else if (manifest.Dictionary is not null)
-        {
-            profile = LoadProfile(archive, manifest.Dictionary);
-            profile.IsVerified = true;
-            dictionary = profile.ToCharacterDictionary();
-        }
-
-        var manager = LoadManager(archive, manifest.Game, manifest.Language, manifest.Gxt, dictionary);
-        var gameType = ParseGame(manifest.Game);
-        var attachment = manifest.Txd is null ? null : LoadTxd(archive, manifest.Txd, gameType);
-        return new EditorProject
-        {
-            ProjectPath = path,
-            GxtSourceName = manifest.Gxt.OriginalFileName,
-            GxtSourcePath = null,
-            GameType = gameType,
-            GxtManager = manager,
-            UsesCustomDictionary = profile is not null,
-            AttachedTxd = attachment,
-            CharacterMap = profile,
-            IsDirty = false,
-        };
     }
 
-    private CommonGXTManager LoadManager(
-        ZipArchive archive,
-        string game,
-        string languageText,
-        ByxGxtItem item,
-        Dictionary<int[], char>? dictionary)
+    private static void ValidateSaveLimits(
+        byte[] manifestData,
+        byte[] gxtData,
+        byte[]? txdData,
+        byte[]? characterMapData,
+        byte[] metadataData)
     {
-        var gameType = ParseGame(game);
-        var language = ParseLanguage(languageText);
-        var entry = GetRequiredEntry(archive, item.Entry);
-        var data = ReadEntry(entry, MaximumArchiveSize);
-        ValidateHash(data, item.Sha256, item.Entry);
-        return _gxtManagerFactory.Open(data, gameType, item.OriginalFileName, language, dictionary);
+        var entryCount = 3 + (txdData is null ? 0 : 1) + (characterMapData is null ? 0 : 1);
+        var totalLength = checked(
+            manifestData.LongLength +
+            gxtData.LongLength +
+            (txdData?.LongLength ?? 0) +
+            (characterMapData?.LongLength ?? 0) +
+            metadataData.LongLength);
+        if (entryCount > MaximumEntries ||
+            manifestData.LongLength > MaximumManifestSize ||
+            (characterMapData?.LongLength ?? 0) > MaximumCharacterMapSize ||
+            metadataData.LongLength > MaximumMetadataSize ||
+            totalLength > MaximumArchiveSize)
+        {
+            throw new InvalidOperationException("Проект превышает допустимые лимиты формата BYX.");
+        }
     }
 
-    private TxdAttachment LoadTxd(ZipArchive archive, ByxTxdItem item, GXTType gameType)
+    private static CharacterMapProfile LoadCharacterMap(
+        ZipArchive archive,
+        ByxCharacterMapItem item)
+    {
+        var data = ReadValidatedEntry(archive, item, MaximumCharacterMapSize);
+        try
+        {
+            var profile = CharacterMapFileSerializer.Deserialize(data);
+            profile.IsVerified = item.IsVerified;
+            return profile;
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidDataException)
+        {
+            throw new InvalidDataException("Встроенный маппинг BYX повреждён.", exception);
+        }
+    }
+
+    private TxdAttachment LoadTxd(ByxTxdItem item, byte[] data, GXTType gameType)
     {
         if (gameType != GXTType.GtaViceCity)
         {
             throw new InvalidDataException("TXD можно подключать только к проекту GTA Vice City.");
         }
 
-        var entry = GetRequiredEntry(archive, item.Entry);
-        var data = ReadEntry(entry, MaximumArchiveSize);
-        ValidateHash(data, item.Sha256, item.Entry);
+        var hash = SHA256.HashData(data);
         return new TxdAttachment
         {
-            Id = item.Id,
+            Id = new Guid(hash.AsSpan(0, 16)),
             OriginalFileName = item.OriginalFileName,
-            DisplayName = string.IsNullOrWhiteSpace(item.DisplayName)
-                ? Path.GetFileNameWithoutExtension(item.OriginalFileName)
-                : item.DisplayName,
+            DisplayName = Path.GetFileNameWithoutExtension(item.OriginalFileName),
             SourcePath = null,
             Data = data,
             Document = _txdReader.Read(data, item.OriginalFileName),
         };
     }
 
-    private static CharacterMapProfile LoadProfile(
-        ZipArchive archive,
-        ByxDictionaryItem item)
-    {
-        var entry = GetRequiredEntry(archive, item.Entry);
-        var data = ReadEntry(entry, MaximumManifestSize);
-        ValidateHash(data, item.Sha256, item.Entry);
-        return CharacterMapFileSerializer.Deserialize(data);
-    }
-
-    private static Dictionary<int[], char>? LoadLegacyDictionary(
-        ZipArchive archive,
-        ByxDictionaryItem? item)
-    {
-        if (item is null)
-        {
-            return null;
-        }
-
-        var entry = GetRequiredEntry(archive, item.Entry);
-        var data = ReadEntry(entry, MaximumManifestSize);
-        ValidateHash(data, item.Sha256, item.Entry);
-        return ParseLegacyDictionary(Deserialize<List<ByxCharacterMapping>>(data));
-    }
-
-    private static void ValidateManifestVersion1(ByxManifestV1 manifest)
-    {
-        if (!string.Equals(manifest.Format, "BYX", StringComparison.Ordinal) || manifest.Version != 1 ||
-            manifest.Gxt is null || manifest.Txd is null)
-        {
-            throw new InvalidDataException("Manifest проекта BYX v1 заполнен не полностью.");
-        }
-
-        ValidateGxtItem(manifest.Gxt);
-        if (manifest.Dictionary is not null &&
-            !string.Equals(manifest.Dictionary.Entry, DictionaryEntryName, StringComparison.Ordinal))
-        {
-            throw new InvalidDataException("Manifest BYX содержит некорректный путь словаря.");
-        }
-
-        var ids = new HashSet<Guid>();
-        var paths = CreateBaseManifestPaths(manifest.Gxt, manifest.Dictionary);
-        foreach (var txd in manifest.Txd)
-        {
-            ValidateTxdItem(txd, ids, paths, requireCharacterMap: false);
-        }
-    }
-
-    private static void ValidateManifestVersion2(ByxManifest manifest)
+    private static void ValidateManifest(ByxManifest manifest)
     {
         if (!string.Equals(manifest.Format, "BYX", StringComparison.Ordinal) ||
-            manifest.Version != CurrentVersion || manifest.Gxt is null)
+            manifest.Version != CurrentVersion || manifest.Gxt is null || manifest.Metadata is null)
         {
-            throw new InvalidDataException("Manifest проекта BYX v2 заполнен не полностью.");
+            throw new InvalidDataException("Manifest проекта BYX v3 заполнен не полностью.");
         }
 
+        _ = ParseGame(manifest.Game);
+        _ = ParseLanguage(manifest.Language);
         ValidateGxtItem(manifest.Gxt);
-        if (manifest.Dictionary is not null && manifest.Txd is not null)
-        {
-            throw new InvalidDataException("BYX v2 не может одновременно хранить отдельный словарь и TXD-профиль.");
-        }
-
-        var paths = CreateBaseManifestPaths(manifest.Gxt, manifest.Dictionary);
-        if (manifest.Dictionary is not null &&
-            !string.Equals(manifest.Dictionary.Entry, DictionaryEntryName, StringComparison.Ordinal))
-        {
-            throw new InvalidDataException("Manifest BYX содержит некорректный путь словаря.");
-        }
-
+        ValidateArchiveItem(manifest.Metadata, MetadataEntryName, "метаданных");
         if (manifest.Txd is not null)
         {
-            ValidateTxdItem(manifest.Txd, [], paths, requireCharacterMap: true);
+            ValidateTxdItem(manifest.Txd);
+        }
+
+        if (manifest.CharacterMap is not null)
+        {
+            ValidateArchiveItem(manifest.CharacterMap, CharacterMapEntryName, "маппинга");
         }
     }
 
     private static void ValidateGxtItem(ByxGxtItem item)
     {
-        if (string.IsNullOrWhiteSpace(item.OriginalFileName) ||
-            !string.Equals(item.Entry, GxtEntryName, StringComparison.Ordinal) ||
-            !IsFileNameOnly(item.OriginalFileName))
+        if (!IsFileNameOnly(item.OriginalFileName))
         {
-            throw new InvalidDataException("Manifest BYX содержит некорректное вложение GXT.");
+            throw new InvalidDataException("Manifest BYX содержит некорректное имя GXT.");
+        }
+
+        ValidateArchiveItem(item.Entry, item.Sha256, GxtEntryName, "GXT");
+    }
+
+    private static void ValidateTxdItem(ByxTxdItem item)
+    {
+        if (!IsFileNameOnly(item.OriginalFileName))
+        {
+            throw new InvalidDataException("Manifest BYX содержит некорректное имя TXD.");
+        }
+
+        ValidateArchiveItem(item.Entry, item.Sha256, TxdEntryName, "TXD");
+    }
+
+    private static void ValidateArchiveItem(
+        ByxArchiveItem item,
+        string expectedEntry,
+        string description) =>
+        ValidateArchiveItem(item.Entry, item.Sha256, expectedEntry, description);
+
+    private static void ValidateArchiveItem(
+        string entry,
+        string sha256,
+        string expectedEntry,
+        string description)
+    {
+        if (!string.Equals(entry, expectedEntry, StringComparison.Ordinal) ||
+            !IsSha256(sha256))
+        {
+            throw new InvalidDataException(
+                $"Manifest BYX содержит некорректное вложение {description}.");
         }
     }
 
-    private static HashSet<string> CreateBaseManifestPaths(
-        ByxGxtItem gxt,
-        ByxDictionaryItem? dictionary)
+    private static void ValidateManifestEntries(ZipArchive archive, ByxManifest manifest)
     {
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ManifestEntryName,
-            gxt.Entry,
+            manifest.Gxt.Entry,
+            manifest.Metadata.Entry,
         };
-        if (dictionary is not null && !paths.Add(dictionary.Entry))
+        if (manifest.Txd is not null && !expected.Add(manifest.Txd.Entry) ||
+            manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry))
         {
             throw new InvalidDataException("Manifest BYX содержит повторяющиеся пути вложений.");
         }
 
-        return paths;
-    }
-
-    private static void ValidateTxdItem(
-        ByxTxdItem txd,
-        HashSet<Guid> ids,
-        HashSet<string> paths,
-        bool requireCharacterMap)
-    {
-        if (txd.Id == Guid.Empty || !ids.Add(txd.Id) || !IsFileNameOnly(txd.OriginalFileName) ||
-            !string.Equals(txd.Entry, $"txd/{txd.Id:N}.txd", StringComparison.Ordinal) ||
-            !paths.Add(txd.Entry))
-        {
-            throw new InvalidDataException("Manifest BYX содержит некорректный TXD.");
-        }
-
-        if (requireCharacterMap && (txd.CharacterMap is null ||
-            !string.Equals(txd.CharacterMap.Entry, CharacterMapEntryName, StringComparison.Ordinal) ||
-            !paths.Add(txd.CharacterMap.Entry)))
-        {
-            throw new InvalidDataException("Manifest BYX не содержит корректный маппинг пары GXT + TXD.");
-        }
-    }
-
-    private static void ValidateManifestEntriesVersion1(
-        ZipArchive archive,
-        ByxManifestV1 manifest)
-    {
-        var expected = CreateBaseManifestPaths(manifest.Gxt, manifest.Dictionary);
-        foreach (var txd in manifest.Txd)
-        {
-            expected.Add(txd.Entry);
-        }
-
-        ValidateExpectedEntries(archive, expected);
-    }
-
-    private static void ValidateManifestEntriesVersion2(
-        ZipArchive archive,
-        ByxManifest manifest)
-    {
-        var expected = CreateBaseManifestPaths(manifest.Gxt, manifest.Dictionary);
-        if (manifest.Txd is not null)
-        {
-            expected.Add(manifest.Txd.Entry);
-            expected.Add(manifest.Txd.CharacterMap!.Entry);
-        }
-
-        ValidateExpectedEntries(archive, expected);
-    }
-
-    private static void ValidateExpectedEntries(ZipArchive archive, HashSet<string> expected)
-    {
         if (!expected.SetEquals(archive.Entries.Select(entry => entry.FullName)))
         {
             throw new InvalidDataException("Набор записей BYX не соответствует manifest.json.");
+        }
+    }
+
+    private static void ValidateMetadata(ProjectMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (!string.Equals(metadata.Format, "GXT_ENTRY_METADATA", StringComparison.Ordinal) ||
+            metadata.Version != ProjectMetadata.CurrentVersion ||
+            metadata.Blocks is null || metadata.Entries is null)
+        {
+            throw new InvalidDataException("Файл метаданных BYX заполнен некорректно.");
+        }
+
+        var blockIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var block in metadata.Blocks)
+        {
+            if (block is null || string.IsNullOrWhiteSpace(block.Id) ||
+                string.IsNullOrWhiteSpace(block.Type) || string.IsNullOrWhiteSpace(block.Name) ||
+                !blockIds.Add(block.Id))
+            {
+                throw new InvalidDataException("Список блоков в метаданных BYX повреждён.");
+            }
+        }
+
+        var identities = new HashSet<EntryIdentity>();
+        foreach (var entry in metadata.Entries)
+        {
+            if (entry is null || string.IsNullOrWhiteSpace(entry.Key) ||
+                entry.Table is not null && string.IsNullOrWhiteSpace(entry.Table) ||
+                entry.Occurrences is null || !identities.Add(new EntryIdentity(entry.Table, entry.Key)))
+            {
+                throw new InvalidDataException("Список записей в метаданных BYX повреждён.");
+            }
+
+            foreach (var occurrence in entry.Occurrences)
+            {
+                if (occurrence is null || string.IsNullOrWhiteSpace(occurrence.BlockId) ||
+                    !blockIds.Contains(occurrence.BlockId))
+                {
+                    throw new InvalidDataException(
+                        $"Метаданные записи '{entry.Key}' ссылаются на неизвестный блок.");
+                }
+            }
         }
     }
 
@@ -512,44 +452,57 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 throw new InvalidDataException($"Запись '{entry.FullName}' повторяется в BYX.");
             }
 
-            totalLength = checked(totalLength + entry.Length);
-            if (totalLength > MaximumArchiveSize)
+            if (entry.Length > MaximumArchiveSize - totalLength)
             {
                 throw new InvalidDataException("Распакованные данные BYX превышают 512 МБ.");
             }
+
+            totalLength += entry.Length;
         }
     }
 
-    private static Dictionary<int[], char> ParseLegacyDictionary(List<ByxCharacterMapping> items)
+    private static byte[] ReadValidatedEntry(
+        ZipArchive archive,
+        ByxArchiveItem item,
+        long maximumLength)
     {
-        var result = new Dictionary<int[], char>();
-        var usedCodes = new HashSet<int>();
-        foreach (var item in items)
+        var data = ReadEntry(GetRequiredEntry(archive, item.Entry), maximumLength);
+        ValidateHash(data, item.Sha256, item.Entry);
+        return data;
+    }
+
+    private static byte[] ReadValidatedEntry(
+        ZipArchive archive,
+        ByxGxtItem item,
+        long maximumLength)
+    {
+        var data = ReadEntry(GetRequiredEntry(archive, item.Entry), maximumLength);
+        ValidateHash(data, item.Sha256, item.Entry);
+        return data;
+    }
+
+    private static byte[] ReadValidatedEntry(
+        ZipArchive archive,
+        ByxTxdItem item,
+        long maximumLength)
+    {
+        var data = ReadEntry(GetRequiredEntry(archive, item.Entry), maximumLength);
+        ValidateHash(data, item.Sha256, item.Entry);
+        return data;
+    }
+
+    private static T Deserialize<T>(byte[] data, JsonSerializerOptions options) where T : class
+    {
+        try
         {
-            if (item.Codes is null || item.Codes.Length == 0 ||
-                item.Codes.Any(code => code is < byte.MinValue or > byte.MaxValue) ||
-                item.Codes.Any(code => !usedCodes.Add(code)) ||
-                string.IsNullOrEmpty(item.Character) || item.Character.Length != 1)
-            {
-                throw new InvalidDataException("Встроенный словарь BYX повреждён.");
-            }
-
-            result.Add(item.Codes.ToArray(), item.Character[0]);
+            return JsonSerializer.Deserialize<T>(data, options)
+                ?? throw new InvalidDataException("JSON внутри BYX повреждён.");
         }
-
-        return result;
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException("JSON внутри BYX повреждён.", exception);
+        }
     }
-
-    private static GXTType ParseGame(string game) => game switch
-    {
-        "GTA III" => GXTType.GtaIII,
-        "GTA Vice City" => GXTType.GtaViceCity,
-        _ => throw new InvalidDataException($"Игра '{game}' в BYX не поддерживается."),
-    };
-
-    private static T Deserialize<T>(byte[] data) where T : class =>
-        JsonSerializer.Deserialize<T>(data, JsonOptions)
-        ?? throw new InvalidDataException("JSON внутри BYX повреждён.");
 
     private static ZipArchiveEntry GetRequiredEntry(ZipArchive archive, string name)
     {
@@ -594,8 +547,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
     private static void ValidateHash(byte[] data, string expected, string entryName)
     {
-        if (string.IsNullOrWhiteSpace(expected) ||
-            !string.Equals(ComputeHash(data), expected, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(ComputeHash(data), expected, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException($"Контрольная сумма записи '{entryName}' не совпадает.");
         }
@@ -603,7 +555,10 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
     private static string ComputeHash(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
 
-    private static bool IsFileNameOnly(string value) =>
+    private static bool IsSha256(string? value) =>
+        value is { Length: 64 } && value.All(Uri.IsHexDigit);
+
+    private static bool IsFileNameOnly(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
         string.Equals(value, Path.GetFileName(value), StringComparison.Ordinal) &&
         value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
@@ -613,6 +568,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var name = Path.GetFileName(value);
         return string.IsNullOrWhiteSpace(name) ? fallback : name;
     }
+
+    private static GXTType ParseGame(string game) => game switch
+    {
+        "GTA III" => GXTType.GtaIII,
+        "GTA Vice City" => GXTType.GtaViceCity,
+        _ => throw new InvalidDataException($"Игра '{game}' в BYX не поддерживается."),
+    };
 
     private static string ToLanguageCode(GxtLanguage language) => language switch
     {
@@ -630,4 +592,6 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         "en" => GxtLanguage.English,
         _ => throw new InvalidDataException($"Язык '{language}' в BYX не поддерживается."),
     };
+
+    private readonly record struct EntryIdentity(string? Table, string Key);
 }
