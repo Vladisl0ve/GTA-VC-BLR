@@ -41,7 +41,8 @@ public sealed class CharacterMapTests
         Assert.AreEqual('ё', decodeMap[0xAF]);
         Assert.AreEqual('і', decodeMap[(byte)'i']);
         Assert.AreEqual('ў', decodeMap[0x9D]);
-        Assert.AreEqual('т', decodeMap[(byte)'y']);
+        Assert.AreEqual('Т', decodeMap[0x91]);
+        Assert.AreEqual('т', decodeMap[0xA8]);
         Assert.AreEqual('В', decodeMap[(byte)'B']);
         Assert.AreEqual('М', decodeMap[(byte)'M']);
         Assert.AreEqual('Н', decodeMap[(byte)'H']);
