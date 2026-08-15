@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using GTA_GXT_Editor.ViewModels;
@@ -32,6 +33,20 @@ public partial class MainWindow : Window
         {
             e.Cancel = true;
         }
+    }
+
+    private void DropDownButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { ContextMenu: { } menu } button)
+        {
+            return;
+        }
+
+        var placementTarget = button.Tag as FrameworkElement ?? button;
+        menu.PlacementTarget = placementTarget;
+        menu.Placement = PlacementMode.Bottom;
+        menu.MinWidth = Math.Max(menu.MinWidth, placementTarget.ActualWidth);
+        menu.IsOpen = true;
     }
 
     private void ComparisonColumns_OnCollectionChanged(

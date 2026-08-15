@@ -17,6 +17,256 @@
         <KeyBinding Key="Delete" Command="{Binding DeleteEntryCommand}" />
     </Window.InputBindings>
 
+    <Window.Resources>
+        <Geometry x:Key="ChevronDownGeometry">M 1,2 L 5,6 L 9,2</Geometry>
+
+        <Style x:Key="CommandButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonSurface"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SplitPrimaryButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource CommandButtonStyle}">
+            <Setter Property="BorderThickness" Value="1,1,0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonSurface"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7,0,0,7"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SplitChevronButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource CommandButtonStyle}">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="MinWidth" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0,7,7,0"
+                                SnapsToDevicePixels="True">
+                            <Path Width="10"
+                                  Height="6"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Data="{StaticResource ChevronDownGeometry}"
+                                  SnapsToDevicePixels="True"
+                                  Stretch="Uniform"
+                                  Stroke="{TemplateBinding Foreground}"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  StrokeStartLineCap="Round"
+                                  StrokeThickness="1.5" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DropDownButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource CommandButtonStyle}">
+            <Setter Property="Padding" Value="14,0,12,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonSurface"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  RecognizesAccessKey="True"
+                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                <Path Grid.Column="1"
+                                      Width="10"
+                                      Height="6"
+                                      Margin="12,0,0,0"
+                                      VerticalAlignment="Center"
+                                      Data="{StaticResource ChevronDownGeometry}"
+                                      SnapsToDevicePixels="True"
+                                      Stretch="Uniform"
+                                      Stroke="{TemplateBinding Foreground}"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round"
+                                      StrokeThickness="1.5" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background"
+                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CompactCommandButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource CommandButtonStyle}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0" />
+        </Style>
+
+        <Style x:Key="CompactDropDownButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource DropDownButtonStyle}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0,10,0" />
+        </Style>
+
+        <Style x:Key="CommandContextMenuStyle"
+               TargetType="{x:Type ContextMenu}"
+               BasedOn="{StaticResource {x:Type ContextMenu}}">
+            <Setter Property="MinWidth" Value="220" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="Placement" Value="Bottom" />
+            <Setter Property="VerticalOffset" Value="6" />
+        </Style>
+
+        <Style x:Key="CommandMenuItemStyle"
+               TargetType="{x:Type MenuItem}"
+               BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Padding" Value="12,7" />
+        </Style>
+
+        <Style x:Key="DangerCommandMenuItemStyle"
+               TargetType="{x:Type MenuItem}"
+               BasedOn="{StaticResource CommandMenuItemStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -30,96 +280,105 @@
 
         <DockPanel Grid.Row="0" Margin="0,0,0,16">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Grid Margin="8,0,0,0">
+                <Grid x:Name="OpenFileSplitButton" Margin="8,0,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <Button MinWidth="91"
-                            Padding="12,8"
+                            Style="{StaticResource SplitPrimaryButtonStyle}"
                             Content="Открыть…"
                             ToolTip="Открыть GXT с автоматическим выбором кодировки (Ctrl+O)"
                             Command="{Binding OpenFileCommand}" />
-                    <ToggleButton x:Name="OpenFileOptionsButton"
-                                  Grid.Column="1"
-                                  Width="28"
-                                  Margin="1,0,0,0"
-                                  Padding="0"
-                                  Content="▾"
-                                  ToolTip="Дополнительные варианты открытия" />
-                    <Popup Grid.ColumnSpan="2"
-                           AllowsTransparency="True"
-                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
-                           IsOpen="{Binding IsChecked, ElementName=OpenFileOptionsButton, Mode=TwoWay}"
-                           Placement="Bottom"
-                           PlacementTarget="{Binding ElementName=OpenFileOptionsButton}"
-                           PopupAnimation="Fade"
-                           StaysOpen="False">
-                        <Border Padding="4"
-                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
-                                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
-                                BorderThickness="1"
-                                CornerRadius="4">
-                            <Button Padding="12,7"
-                                    HorizontalContentAlignment="Left"
-                                    Content="Открыть с маппингом…"
-                                    Command="{Binding OpenFileWithDictionaryCommand}" />
-                        </Border>
-                    </Popup>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SplitChevronButtonStyle}"
+                            Tag="{Binding ElementName=OpenFileSplitButton}"
+                            ToolTip="Дополнительные варианты открытия"
+                            Click="DropDownButton_OnClick">
+                        <Button.ContextMenu>
+                            <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                         DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                          Header="Открыть с маппингом…"
+                                          Command="{Binding OpenFileWithDictionaryCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
                 </Grid>
 
-                <Grid Margin="8,0,0,0">
+                <Grid x:Name="ImportJsonSplitButton" Margin="8,0,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <Button MinWidth="101"
-                            Padding="12,8"
+                            Style="{StaticResource SplitPrimaryButtonStyle}"
                             Content="JSON → GXT…"
                             ToolTip="Преобразовать JSON в GXT с автоматическим выбором кодировки (Ctrl+Shift+I)"
                             Command="{Binding ImportJsonCommand}" />
-                    <ToggleButton x:Name="ImportJsonOptionsButton"
-                                  Grid.Column="1"
-                                  Width="28"
-                                  Margin="1,0,0,0"
-                                  Padding="0"
-                                  Content="▾"
-                                  ToolTip="Дополнительные варианты преобразования" />
-                    <Popup Grid.ColumnSpan="2"
-                           AllowsTransparency="True"
-                           DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
-                           IsOpen="{Binding IsChecked, ElementName=ImportJsonOptionsButton, Mode=TwoWay}"
-                           Placement="Bottom"
-                           PlacementTarget="{Binding ElementName=ImportJsonOptionsButton}"
-                           PopupAnimation="Fade"
-                           StaysOpen="False">
-                        <Border Padding="4"
-                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
-                                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
-                                BorderThickness="1"
-                                CornerRadius="4">
-                            <Button Padding="12,7"
-                                    HorizontalContentAlignment="Left"
-                                    Content="JSON → GXT с маппингом…"
-                                    Command="{Binding ImportJsonWithDictionaryCommand}" />
-                        </Border>
-                    </Popup>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SplitChevronButtonStyle}"
+                            Tag="{Binding ElementName=ImportJsonSplitButton}"
+                            ToolTip="Дополнительные варианты преобразования"
+                            Click="DropDownButton_OnClick">
+                        <Button.ContextMenu>
+                            <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                         DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                          Header="JSON → GXT с маппингом…"
+                                          Command="{Binding ImportJsonWithDictionaryCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
                 </Grid>
 
-                <Button MinWidth="110"
-                         Margin="8,0,0,0"
-                         Padding="14,8"
-                         Content="Сохранить"
-                         ToolTip="Сохранить GXT или текущий проект BYX (Ctrl+S)"
-                         Command="{Binding SaveCommand}" />
                 <Button MinWidth="140"
                         Margin="8,0,0,0"
-                        Padding="14,8"
-                        Content="Экспорт JSON…"
-                        ToolTip="Экспортировать все записи в JSON (Ctrl+Shift+E)"
-                        Command="{Binding ExportJsonCommand}" />
+                        Style="{StaticResource DropDownButtonStyle}"
+                        Content="Сохранить как"
+                        IsEnabled="{Binding IsDocumentLoaded}"
+                        ToolTip="Сохранить текущий документ или создать новый файл проекта BYX"
+                        Click="DropDownButton_OnClick">
+                    <Button.ContextMenu>
+                        <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="Сохранить текущий"
+                                      InputGestureText="Ctrl+S"
+                                      Command="{Binding SaveCommand}" />
+                            <Separator />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="Проект BYX как…"
+                                      Command="{Binding SaveProjectAsCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+                <Button MinWidth="140"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource DropDownButtonStyle}"
+                        Content="Экспорт как"
+                        IsEnabled="{Binding IsDocumentLoaded}"
+                        ToolTip="Экспортировать данные в JSON, GXT или TXD"
+                        Click="DropDownButton_OnClick">
+                    <Button.ContextMenu>
+                        <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="JSON…"
+                                      InputGestureText="Ctrl+Shift+E"
+                                      Command="{Binding ExportJsonCommand}" />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="GXT…"
+                                      Command="{Binding ExportGxtCommand}" />
+                            <Separator />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="TXD…"
+                                      Command="{Binding ExportTxdCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
             </StackPanel>
 
             <StackPanel>
@@ -187,10 +446,6 @@
                 BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
                 CornerRadius="6">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="220" />
@@ -217,40 +472,30 @@
                            Text="TXD доступны только для GTA Vice City PC" />
                 <Button Grid.Column="4"
                         MinWidth="110"
-                        Padding="12,6"
+                        Style="{StaticResource CompactCommandButtonStyle}"
                         Content="Подключить/заменить…"
                         Command="{Binding AddTxdCommand}" />
                 <Button Grid.Column="5"
-                        MinWidth="110"
+                        MinWidth="120"
                         Margin="8,0,0,0"
-                        Padding="12,6"
-                        Content="Маппинг…"
-                        Command="{Binding ViewTxdCommand}" />
-                <StackPanel Grid.Row="1"
-                            Grid.ColumnSpan="6"
-                            Margin="0,10,0,0"
-                            HorizontalAlignment="Right"
-                            Orientation="Horizontal">
-                    <Button MinWidth="90"
-                            Padding="12,6"
-                            Content="Удалить"
-                            Command="{Binding RemoveTxdCommand}" />
-                    <Button MinWidth="110"
-                            Margin="8,0,0,0"
-                            Padding="12,6"
-                            Content="Экспорт TXD…"
-                            Command="{Binding ExportTxdCommand}" />
-                    <Button MinWidth="110"
-                            Margin="8,0,0,0"
-                            Padding="12,6"
-                            Content="Экспорт GXT…"
-                            Command="{Binding ExportGxtCommand}" />
-                    <Button MinWidth="120"
-                            Margin="8,0,0,0"
-                            Padding="12,6"
-                            Content="Проект как…"
-                            Command="{Binding SaveProjectAsCommand}" />
-                </StackPanel>
+                        Style="{StaticResource CompactDropDownButtonStyle}"
+                        Content="Действия"
+                        IsEnabled="{Binding HasTxdAttachment}"
+                        ToolTip="Маппинг и управление подключённым TXD"
+                        Click="DropDownButton_OnClick">
+                    <Button.ContextMenu>
+                        <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="Маппинг…"
+                                      Command="{Binding ViewTxdCommand}" />
+                            <Separator />
+                            <MenuItem Style="{StaticResource DangerCommandMenuItemStyle}"
+                                      Header="Удалить TXD из проекта"
+                                      Command="{Binding RemoveTxdCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
             </Grid>
         </Border>
 
