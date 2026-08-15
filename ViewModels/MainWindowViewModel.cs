@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -29,27 +30,34 @@ public partial class MainWindowViewModel : ObservableObject
         "Маппинг символов (*.gxtmap.json;*.json;*.txt)|*.gxtmap.json;*.json;*.txt|" +
         "Маппинг JSON (*.gxtmap.json;*.json)|*.gxtmap.json;*.json|" +
         "Старый словарь (*.txt)|*.txt|Все файлы (*.*)|*.*";
+    private const string CommentsFileFilter =
+        "Комментарии GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Все файлы (*.*)|*.*";
 
     private readonly GxtManagerFactory _managerFactory;
     private readonly IDialogService _dialogs;
     private readonly ITxdReader _txdReader;
     private readonly IProjectSerializer _projectSerializer;
+    private readonly IEncounterMetadataProvider _encounterMetadataProvider;
 
     private CommonGXTManager? _manager;
     private EditorProject? _project;
     private GXTType _loadedType = GXTType.None;
     private readonly List<ComparisonDocument> _comparisonDocuments = [];
+    private EncounterMetadataIndex? _canonicalMetadata;
+    private bool _canonicalMetadataWarningShown;
 
     public MainWindowViewModel(
         GxtManagerFactory managerFactory,
         IDialogService dialogs,
         ITxdReader? txdReader = null,
-        IProjectSerializer? projectSerializer = null)
+        IProjectSerializer? projectSerializer = null,
+        IEncounterMetadataProvider? encounterMetadataProvider = null)
     {
         _managerFactory = managerFactory;
         _dialogs = dialogs;
         _txdReader = txdReader ?? new TxdReader();
         _projectSerializer = projectSerializer ?? new ByxProjectSerializer(managerFactory, _txdReader);
+        _encounterMetadataProvider = encounterMetadataProvider ?? new BundledEncounterMetadataProvider();
 
         EntriesView = CollectionViewSource.GetDefaultView(Entries);
         EntriesView.Filter = FilterEntry;
@@ -58,22 +66,58 @@ public partial class MainWindowViewModel : ObservableObject
         [
             SearchColumnOption.All,
             new SearchColumnOption(SearchColumn.Name, "Ключ"),
-            new SearchColumnOption(SearchColumn.Text, "Текст"),
+            new SearchColumnOption(SearchColumn.Text, "Перевод"),
+            new SearchColumnOption(SearchColumn.Source, "Английский оригинал"),
             new SearchColumnOption(SearchColumn.Comparison, "Файлы сравнения"),
             new SearchColumnOption(SearchColumn.Table, "Таблица"),
+            new SearchColumnOption(SearchColumn.Metadata, "Блок и контекст"),
+            new SearchColumnOption(SearchColumn.Comment, "Комментарий"),
         ];
         selectedSearchColumn = SearchColumns[0];
+
+        MetadataTypeOptions =
+        [
+            MetadataTypeFilterOption.All,
+            new MetadataTypeFilterOption("story", "Сюжет"),
+            new MetadataTypeFilterOption("mission", "Миссии"),
+            new MetadataTypeFilterOption("asset", "Активы"),
+            new MetadataTypeFilterOption("phone", "Телефон"),
+            new MetadataTypeFilterOption("interface", "Интерфейс"),
+            new MetadataTypeFilterOption("world", "Мир"),
+            new MetadataTypeFilterOption("credits", "Титры"),
+            new MetadataTypeFilterOption("misc", "Прочее"),
+        ];
+        selectedMetadataType = MetadataTypeOptions[0];
+        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
+        selectedMetadataBlock = MetadataBlockOptions[0];
+
+        SortOptions =
+        [
+            new EntrySortOption(EntrySortMode.EncounterOrder, "Encounter order"),
+            new EntrySortOption(EntrySortMode.GxtOrder, "GXT order"),
+        ];
+        selectedSortOption = SortOptions[1];
     }
 
     public ObservableCollection<GxtEntryRow> Entries { get; } = [];
 
     public ObservableCollection<GxtComparisonColumn> ComparisonColumns { get; } = [];
 
+    public ObservableCollection<MetadataBlockFilterOption> MetadataBlockOptions { get; } = [];
+
     public ICollectionView EntriesView { get; }
 
     public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
 
+    public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions { get; }
+
+    public IReadOnlyList<EntrySortOption> SortOptions { get; }
+
     public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
+
+    public bool HasEnglishSource => ComparisonColumns.Count > 0;
+
+    public bool HasEncounterMetadata => Entries.Any(entry => entry.Occurrences.Count > 0);
 
     public bool HasTxdAttachment => AttachedTxd is not null;
 
@@ -99,6 +143,20 @@ public partial class MainWindowViewModel : ObservableObject
     private SearchColumnOption selectedSearchColumn;
 
     [ObservableProperty]
+    private MetadataTypeFilterOption selectedMetadataType;
+
+    [ObservableProperty]
+    private MetadataBlockFilterOption selectedMetadataBlock;
+
+    [ObservableProperty]
+    private EntrySortOption selectedSortOption;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommentCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearCommentCommand))]
+    private string commentDraft = string.Empty;
+
+    [ObservableProperty]
     private bool caseSensitive;
 
     [ObservableProperty]
@@ -115,11 +173,15 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(AddTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveProjectAsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportGxtCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ImportCommentsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
     private bool isDocumentLoaded;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditEntryCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteEntryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommentCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearCommentCommand))]
     private GxtEntryRow? selectedEntry;
 
     [ObservableProperty]
@@ -173,6 +235,30 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedMetadataTypeChanged(MetadataTypeFilterOption value)
+    {
+        RebuildMetadataBlockOptions();
+        ApplySort();
+        ApplyFilter();
+    }
+
+    partial void OnSelectedMetadataBlockChanged(MetadataBlockFilterOption value)
+    {
+        ApplySort();
+        ApplyFilter();
+    }
+
+    partial void OnSelectedSortOptionChanged(EntrySortOption value)
+    {
+        ApplySort();
+        UpdateStatus();
+    }
+
+    partial void OnSelectedEntryChanged(GxtEntryRow? value)
+    {
+        CommentDraft = value?.Comment ?? string.Empty;
+    }
+
     [RelayCommand]
     private void OpenFile()
     {
@@ -202,7 +288,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private void OpenComparisonFile()
     {
-        var paths = _dialogs.OpenFiles("Добавить GXT для сравнения", GxtFileFilter);
+        var paths = _dialogs.OpenFiles("Добавить английский оригинал или GXT для сравнения", GxtFileFilter);
         if (paths.Count == 0)
         {
             return;
@@ -223,6 +309,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(IsComparisonLoaded));
+        OnPropertyChanged(nameof(HasEnglishSource));
         var selected = SelectedEntry;
         RefreshEntries(selected?.Name, selected?.RawTableName);
         StatusText = $"Загружено файлов для сравнения: {loadedCount}; всего: {ComparisonColumns.Count}";
@@ -253,7 +340,7 @@ public partial class MainWindowViewModel : ObservableObject
                 string.Equals(document.Path, path, StringComparison.OrdinalIgnoreCase));
             var columnName = existingIndex >= 0
                 ? ComparisonColumns[existingIndex].Name
-                : CreateComparisonColumnName(path);
+                : CreateComparisonColumnName(path, isEnglishSource: ComparisonColumns.Count == 0);
             var comparisonDocument = new ComparisonDocument(path, comparisonTexts);
 
             if (existingIndex >= 0)
@@ -320,6 +407,8 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearSearch()
     {
         SearchText = string.Empty;
+        SelectedMetadataType = MetadataTypeOptions[0];
+        SelectedMetadataBlock = MetadataBlockOptions[0];
         ApplyFilter();
     }
 
@@ -351,6 +440,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         _manager.AddGXTEntry(result.Name, result.Text, result.RawTableName);
+        SetProjectComment(result.Name, result.RawTableName, result.Comment);
         SetDirty(true);
         RefreshEntries(result.Name, result.RawTableName);
         StatusText = $"Добавлен ключ {result.Name}";
@@ -369,7 +459,12 @@ public partial class MainWindowViewModel : ObservableObject
             Name: selected.Name,
             Text: selected.Text,
             RawTableName: selected.RawTableName,
-            Tables: GetTableOptions()));
+            Tables: GetTableOptions())
+        {
+            SourceText = selected.SourceText,
+            Comment = selected.Comment,
+            Occurrences = selected.Occurrences,
+        });
 
         if (result is null)
         {
@@ -381,9 +476,39 @@ public partial class MainWindowViewModel : ObservableObject
             result.Text,
             selected.RawTableName,
             result.RawTableName);
+        MoveProjectEntryMetadata(selected.Name, selected.RawTableName, result.RawTableName);
+        SetProjectComment(selected.Name, result.RawTableName, result.Comment);
         SetDirty(true);
         RefreshEntries(selected.Name, result.RawTableName);
         StatusText = $"Изменён ключ {selected.Name}";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveComment))]
+    private void SaveComment()
+    {
+        if (SelectedEntry is not { } selected ||
+            !SetProjectComment(selected.Name, selected.RawTableName, CommentDraft))
+        {
+            return;
+        }
+
+        SetDirty(true);
+        RefreshEntries(selected.Name, selected.RawTableName);
+        StatusText = $"Комментарий для {selected.Name} сохранён";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearComment))]
+    private void ClearComment()
+    {
+        if (SelectedEntry is not { } selected ||
+            !SetProjectComment(selected.Name, selected.RawTableName, null))
+        {
+            return;
+        }
+
+        SetDirty(true);
+        RefreshEntries(selected.Name, selected.RawTableName);
+        StatusText = $"Комментарий для {selected.Name} удалён";
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelection))]
@@ -432,7 +557,9 @@ public partial class MainWindowViewModel : ObservableObject
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(_project.ProjectPath) || AttachedTxd is not null)
+        if (!string.IsNullOrWhiteSpace(_project.ProjectPath) ||
+            AttachedTxd is not null ||
+            HasPersistableProjectMetadata())
         {
             return SaveProject(forceSaveAs: false);
         }
@@ -734,6 +861,76 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void ImportComments()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        var sourcePath = _dialogs.OpenFile("Импортировать комментарии", CommentsFileFilter);
+        if (sourcePath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var selected = SelectedEntry;
+            var result = GxtCommentsImporter.Import(sourcePath, _project);
+            if (result.ChangedEntryCount > 0)
+            {
+                RemoveEmptyProjectMetadataEntries();
+                SetDirty(true);
+                RefreshEntries(selected?.Name, selected?.RawTableName);
+            }
+
+            var summary =
+                $"Обновлено: {result.UpdatedEntryCount}; удалено: {result.ClearedEntryCount}; " +
+                $"без изменений: {result.UnchangedEntryCount}; отсутствует в GXT: " +
+                $"{result.MissingEntries.Count}; текст отличается: {result.TextMismatches.Count}.";
+            StatusText = $"Импорт комментариев завершён — {summary}";
+            _dialogs.ShowInfo(summary, "Импорт комментариев");
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось импортировать комментарии.\n\n{exception.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void ExportComments()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        var sourcePath = _project.GxtSourcePath ?? _project.ProjectPath ?? GxtPath;
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var targetPath = _dialogs.SaveFile(
+            "Экспортировать комментарии",
+            CommentsFileFilter,
+            Path.Combine(
+                directory,
+                $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}.comments.json"));
+        if (targetPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            GxtCommentsExporter.Export(targetPath, _project, includeText: true);
+            StatusText = $"Комментарии экспортированы: {targetPath}";
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось экспортировать комментарии.\n\n{exception.Message}");
+        }
+    }
+
     [RelayCommand]
     private void ImportJson()
     {
@@ -972,27 +1169,151 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        var projectEntries = (_project?.Metadata.Entries ?? [])
+            .ToDictionary(
+                entry => CreateMetadataIdentity(entry.Key, entry.Table),
+                entry => entry);
+        var projectBlocks = (_project?.Metadata.Blocks ?? [])
+            .Select((block, index) => new EncounterMetadataBlockIndex(block, index))
+            .ToDictionary(block => block.Block.Id, StringComparer.Ordinal);
+
+        var sourceIndex = 0;
         foreach (var entry in _manager.GXTEntries)
         {
             var rawTable = (entry as GTAVC.GXTEntry)?.TableName;
             var identity = GetEntryIdentity(entry);
+            var metadataIdentity = CreateMetadataIdentity(
+                entry.DatName.GetClearName(),
+                rawTable?.GetClearName());
+            projectEntries.TryGetValue(metadataIdentity, out var projectEntry);
+            var occurrences = BuildOccurrences(metadataIdentity, projectEntry, projectBlocks);
             Entries.Add(new GxtEntryRow(
                 entry.DatName.GetClearName(),
                 _manager.ConvertBytesToText(entry.Value).GetClearName(),
                 rawTable?.GetClearName() ?? string.Empty,
                 rawTable)
             {
+                SourceIndex = sourceIndex++,
                 ComparisonTexts = _comparisonDocuments
                     .Select(document => document.Texts.GetValueOrDefault(identity))
                     .ToArray(),
+                Comment = projectEntry?.Comment,
+                Occurrences = occurrences,
+                PrimaryOccurrence = occurrences.Length > 0 ? occurrences[0] : null,
             });
         }
 
+        RebuildMetadataBlockOptions();
+        ApplySort();
         EntriesView.Refresh();
         SelectedEntry = Entries.FirstOrDefault(entry =>
             string.Equals(entry.Name, selectedName, StringComparison.Ordinal) &&
             string.Equals(entry.RawTableName, selectedTable, StringComparison.Ordinal));
+        OnPropertyChanged(nameof(HasEncounterMetadata));
         UpdateStatus();
+    }
+
+    private GxtEntryOccurrenceView[] BuildOccurrences(
+        EncounterMetadataIdentity identity,
+        ProjectEntryMetadata? projectEntry,
+        IReadOnlyDictionary<string, EncounterMetadataBlockIndex> projectBlocks)
+    {
+        ProjectEntryMetadata? occurrenceEntry;
+        IReadOnlyDictionary<string, EncounterMetadataBlockIndex> blocks;
+        EncounterMetadataSource source;
+
+        if (projectEntry is { Occurrences.Count: > 0 })
+        {
+            occurrenceEntry = projectEntry;
+            blocks = projectBlocks;
+            source = EncounterMetadataSource.Project;
+        }
+        else if (_canonicalMetadata?.Entries.TryGetValue(identity, out var canonicalEntry) == true)
+        {
+            occurrenceEntry = canonicalEntry;
+            blocks = _canonicalMetadata.Blocks;
+            source = EncounterMetadataSource.Canonical;
+        }
+        else
+        {
+            return [];
+        }
+
+        var result = new List<GxtEntryOccurrenceView>(occurrenceEntry.Occurrences.Count);
+        foreach (var occurrence in occurrenceEntry.Occurrences)
+        {
+            if (!blocks.TryGetValue(occurrence.BlockId, out var block))
+            {
+                continue;
+            }
+
+            result.Add(new GxtEntryOccurrenceView(
+                block.Block.Id,
+                block.Block.Type,
+                block.Block.Name,
+                block.Block.Description,
+                block.Block.Order,
+                block.Sequence,
+                occurrence.Order,
+                occurrence.Context,
+                source));
+        }
+
+        return result
+            .OrderBy(occurrence => occurrence.BlockOrder)
+            .ThenBy(occurrence => occurrence.BlockSequence)
+            .ThenBy(occurrence => occurrence.OccurrenceOrder)
+            .ThenBy(occurrence => occurrence.BlockId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private EncounterMetadataIdentity CreateMetadataIdentity(string key, string? table) =>
+        new(_loadedType == GXTType.GtaViceCity ? table : null, key);
+
+    private void RebuildMetadataBlockOptions()
+    {
+        var selectedId = SelectedMetadataBlock?.Id;
+        var selectedType = SelectedMetadataType?.Type;
+        var blocks = Entries
+            .SelectMany(entry => entry.Occurrences)
+            .Where(occurrence => selectedType is null ||
+                string.Equals(occurrence.BlockType, selectedType, StringComparison.Ordinal))
+            .GroupBy(occurrence => occurrence.BlockId, StringComparer.Ordinal)
+            .Select(group => group
+                .OrderBy(occurrence => occurrence.Source == EncounterMetadataSource.Project ? 0 : 1)
+                .ThenBy(occurrence => occurrence.BlockSequence)
+                .First())
+            .OrderBy(occurrence => occurrence.BlockOrder)
+            .ThenBy(occurrence => occurrence.BlockSequence)
+            .ThenBy(occurrence => occurrence.BlockName, StringComparer.Ordinal)
+            .ToArray();
+
+        MetadataBlockOptions.Clear();
+        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
+        foreach (var block in blocks)
+        {
+            MetadataBlockOptions.Add(new MetadataBlockFilterOption(
+                block.BlockId,
+                $"{block.BlockName} · {block.BlockType}",
+                block.BlockType));
+        }
+
+        SelectedMetadataBlock = MetadataBlockOptions.FirstOrDefault(option =>
+            string.Equals(option.Id, selectedId, StringComparison.Ordinal)) ??
+            MetadataBlockOptions[0];
+    }
+
+    private void ApplySort()
+    {
+        if (EntriesView is not ListCollectionView view)
+        {
+            return;
+        }
+
+        view.CustomSort = new GxtEntryRowComparer(
+            SelectedSortOption.Mode,
+            SelectedMetadataBlock.Id,
+            SelectedMetadataType.Type);
     }
 
     private List<TableOption> GetTableOptions()
@@ -1020,7 +1341,26 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool FilterEntry(object item)
     {
-        if (item is not GxtEntryRow entry || string.IsNullOrWhiteSpace(SearchText))
+        if (item is not GxtEntryRow entry)
+        {
+            return false;
+        }
+
+        if (SelectedMetadataType.Type is { } selectedType &&
+            !entry.Occurrences.Any(occurrence =>
+                string.Equals(occurrence.BlockType, selectedType, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (SelectedMetadataBlock.Id is { } selectedBlockId &&
+            !entry.Occurrences.Any(occurrence =>
+                string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchText))
         {
             return true;
         }
@@ -1029,29 +1369,139 @@ public partial class MainWindowViewModel : ObservableObject
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
 
+        bool Contains(string? value) => value?.Contains(SearchText, comparison) == true;
+        bool ContainsMetadata() => entry.Occurrences.Any(occurrence =>
+            Contains(occurrence.BlockId) ||
+            Contains(occurrence.BlockType) ||
+            Contains(occurrence.BlockName) ||
+            Contains(occurrence.BlockDescription) ||
+            Contains(occurrence.Context));
+
         return SelectedSearchColumn.Column switch
         {
-            SearchColumn.Name => entry.Name.Contains(SearchText, comparison),
-            SearchColumn.Text => entry.Text.Contains(SearchText, comparison),
-            SearchColumn.Comparison => entry.ComparisonTexts.Any(
-                text => text?.Contains(SearchText, comparison) == true),
-            SearchColumn.Table => entry.Table.Contains(SearchText, comparison),
-            _ => entry.Name.Contains(SearchText, comparison) ||
-                 entry.Text.Contains(SearchText, comparison) ||
-                 entry.ComparisonTexts.Any(
-                     text => text?.Contains(SearchText, comparison) == true) ||
-                 entry.Table.Contains(SearchText, comparison),
+            SearchColumn.Name => Contains(entry.Name),
+            SearchColumn.Text => Contains(entry.Text),
+            SearchColumn.Source => Contains(entry.SourceText),
+            SearchColumn.Comparison => entry.ComparisonTexts.Any(Contains),
+            SearchColumn.Table => Contains(entry.Table),
+            SearchColumn.Metadata => ContainsMetadata(),
+            SearchColumn.Comment => Contains(entry.Comment),
+            _ => Contains(entry.Name) ||
+                 Contains(entry.Text) ||
+                 entry.ComparisonTexts.Any(Contains) ||
+                 Contains(entry.Table) ||
+                 ContainsMetadata() ||
+                 Contains(entry.Comment),
         };
     }
+
+    private bool SetProjectComment(string key, string? rawTableName, string? comment)
+    {
+        if (_project is null)
+        {
+            return false;
+        }
+
+        var normalizedComment = string.IsNullOrWhiteSpace(comment) ? null : comment;
+        var table = _loadedType == GXTType.GtaViceCity
+            ? rawTableName?.GetClearName()
+            : null;
+        var entry = _project.Metadata.Entries.FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, key, StringComparison.Ordinal) &&
+            string.Equals(candidate.Table, table, StringComparison.Ordinal));
+
+        if (string.Equals(entry?.Comment, normalizedComment, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (entry is null)
+        {
+            if (normalizedComment is null)
+            {
+                return false;
+            }
+
+            entry = new ProjectEntryMetadata
+            {
+                Key = key,
+                Table = table,
+            };
+            _project.Metadata.Entries.Add(entry);
+        }
+
+        entry.Comment = normalizedComment;
+        if (entry.Comment is null && entry.Occurrences.Count == 0)
+        {
+            _project.Metadata.Entries.Remove(entry);
+        }
+
+        return true;
+    }
+
+    private void MoveProjectEntryMetadata(
+        string key,
+        string? oldRawTableName,
+        string? newRawTableName)
+    {
+        if (_project is null || _loadedType != GXTType.GtaViceCity)
+        {
+            return;
+        }
+
+        var oldTable = oldRawTableName?.GetClearName();
+        var newTable = newRawTableName?.GetClearName();
+        if (string.Equals(oldTable, newTable, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var entry = _project.Metadata.Entries.FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, key, StringComparison.Ordinal) &&
+            string.Equals(candidate.Table, oldTable, StringComparison.Ordinal));
+        if (entry is not null)
+        {
+            entry.Table = newTable;
+        }
+    }
+
+    private void RemoveEmptyProjectMetadataEntries()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _project.Metadata.Entries.RemoveAll(entry =>
+            string.IsNullOrWhiteSpace(entry.Comment) && entry.Occurrences.Count == 0);
+    }
+
+    private bool HasPersistableProjectMetadata() =>
+        _project?.Metadata.Blocks.Count > 0 ||
+        _project?.Metadata.Entries.Any(entry =>
+            !string.IsNullOrWhiteSpace(entry.Comment) || entry.Occurrences.Count > 0) == true;
+
+    private bool CanSaveComment() =>
+        SelectedEntry is not null &&
+        !string.Equals(
+            string.IsNullOrWhiteSpace(CommentDraft) ? null : CommentDraft,
+            SelectedEntry.Comment,
+            StringComparison.Ordinal);
+
+    private bool CanClearComment() =>
+        SelectedEntry is not null &&
+        (!string.IsNullOrWhiteSpace(SelectedEntry.Comment) ||
+         !string.IsNullOrWhiteSpace(CommentDraft));
 
     private void ClearComparisons()
     {
         _comparisonDocuments.Clear();
         ComparisonColumns.Clear();
         OnPropertyChanged(nameof(IsComparisonLoaded));
+        OnPropertyChanged(nameof(HasEnglishSource));
     }
 
-    private string CreateComparisonColumnName(string path)
+    private string CreateComparisonColumnName(string path, bool isEnglishSource)
     {
         var normalizedName = Path.GetFileNameWithoutExtension(path).Trim();
         if (string.IsNullOrEmpty(normalizedName))
@@ -1060,11 +1510,15 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var usedNames = ComparisonColumns
-            .Select(column => column.Name)
+            .Select(column => column.Name.StartsWith(
+                    "English source — ",
+                    StringComparison.Ordinal)
+                ? column.Name[17..]
+                : column.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!usedNames.Contains(normalizedName))
         {
-            return normalizedName;
+            return isEnglishSource ? $"English source — {normalizedName}" : normalizedName;
         }
 
         for (var suffix = 2; ; suffix++)
@@ -1072,7 +1526,7 @@ public partial class MainWindowViewModel : ObservableObject
             var candidate = $"{normalizedName} ({suffix})";
             if (!usedNames.Contains(candidate))
             {
-                return candidate;
+                return isEnglishSource ? $"English source — {candidate}" : candidate;
             }
         }
     }
@@ -1160,6 +1614,32 @@ public partial class MainWindowViewModel : ObservableObject
         _project = project;
         _manager = project.GxtManager;
         _loadedType = project.GameType;
+        try
+        {
+            _canonicalMetadata = _encounterMetadataProvider.GetIndex(project.GameType);
+        }
+        catch (Exception exception)
+        {
+            _canonicalMetadata = null;
+            if (!_canonicalMetadataWarningShown)
+            {
+                _canonicalMetadataWarningShown = true;
+                _dialogs.ShowError(
+                    "Встроенный encounter-order dataset недоступен. Документ открыт без " +
+                    $"канонической навигации.\n\n{exception.Message}",
+                    "Encounter metadata");
+            }
+        }
+
+        if (clearTransientState)
+        {
+            SelectedMetadataType = MetadataTypeOptions[0];
+            SelectedMetadataBlock = MetadataBlockFilterOption.All;
+            SelectedSortOption = project.GameType == GXTType.GtaViceCity
+                ? SortOptions[0]
+                : SortOptions[1];
+        }
+
         GxtSourceName = project.GxtSourceName;
         GxtPath = project.GxtSourcePath ?? project.GxtSourceName;
         ProjectPath = project.ProjectPath ?? string.Empty;
@@ -1290,6 +1770,77 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private readonly record struct EntryIdentity(string Name, string? Table);
+
+    private sealed class GxtEntryRowComparer(
+        EntrySortMode mode,
+        string? selectedBlockId,
+        string? selectedBlockType) : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return 0;
+            }
+
+            if (x is not GxtEntryRow left)
+            {
+                return -1;
+            }
+
+            if (y is not GxtEntryRow right)
+            {
+                return 1;
+            }
+
+            if (mode == EntrySortMode.GxtOrder)
+            {
+                return left.SourceIndex.CompareTo(right.SourceIndex);
+            }
+
+            var leftOccurrence = SelectOccurrence(left);
+            var rightOccurrence = SelectOccurrence(right);
+            if (leftOccurrence is null || rightOccurrence is null)
+            {
+                if (leftOccurrence is not null)
+                {
+                    return -1;
+                }
+
+                if (rightOccurrence is not null)
+                {
+                    return 1;
+                }
+
+                return left.SourceIndex.CompareTo(right.SourceIndex);
+            }
+
+            var result = leftOccurrence.BlockOrder.CompareTo(rightOccurrence.BlockOrder);
+            if (result == 0)
+            {
+                result = leftOccurrence.BlockSequence.CompareTo(rightOccurrence.BlockSequence);
+            }
+
+            if (result == 0)
+            {
+                result = leftOccurrence.OccurrenceOrder.CompareTo(rightOccurrence.OccurrenceOrder);
+            }
+
+            return result != 0 ? result : left.SourceIndex.CompareTo(right.SourceIndex);
+        }
+
+        private GxtEntryOccurrenceView? SelectOccurrence(GxtEntryRow entry) =>
+            selectedBlockId is not null
+                ? entry.Occurrences.FirstOrDefault(occurrence =>
+                    string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal))
+                : selectedBlockType is not null
+                    ? entry.Occurrences.FirstOrDefault(occurrence =>
+                        string.Equals(
+                            occurrence.BlockType,
+                            selectedBlockType,
+                            StringComparison.Ordinal))
+                    : entry.PrimaryOccurrence;
+    }
 
     private sealed record ComparisonDocument(
         string Path,

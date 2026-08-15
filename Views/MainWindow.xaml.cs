@@ -53,7 +53,7 @@ public partial class MainWindow : Window
         object? sender,
         NotifyCollectionChangedEventArgs e)
     {
-        const int fixedColumnCount = 3;
+        const int fixedColumnCount = 5;
         const int comparisonColumnStartIndex = 2;
 
         while (EntriesGrid.Columns.Count > fixedColumnCount)

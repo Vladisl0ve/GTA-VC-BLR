@@ -164,13 +164,14 @@ public sealed class GxtCommentsServicesTests
     }
 
     [TestMethod]
-    public void Import_NullClearsCommentAndSameValueIsUnchanged()
+    public void Import_NullAndWhitespaceClearCommentsAndSameValueIsUnchanged()
     {
         var project = CreateViceCityProject();
         project.Metadata.Entries.AddRange(
         [
             new ProjectEntryMetadata { Table = "MAIN", Key = "HELLO", Comment = "Remove" },
             new ProjectEntryMetadata { Table = "MAIN", Key = "KEEP", Comment = "Same" },
+            new ProjectEntryMetadata { Table = "CARS", Key = "CAR", Comment = "Remove too" },
         ]);
         var path = WriteJson(
             "clear.json",
@@ -181,7 +182,8 @@ public sealed class GxtCommentsServicesTests
               "game": "GTA Vice City",
               "entries": [
                 { "key": "HELLO", "table": "MAIN", "comment": null },
-                { "key": "KEEP", "table": "MAIN", "comment": "Same" }
+                { "key": "KEEP", "table": "MAIN", "comment": "Same" },
+                { "key": "CAR", "table": "CARS", "comment": "   " }
               ]
             }
             """);
@@ -189,10 +191,11 @@ public sealed class GxtCommentsServicesTests
         var result = GxtCommentsImporter.Import(path, project);
 
         Assert.AreEqual(0, result.UpdatedEntryCount);
-        Assert.AreEqual(1, result.ClearedEntryCount);
+        Assert.AreEqual(2, result.ClearedEntryCount);
         Assert.AreEqual(1, result.UnchangedEntryCount);
         Assert.IsNull(FindMetadata(project, "MAIN", "HELLO").Comment);
         Assert.AreEqual("Same", FindMetadata(project, "MAIN", "KEEP").Comment);
+        Assert.IsNull(FindMetadata(project, "CARS", "CAR").Comment);
     }
 
     [TestMethod]

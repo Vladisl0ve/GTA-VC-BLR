@@ -5,7 +5,7 @@
         Width="1180"
         Height="760"
         MinWidth="900"
-        MinHeight="600"
+        MinHeight="720"
         Icon="/icon.ico"
         WindowStartupLocation="CenterScreen">
     <Window.InputBindings>
@@ -329,6 +329,10 @@
                                 <MenuItem Style="{StaticResource CommandMenuItemStyle}"
                                           Header="JSON → GXT с маппингом…"
                                           Command="{Binding ImportJsonWithDictionaryCommand}" />
+                                <Separator />
+                                <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                          Header="Импортировать комментарии…"
+                                          Command="{Binding ImportCommentsCommand}" />
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
@@ -372,6 +376,9 @@
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
                                       Header="GXT…"
                                       Command="{Binding ExportGxtCommand}" />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="Комментарии…"
+                                      Command="{Binding ExportCommentsCommand}" />
                             <Separator />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
                                       Header="TXD…"
@@ -506,6 +513,10 @@
                 BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
                 CornerRadius="6">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="190" />
@@ -549,37 +560,183 @@
                         Padding="12,6"
                         Content="Сбросить"
                         Command="{Binding ClearSearchCommand}" />
+
+                <Grid Grid.Row="1" Grid.ColumnSpan="6" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="180" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock VerticalAlignment="Center" Text="Тип блока" />
+                    <ComboBox Grid.Column="1"
+                              Margin="8,0,18,0"
+                              Padding="8,5"
+                              ItemsSource="{Binding MetadataTypeOptions}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedMetadataType}" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Блок" />
+                    <ComboBox Grid.Column="3"
+                              Margin="8,0,18,0"
+                              Padding="8,5"
+                              ItemsSource="{Binding MetadataBlockOptions}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedMetadataBlock}" />
+                    <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="Порядок" />
+                    <ComboBox Grid.Column="5"
+                              Margin="8,0,0,0"
+                              Padding="8,5"
+                              ItemsSource="{Binding SortOptions}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedSortOption}" />
+                </Grid>
             </Grid>
         </Border>
 
-        <DataGrid x:Name="EntriesGrid"
-                  Grid.Row="4"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  EnableColumnVirtualization="True"
-                  EnableRowVirtualization="True"
-                  GridLinesVisibility="Horizontal"
-                  IsReadOnly="True"
-                  ItemsSource="{Binding EntriesView}"
-                  MouseDoubleClick="EntriesGrid_OnMouseDoubleClick"
-                  SelectedItem="{Binding SelectedEntry}"
-                  SelectionMode="Single"
-                  SelectionUnit="FullRow"
-                  VirtualizingPanel.IsVirtualizing="True"
-                  VirtualizingPanel.VirtualizationMode="Recycling">
-            <DataGrid.Columns>
-                <DataGridTextColumn Width="220"
-                                    Header="Ключ"
-                                    Binding="{Binding Name}" />
-                <DataGridTextColumn Width="2*"
-                                    Header="Текст"
-                                    Binding="{Binding Text}" />
-                <DataGridTextColumn Width="160"
-                                    Header="Таблица"
-                                    Binding="{Binding Table}" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="5" />
+                <RowDefinition Height="200" />
+            </Grid.RowDefinitions>
+
+            <DataGrid x:Name="EntriesGrid"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      EnableColumnVirtualization="True"
+                      EnableRowVirtualization="True"
+                      GridLinesVisibility="Horizontal"
+                      IsReadOnly="True"
+                      ItemsSource="{Binding EntriesView}"
+                      MouseDoubleClick="EntriesGrid_OnMouseDoubleClick"
+                      SelectedItem="{Binding SelectedEntry}"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Width="160"
+                                        Header="Ключ"
+                                        Binding="{Binding Name}" />
+                    <DataGridTextColumn Width="2*"
+                                        Header="Перевод"
+                                        Binding="{Binding Text}" />
+                    <DataGridTemplateColumn Width="260" Header="Encounter">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="{Binding EncounterSummary}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding EncounterToolTip}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Width="190"
+                                        Header="Комментарий"
+                                        Binding="{Binding CommentPreview}" />
+                    <DataGridTextColumn Width="130"
+                                        Header="Таблица"
+                                        Binding="{Binding Table}" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <GridSplitter Grid.Row="1"
+                          Height="5"
+                          HorizontalAlignment="Stretch"
+                          ResizeDirection="Rows"
+                          ResizeBehavior="PreviousAndNext" />
+
+            <Border Grid.Row="2"
+                    Margin="0,8,0,0"
+                    Padding="10"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                    CornerRadius="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.1*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <ColumnDefinition Width="1.1*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Margin="0,0,12,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Margin="0,0,0,6"
+                                   FontWeight="SemiBold"
+                                   Text="English source" />
+                        <TextBox Grid.Row="1"
+                                 Padding="8"
+                                 AcceptsReturn="True"
+                                 IsReadOnly="True"
+                                 Text="{Binding SelectedEntry.SourceText}"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" />
+                    </Grid>
+
+                    <Grid Grid.Column="1" Margin="0,0,12,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Margin="0,0,0,6"
+                                   FontWeight="SemiBold"
+                                   Text="Occurrences" />
+                        <DataGrid Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  HeadersVisibility="Column"
+                                  IsReadOnly="True"
+                                  ItemsSource="{Binding SelectedEntry.Occurrences}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Width="1.2*" Header="Блок" Binding="{Binding BlockName}" />
+                                <DataGridTextColumn Width="85" Header="Порядок" Binding="{Binding OrderText}" />
+                                <DataGridTextColumn Width="1.4*" Header="Контекст" Binding="{Binding Context}" />
+                                <DataGridTextColumn Width="80" Header="Источник" Binding="{Binding SourceName}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Margin="0,0,0,6"
+                                   FontWeight="SemiBold"
+                                   Text="Комментарий переводчика" />
+                        <TextBox Grid.Row="1"
+                                 Padding="8"
+                                 AcceptsReturn="True"
+                                 Text="{Binding CommentDraft, UpdateSourceTrigger=PropertyChanged}"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" />
+                        <StackPanel Grid.Row="2"
+                                    Margin="0,8,0,0"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal">
+                            <Button MinWidth="90"
+                                    Padding="10,5"
+                                    Content="Очистить"
+                                    Command="{Binding ClearCommentCommand}" />
+                            <Button MinWidth="100"
+                                    Margin="8,0,0,0"
+                                    Padding="10,5"
+                                    Content="Сохранить"
+                                    Command="{Binding SaveCommentCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
 
         <Grid Grid.Row="5" Margin="0,14,0,12">
             <Grid.ColumnDefinitions>
@@ -613,7 +770,7 @@
                     MinWidth="190"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Добавить для сравнения…"
+                    Content="Оригинал/сравнение…"
                     Command="{Binding OpenComparisonFileCommand}" />
             <Button Grid.Column="5"
                     MinWidth="190"

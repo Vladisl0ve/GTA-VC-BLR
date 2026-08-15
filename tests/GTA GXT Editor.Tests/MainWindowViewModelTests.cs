@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
@@ -129,7 +130,9 @@ public sealed class MainWindowViewModelTests
 
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.HasCount(2, viewModel.ComparisonColumns);
-        Assert.AreEqual("first comparison", viewModel.ComparisonColumns[0].Name);
+        Assert.AreEqual(
+            "English source — first comparison",
+            viewModel.ComparisonColumns[0].Name);
         Assert.AreEqual(firstComparisonPath, viewModel.ComparisonColumns[0].Path);
         Assert.AreEqual("second-comparison", viewModel.ComparisonColumns[1].Name);
         Assert.AreEqual(secondComparisonPath, viewModel.ComparisonColumns[1].Path);
@@ -163,7 +166,7 @@ public sealed class MainWindowViewModelTests
         viewModel.OpenComparisonFileCommand.Execute(null);
 
         CollectionAssert.AreEqual(
-            new[] { "shared", "shared (2)" },
+            new[] { "English source — shared", "shared (2)" },
             viewModel.ComparisonColumns.Select(column => column.Name).ToArray());
     }
 
@@ -482,6 +485,289 @@ public sealed class MainWindowViewModelTests
         Assert.HasCount(1, dialogs.Errors);
     }
 
+    [TestMethod]
+    public void ViceCity_UsesCanonicalEncounterOrderAndMetadataFilters()
+    {
+        var path = CreateViceCityGxtWithEntries(
+            "encounter.gxt",
+            ("MAIN", "CRED001", "Credits"),
+            ("MAIN", "LAW_1", "The Party"),
+            ("MAIN", "ITBEG", "In the beginning..."));
+        var viewModel = CreateViewModel(new FakeDialogService());
+
+        viewModel.OpenFromCommandLine(path);
+
+        Assert.AreEqual(EntrySortMode.EncounterOrder, viewModel.SelectedSortOption.Mode);
+        CollectionAssert.AreEqual(
+            new[] { "ITBEG", "LAW_1", "CRED001" },
+            viewModel.EntriesView.Cast<GxtEntryRow>().Select(entry => entry.Name).ToArray());
+        Assert.AreEqual(
+            "story.in-the-beginning",
+            viewModel.Entries.Single(entry => entry.Name == "ITBEG").PrimaryOccurrence?.BlockId);
+        Assert.AreEqual(
+            EncounterMetadataSource.Canonical,
+            viewModel.Entries.Single(entry => entry.Name == "LAW_1").PrimaryOccurrence?.Source);
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        var sourceOrder = viewModel.Entries
+            .OrderBy(entry => entry.SourceIndex)
+            .Select(entry => entry.Name)
+            .ToArray();
+
+        viewModel.SelectedSortOption = viewModel.SortOptions.Single(option =>
+            option.Mode == EntrySortMode.GxtOrder);
+        CollectionAssert.AreEqual(
+            sourceOrder,
+            viewModel.EntriesView.Cast<GxtEntryRow>().Select(entry => entry.Name).ToArray());
+        viewModel.SelectedSortOption = viewModel.SortOptions.Single(option =>
+            option.Mode == EntrySortMode.EncounterOrder);
+
+        viewModel.SelectedMetadataType = viewModel.MetadataTypeOptions.Single(option =>
+            option.Type == "mission");
+        Assert.AreEqual(
+            "LAW_1",
+            viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+
+        viewModel.SelectedMetadataBlock = viewModel.MetadataBlockOptions.Single(option =>
+            option.Id == "mission.the-party");
+        Assert.AreEqual(
+            "LAW_1",
+            viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+
+        viewModel.ClearSearchCommand.Execute(null);
+        viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(option =>
+            option.Column == SearchColumn.Metadata);
+        viewModel.SearchText = "The Party";
+        Assert.AreEqual(
+            "LAW_1",
+            viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+    }
+
+    [TestMethod]
+    public void ProjectOccurrencesOverrideCanonicalWhileCommentOnlyEntryUsesFallback()
+    {
+        var path = CreateViceCityGxtWithEntries(
+            "project.gxt",
+            ("MAIN", "LAW_1", "Party"),
+            ("MAIN", "ITBEG", "Beginning"));
+        var factory = new GxtManagerFactory();
+        var project = new EditorProject
+        {
+            ProjectPath = "virtual.byx",
+            GxtSourceName = "project.gxt",
+            GameType = GXTType.GtaViceCity,
+            GxtManager = factory.Open(path),
+            Metadata = new ProjectMetadata
+            {
+                Blocks =
+                [
+                    new ProjectMetadataBlock
+                    {
+                        Id = "project.review",
+                        Type = "mission",
+                        Name = "Project review",
+                        Order = 1,
+                    },
+                ],
+                Entries =
+                [
+                    new ProjectEntryMetadata
+                    {
+                        Table = "MAIN",
+                        Key = "LAW_1",
+                        Comment = "Project comment",
+                        Occurrences =
+                        [
+                            new ProjectEntryOccurrence
+                            {
+                                BlockId = "project.review",
+                                Order = 1,
+                                Context = "Custom review",
+                            },
+                        ],
+                    },
+                    new ProjectEntryMetadata
+                    {
+                        Table = "MAIN",
+                        Key = "ITBEG",
+                        Comment = "Comment only",
+                    },
+                ],
+            },
+        };
+        var serializer = new StubProjectSerializer(project);
+        var viewModel = new MainWindowViewModel(factory, new FakeDialogService(), projectSerializer: serializer);
+
+        viewModel.OpenFromCommandLine("virtual.byx");
+
+        var projectRow = viewModel.Entries.Single(entry => entry.Name == "LAW_1");
+        Assert.HasCount(1, projectRow.Occurrences);
+        Assert.AreEqual("project.review", projectRow.PrimaryOccurrence?.BlockId);
+        Assert.AreEqual(EncounterMetadataSource.Project, projectRow.PrimaryOccurrence?.Source);
+        Assert.AreEqual("Project comment", projectRow.Comment);
+
+        var fallbackRow = viewModel.Entries.Single(entry => entry.Name == "ITBEG");
+        Assert.AreEqual("story.in-the-beginning", fallbackRow.PrimaryOccurrence?.BlockId);
+        Assert.AreEqual(EncounterMetadataSource.Canonical, fallbackRow.PrimaryOccurrence?.Source);
+        Assert.AreEqual("Comment only", fallbackRow.Comment);
+        Assert.HasCount(2, project.Metadata.Entries);
+        Assert.HasCount(1, project.Metadata.Blocks);
+    }
+
+    [TestMethod]
+    public void FirstComparisonIsEnglishSourceAndIsPassedToEntryEditor()
+    {
+        var targetPath = CreateViceCityGxtWithEntries(
+            "target.gxt",
+            ("MAIN", "LAW_1", "Translated"));
+        var sourcePath = CreateViceCityGxtWithEntries(
+            "american.gxt",
+            ("MAIN", "LAW_1", "The Party"));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFilesResults.Enqueue([sourcePath]);
+        dialogs.EditEntryResults.Enqueue(new EntryEditorResult("LAW_1", "Updated translation", "MAIN")
+        {
+            Comment = "Check timing",
+        });
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(targetPath);
+        viewModel.OpenComparisonFileCommand.Execute(null);
+        viewModel.SelectedEntry = viewModel.Entries.Single();
+
+        viewModel.EditEntryCommand.Execute(null);
+
+        Assert.AreEqual("English source — american", viewModel.ComparisonColumns[0].Name);
+        Assert.AreEqual("The Party", dialogs.EntryEditorRequests.Single().SourceText);
+        Assert.IsNotEmpty(dialogs.EntryEditorRequests.Single().Occurrences);
+        Assert.AreEqual("The Party", viewModel.Entries.Single().SourceText);
+        Assert.AreEqual("Check timing", viewModel.Entries.Single().Comment);
+
+        viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(option =>
+            option.Column == SearchColumn.Source);
+        viewModel.SearchText = "The Party";
+        Assert.AreEqual("LAW_1", viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+    }
+
+    [TestMethod]
+    public void ReusedCanonicalKeyExposesEveryOccurrence()
+    {
+        var path = CreateViceCityGxtWithEntries(
+            "reused.gxt",
+            ("MAIN", "ICC1_O", "Shared prompt"));
+        var viewModel = CreateViewModel(new FakeDialogService());
+
+        viewModel.OpenFromCommandLine(path);
+
+        var row = viewModel.Entries.Single();
+        Assert.HasCount(2, row.Occurrences);
+        StringAssert.Contains(row.EncounterSummary, "(+1)");
+    }
+
+    [TestMethod]
+    public void ClearCommentRemovesSparseProjectMetadataFromRow()
+    {
+        var path = CreateViceCityGxtWithEntries(
+            "clear-comment.gxt",
+            ("MAIN", "LAW_1", "Party"));
+        var viewModel = CreateViewModel(new FakeDialogService());
+        viewModel.OpenFromCommandLine(path);
+        viewModel.SelectedEntry = viewModel.Entries.Single();
+        viewModel.CommentDraft = "Temporary note";
+        viewModel.SaveCommentCommand.Execute(null);
+
+        viewModel.ClearCommentCommand.Execute(null);
+
+        Assert.IsNull(viewModel.Entries.Single().Comment);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.IsFalse(viewModel.ClearCommentCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public void CommentOnPlainGxtSavesAsSparseByxMetadata()
+    {
+        var gxtPath = CreateViceCityGxtWithEntries(
+            "comments.gxt",
+            ("MAIN", "LAW_1", "Party"));
+        var byxPath = Path.Combine(_testDirectory, "comments.byx");
+        var dialogs = new FakeDialogService();
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+        viewModel.SelectedEntry = viewModel.Entries.Single();
+        viewModel.CommentDraft = "Review against gameplay";
+
+        viewModel.SaveCommentCommand.Execute(null);
+        viewModel.SaveCommand.Execute(null);
+
+        Assert.IsTrue(File.Exists(byxPath));
+        StringAssert.Contains(dialogs.SaveFileCalls.Single().Filter, "*.byx");
+        var loaded = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsEmpty(loaded.Metadata.Blocks);
+        Assert.HasCount(1, loaded.Metadata.Entries);
+        Assert.AreEqual("Review against gameplay", loaded.Metadata.Entries[0].Comment);
+        Assert.IsEmpty(loaded.Metadata.Entries[0].Occurrences);
+    }
+
+    [TestMethod]
+    public void CommentImportAndExportCommandsRefreshRowsAndReportTextMismatch()
+    {
+        var gxtPath = CreateViceCityGxtWithEntries(
+            "import-comments.gxt",
+            ("MAIN", "LAW_1", "Current text"));
+        var importPath = Path.Combine(_testDirectory, "incoming.comments.json");
+        var exportPath = Path.Combine(_testDirectory, "outgoing.comments.json");
+        File.WriteAllText(
+            importPath,
+            """
+            {
+              "format": "GXT_COMMENTS",
+              "version": 1,
+              "game": "GTA Vice City",
+              "entries": [
+                {
+                  "key": "LAW_1",
+                  "table": "MAIN",
+                  "text": "Different text",
+                  "comment": "Imported note"
+                }
+              ]
+            }
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(importPath);
+        dialogs.SaveFileResults.Enqueue(exportPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+
+        viewModel.ImportCommentsCommand.Execute(null);
+        viewModel.ExportCommentsCommand.Execute(null);
+
+        Assert.AreEqual("Imported note", viewModel.Entries.Single().Comment);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        StringAssert.Contains(dialogs.InfoMessages.Single().Message, "текст отличается: 1");
+        using var document = JsonDocument.Parse(File.ReadAllBytes(exportPath));
+        Assert.AreEqual(
+            "Imported note",
+            document.RootElement.GetProperty("entries")[0].GetProperty("comment").GetString());
+    }
+
+    [TestMethod]
+    public void BrokenCanonicalProviderDoesNotPreventOpeningDocument()
+    {
+        var path = CreateViceCityGxt("fallback.gxt");
+        var dialogs = new FakeDialogService { AllowErrors = true };
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            encounterMetadataProvider: new ThrowingEncounterMetadataProvider());
+
+        viewModel.OpenFromCommandLine(path);
+
+        Assert.IsTrue(viewModel.IsDocumentLoaded);
+        Assert.IsEmpty(viewModel.Entries.Single().Occurrences);
+        Assert.HasCount(1, dialogs.Errors);
+    }
+
     private MainWindowViewModel CreateViewModel(FakeDialogService dialogs) =>
         new(new GxtManagerFactory(), dialogs);
 
@@ -517,13 +803,24 @@ public sealed class MainWindowViewModelTests
 
     private string CreateViceCityGxt(string fileName, string text = "Hello")
     {
+        return CreateViceCityGxtWithEntries(fileName, ("MAIN", "HELLO", text));
+    }
+
+    private string CreateViceCityGxtWithEntries(
+        string fileName,
+        params (string Table, string Key, string Text)[] entries)
+    {
         var path = Path.Combine(_testDirectory, fileName);
         var manager = GxtManagerFactory.Create(
             GXTType.GtaViceCity,
             sourceName: fileName,
-            sourceTexts: [text],
+            sourceTexts: entries.Select(entry => entry.Text),
             language: GxtLanguage.English);
-        manager.AddGXTEntry("HELLO", text);
+        foreach (var entry in entries)
+        {
+            manager.AddGXTEntry(entry.Key, entry.Text, entry.Table);
+        }
+
         manager.SaveGXTChanges(path);
         return path;
     }
@@ -570,11 +867,17 @@ public sealed class MainWindowViewModelTests
 
         public Queue<string?> SaveFileResults { get; } = new();
 
+        public Queue<EntryEditorResult?> EditEntryResults { get; } = new();
+
         public List<(string Title, string Filter)> OpenFileCalls { get; } = [];
 
         public List<(string Title, string Filter)> OpenFilesCalls { get; } = [];
 
         public List<(string Title, string Filter, string SuggestedPath)> SaveFileCalls { get; } = [];
+
+        public List<EntryEditorRequest> EntryEditorRequests { get; } = [];
+
+        public List<(string Message, string Title)> InfoMessages { get; } = [];
 
         public int ConfirmCallCount { get; private set; }
 
@@ -614,6 +917,7 @@ public sealed class MainWindowViewModelTests
 
         public void ShowInfo(string message, string title = "GTA GXT Editor")
         {
+            InfoMessages.Add((message, title));
         }
 
         public void ShowError(string message, string title = "Ошибка")
@@ -625,7 +929,11 @@ public sealed class MainWindowViewModelTests
             }
         }
 
-        public EntryEditorResult? EditEntry(EntryEditorRequest request) => null;
+        public EntryEditorResult? EditEntry(EntryEditorRequest request)
+        {
+            EntryEditorRequests.Add(request);
+            return EditEntryResults.Count > 0 ? EditEntryResults.Dequeue() : null;
+        }
 
         public UnsavedChangesChoice ConfirmUnsavedChanges()
         {
@@ -638,5 +946,20 @@ public sealed class MainWindowViewModelTests
             CharacterMapRequest = request;
             return null;
         }
+    }
+
+    private sealed class StubProjectSerializer(EditorProject project) : IProjectSerializer
+    {
+        public EditorProject Load(string path) => project;
+
+        public void Save(string path, EditorProject value)
+        {
+        }
+    }
+
+    private sealed class ThrowingEncounterMetadataProvider : IEncounterMetadataProvider
+    {
+        public EncounterMetadataIndex? GetIndex(GXTType gameType) =>
+            throw new InvalidDataException("Broken canonical resource.");
     }
 }

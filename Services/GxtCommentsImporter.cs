@@ -196,7 +196,10 @@ public static class GxtCommentsImporter
                     $"Запись комментариев {displayIndex} дублирует '{identity}'.");
             }
 
-            result.Add(new ValidatedCommentEntry(identity, entry.Text, entry.Comment));
+            result.Add(new ValidatedCommentEntry(
+                identity,
+                entry.Text,
+                string.IsNullOrWhiteSpace(entry.Comment) ? null : entry.Comment));
         }
 
         return result;

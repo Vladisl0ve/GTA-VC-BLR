@@ -17,6 +17,18 @@ public partial class EntryEditorWindow : Window
         NameTextBox.Text = request.Name;
         NameTextBox.IsReadOnly = !request.IsAdding;
         ValueTextBox.Text = request.Text;
+        SourceTextBox.Text = request.SourceText ?? string.Empty;
+        SourcePanel.Visibility = request.SourceText is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        OccurrencesGrid.ItemsSource = request.Occurrences;
+        OccurrencesPanel.Visibility = request.Occurrences.Count == 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        OccurrencesRow.Height = request.Occurrences.Count == 0
+            ? new GridLength(0)
+            : new GridLength(1.4, GridUnitType.Star);
+        CommentTextBox.Text = request.Comment ?? string.Empty;
 
         if (request.Tables.Count == 0)
         {
@@ -67,7 +79,12 @@ public partial class EntryEditorWindow : Window
             return;
         }
 
-        Result = new EntryEditorResult(name, ValueTextBox.Text, table);
+        Result = new EntryEditorResult(name, ValueTextBox.Text, table)
+        {
+            Comment = string.IsNullOrWhiteSpace(CommentTextBox.Text)
+                ? null
+                : CommentTextBox.Text,
+        };
         DialogResult = true;
     }
 
