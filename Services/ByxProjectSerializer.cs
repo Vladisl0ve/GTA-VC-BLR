@@ -90,11 +90,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var txdData = manifest.Txd is null
             ? null
             : ReadValidatedEntry(archive, manifest.Txd, MaximumArchiveSize);
-        var metadataData = ReadValidatedEntry(archive, manifest.Metadata, MaximumMetadataSize);
-        var metadata = Deserialize<ProjectMetadata>(metadataData, JsonOptions);
-        ValidateMetadata(metadata);
-
         var gameType = ParseGame(manifest.Game);
+        var metadataData = ReadValidatedEntry(archive, manifest.Metadata, MaximumMetadataSize);
+        var metadata = ProjectMetadataJsonSerializer.Deserialize(metadataData, gameType);
         var manager = _gxtManagerFactory.Open(
             gxtData,
             gameType,
@@ -125,7 +123,6 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(project);
         ValidateProject(project);
-        ValidateMetadata(project.Metadata);
 
         using var gxtStream = new MemoryStream();
         project.GxtManager.WriteGXT(gxtStream);
@@ -142,7 +139,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var characterMapData = profile is null
             ? null
             : CharacterMapFileSerializer.Serialize(profile);
-        var metadataData = JsonSerializer.SerializeToUtf8Bytes(project.Metadata, JsonOptions);
+        var metadataData = ProjectMetadataJsonSerializer.Serialize(
+            project.Metadata,
+            project.GameType);
         var txdData = project.AttachedTxd?.Data;
 
         var manifest = new ByxManifest
@@ -392,49 +391,6 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         }
     }
 
-    private static void ValidateMetadata(ProjectMetadata metadata)
-    {
-        ArgumentNullException.ThrowIfNull(metadata);
-        if (!string.Equals(metadata.Format, "GXT_ENTRY_METADATA", StringComparison.Ordinal) ||
-            metadata.Version != ProjectMetadata.CurrentVersion ||
-            metadata.Blocks is null || metadata.Entries is null)
-        {
-            throw new InvalidDataException("Файл метаданных BYX заполнен некорректно.");
-        }
-
-        var blockIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var block in metadata.Blocks)
-        {
-            if (block is null || string.IsNullOrWhiteSpace(block.Id) ||
-                string.IsNullOrWhiteSpace(block.Type) || string.IsNullOrWhiteSpace(block.Name) ||
-                !blockIds.Add(block.Id))
-            {
-                throw new InvalidDataException("Список блоков в метаданных BYX повреждён.");
-            }
-        }
-
-        var identities = new HashSet<EntryIdentity>();
-        foreach (var entry in metadata.Entries)
-        {
-            if (entry is null || string.IsNullOrWhiteSpace(entry.Key) ||
-                entry.Table is not null && string.IsNullOrWhiteSpace(entry.Table) ||
-                entry.Occurrences is null || !identities.Add(new EntryIdentity(entry.Table, entry.Key)))
-            {
-                throw new InvalidDataException("Список записей в метаданных BYX повреждён.");
-            }
-
-            foreach (var occurrence in entry.Occurrences)
-            {
-                if (occurrence is null || string.IsNullOrWhiteSpace(occurrence.BlockId) ||
-                    !blockIds.Contains(occurrence.BlockId))
-                {
-                    throw new InvalidDataException(
-                        $"Метаданные записи '{entry.Key}' ссылаются на неизвестный блок.");
-                }
-            }
-        }
-    }
-
     private static void ValidateArchive(ZipArchive archive)
     {
         if (archive.Entries.Count > MaximumEntries)
@@ -592,6 +548,4 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         "en" => GxtLanguage.English,
         _ => throw new InvalidDataException($"Язык '{language}' в BYX не поддерживается."),
     };
-
-    private readonly record struct EntryIdentity(string? Table, string Key);
 }
