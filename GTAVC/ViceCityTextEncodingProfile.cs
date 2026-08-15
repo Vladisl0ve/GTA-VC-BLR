@@ -116,28 +116,35 @@ internal sealed class ViceCityTextEncodingProfile
             return BelarusianSequential;
         }
 
+        // The current Belarusian patch uses ASCII I/i for І/і, 0x86/0x9D for Ў/ў
+        // and the former Щ/щ slots 0x91/0xA8 for Т/т. The older project mapping
+        // instead used ASCII T/y for Т/т and 0x91/0xA8 for Ў/ў.
         if (nameLanguage == GxtLanguage.Belarusian)
         {
-            return counts[0x91] + counts[0xA8] > 0
-                ? BelarusianLegacy
-                : Belarusian;
+            var currentBelarusianAliasCount = counts[(byte)'I'] + counts[(byte)'i'];
+            var legacyBelarusianTCount = counts[(byte)'T'] + counts[(byte)'y'];
+            return currentBelarusianAliasCount >= legacyBelarusianTCount
+                ? Belarusian
+                : BelarusianLegacy;
         }
 
-        // The legacy project mapping stored Ў/ў in the old Щ/щ slots.  In a
-        // complete Belarusian GXT, lowercase ў is much more common than Russian щ.
-        if (counts[0xA8] >= 4 && counts[0xA8] * 200 >= characterCount)
-        {
-            return BelarusianLegacy;
-        }
-
-        // The TXD-compatible mapping uses ASCII I/i for І/і, ASCII y for т and
-        // keeps 0xA9 for ы.  Together they distinguish it from both 1C Russian
-        // and the Ukrainian mapping even when the installed file is american.gxt.
-        if (counts[(byte)'i'] * 200 >= characterCount &&
-            counts[(byte)'y'] * 200 >= characterCount &&
+        // Current TXD-compatible Belarusian: І/і are ASCII I/i, Т/т use
+        // 0x91/0xA8, and ы remains at 0xA9.
+        if ((counts[(byte)'I'] + counts[(byte)'i']) * 200 >= characterCount &&
+            counts[0xA8] * 200 >= characterCount &&
             counts[0xA9] * 200 >= characterCount)
         {
             return Belarusian;
+        }
+
+        // Legacy Belarusian used ASCII T/y for Т/т and stored Ў/ў in 0x91/0xA8.
+        // A relatively frequent 0xA8 together with T/y distinguishes that preset
+        // from the current Belarusian mapping.
+        if ((counts[(byte)'T'] + counts[(byte)'y']) * 200 >= characterCount &&
+            counts[0xA8] >= 4 &&
+            counts[0xA8] * 200 >= characterCount)
+        {
+            return BelarusianLegacy;
         }
 
         if (nameLanguage is GxtLanguage.Russian or GxtLanguage.Ukrainian)
@@ -335,6 +342,8 @@ internal sealed class ViceCityTextEncodingProfile
     {
         var profile = BundledCharacterMapProvider.BelarusianViceCity;
 
+        SetCode('Т', (byte)'T');
+        SetCode('т', (byte)'y');
         SetCode('І', 0x86);
         SetCode('Ў', 0x91);
         SetCode('і', 0x9D);
@@ -383,8 +392,7 @@ internal sealed class ViceCityTextEncodingProfile
     private static readonly ViceCityTextEncodingProfile BelarusianLegacy = FromCharacterMap(
         GxtLanguage.Belarusian,
         "Беларуская (legacy)",
-        CreateLegacyBelarusianMap(),
-        [((byte)'y', 't')]);
+        CreateLegacyBelarusianMap());
 
     private static readonly ViceCityTextEncodingProfile BelarusianSequential = new(
         GxtLanguage.Belarusian,
