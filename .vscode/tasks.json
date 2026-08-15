@@ -30,6 +30,30 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "test",
+            "detail": "Run all automated tests and show a terminal table",
+            "command": "powershell",
+            "type": "process",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/run-tests.ps1"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
             "label": "watch",
             "command": "dotnet",
             "type": "process",
