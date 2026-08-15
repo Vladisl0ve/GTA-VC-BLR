@@ -1,5 +1,6 @@
 using System.Windows;
 using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Views;
 
@@ -53,38 +54,26 @@ public partial class EntryEditorWindow : Window
 
     private void SaveButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var name = NameTextBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            ShowValidationError("Имя ключа не может быть пустым.", NameTextBox);
-            return;
-        }
-
-        if (name.Length > 8)
-        {
-            ShowValidationError("Имя ключа может содержать не более 8 символов.", NameTextBox);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(ValueTextBox.Text))
-        {
-            ShowValidationError("Текст ключа не может быть пустым.", ValueTextBox);
-            return;
-        }
-
         var table = (TableComboBox.SelectedItem as TableOption)?.RawName;
-        if (_request.Tables.Count > 0 && table is null)
+        var validation = EntryEditorValidator.Validate(
+            _request,
+            NameTextBox.Text,
+            ValueTextBox.Text,
+            table,
+            CommentTextBox.Text);
+        if (!validation.IsValid)
         {
-            ShowValidationError("Выберите таблицу.", TableComboBox);
+            System.Windows.Controls.Control control = validation.ErrorField switch
+            {
+                EntryEditorField.Text => ValueTextBox,
+                EntryEditorField.Table => TableComboBox,
+                _ => NameTextBox,
+            };
+            ShowValidationError(validation.ErrorMessage!, control);
             return;
         }
 
-        Result = new EntryEditorResult(name, ValueTextBox.Text, table)
-        {
-            Comment = string.IsNullOrWhiteSpace(CommentTextBox.Text)
-                ? null
-                : CommentTextBox.Text,
-        };
+        Result = validation.Result;
         DialogResult = true;
     }
 

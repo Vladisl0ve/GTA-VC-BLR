@@ -18,7 +18,7 @@ public sealed class WpfDialogService : IDialogService
             Multiselect = false,
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileName
             : null;
     }
@@ -33,7 +33,7 @@ public sealed class WpfDialogService : IDialogService
             Multiselect = true,
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileNames
             : [];
     }
@@ -50,7 +50,7 @@ public sealed class WpfDialogService : IDialogService
             InitialDirectory = Path.GetDirectoryName(suggestedPath),
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileName
             : null;
     }
@@ -58,7 +58,7 @@ public sealed class WpfDialogService : IDialogService
     public bool Confirm(string message, string title)
     {
         return MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
             title,
             MessageBoxButton.YesNo,
@@ -68,7 +68,7 @@ public sealed class WpfDialogService : IDialogService
     public void ShowInfo(string message, string title = "GTA GXT Editor")
     {
         MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
             title,
             MessageBoxButton.OK,
@@ -78,7 +78,7 @@ public sealed class WpfDialogService : IDialogService
     public void ShowError(string message, string title = "Ошибка")
     {
         MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
             title,
             MessageBoxButton.OK,
@@ -89,7 +89,7 @@ public sealed class WpfDialogService : IDialogService
     {
         var dialog = new EntryEditorWindow(request)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = GetOwner(),
         };
 
         return dialog.ShowDialog() == true ? dialog.Result : null;
@@ -98,7 +98,7 @@ public sealed class WpfDialogService : IDialogService
     public UnsavedChangesChoice ConfirmUnsavedChanges()
     {
         var result = MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             "В проекте есть несохранённые изменения. Сохранить их?",
             "Несохранённые изменения",
             MessageBoxButton.YesNoCancel,
@@ -113,10 +113,15 @@ public sealed class WpfDialogService : IDialogService
 
     public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
     {
-        var dialog = new TxdViewerWindow(request)
+        var dialog = new TxdViewerWindow(request, this)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = GetOwner(),
         };
         return dialog.ShowDialog() == true ? dialog.Result : null;
     }
+
+    private static Window? GetOwner() => Application.Current.Windows
+        .OfType<Window>()
+        .FirstOrDefault(window => window.IsActive) ??
+        Application.Current.MainWindow;
 }

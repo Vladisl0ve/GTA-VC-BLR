@@ -1,11 +1,8 @@
-using System.Collections;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
-using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Models;
@@ -33,91 +30,76 @@ public partial class MainWindowViewModel : ObservableObject
     private const string CommentsFileFilter =
         "Комментарии GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Все файлы (*.*)|*.*";
 
-    private readonly GxtManagerFactory _managerFactory;
     private readonly IDialogService _dialogs;
-    private readonly ITxdReader _txdReader;
-    private readonly IProjectSerializer _projectSerializer;
+    private readonly IDocumentWorkflow _documentWorkflow;
+    private readonly ICharacterMapWorkflow _characterMapWorkflow;
     private readonly IEncounterMetadataProvider _encounterMetadataProvider;
+    private readonly EditorSession _session;
 
-    private CommonGXTManager? _manager;
-    private EditorProject? _project;
-    private GXTType _loadedType = GXTType.None;
-    private readonly List<ComparisonDocument> _comparisonDocuments = [];
-    private EncounterMetadataIndex? _canonicalMetadata;
+    private CommonGXTManager? _manager => _session.Manager;
+    private EditorProject? _project => _session.Project;
+    private GXTType _loadedType => _session.LoadedType;
+    private EncounterMetadataIndex? _canonicalMetadata
+    {
+        get => _session.CanonicalMetadata;
+        set => _session.CanonicalMetadata = value;
+    }
+
     private bool _canonicalMetadataWarningShown;
+    private CancellationTokenSource? _operationCancellation;
 
     public MainWindowViewModel(
         GxtManagerFactory managerFactory,
         IDialogService dialogs,
         ITxdReader? txdReader = null,
         IProjectSerializer? projectSerializer = null,
-        IEncounterMetadataProvider? encounterMetadataProvider = null)
+        IEncounterMetadataProvider? encounterMetadataProvider = null,
+        IDocumentWorkflow? documentWorkflow = null,
+        ICharacterMapWorkflow? characterMapWorkflow = null,
+        EditorSession? session = null)
     {
-        _managerFactory = managerFactory;
         _dialogs = dialogs;
-        _txdReader = txdReader ?? new TxdReader();
-        _projectSerializer = projectSerializer ?? new ByxProjectSerializer(managerFactory, _txdReader);
+        var resolvedTxdReader = txdReader ?? new TxdReader();
+        var resolvedProjectSerializer = projectSerializer ??
+            new ByxProjectSerializer(managerFactory, resolvedTxdReader);
+        _documentWorkflow = documentWorkflow ??
+            new DocumentWorkflow(managerFactory, resolvedProjectSerializer);
+        _characterMapWorkflow = characterMapWorkflow ??
+            new CharacterMapWorkflow(resolvedTxdReader);
         _encounterMetadataProvider = encounterMetadataProvider ?? new BundledEncounterMetadataProvider();
-
-        EntriesView = CollectionViewSource.GetDefaultView(Entries);
-        EntriesView.Filter = FilterEntry;
-
-        SearchColumns =
-        [
-            SearchColumnOption.All,
-            new SearchColumnOption(SearchColumn.Name, "Ключ"),
-            new SearchColumnOption(SearchColumn.Text, "Перевод"),
-            new SearchColumnOption(SearchColumn.Source, "Английский оригинал"),
-            new SearchColumnOption(SearchColumn.Comparison, "Файлы сравнения"),
-            new SearchColumnOption(SearchColumn.Table, "Таблица"),
-            new SearchColumnOption(SearchColumn.Metadata, "Блок и контекст"),
-            new SearchColumnOption(SearchColumn.Comment, "Комментарий"),
-        ];
-        selectedSearchColumn = SearchColumns[0];
-
-        MetadataTypeOptions =
-        [
-            MetadataTypeFilterOption.All,
-            new MetadataTypeFilterOption("story", "Сюжет"),
-            new MetadataTypeFilterOption("mission", "Миссии"),
-            new MetadataTypeFilterOption("asset", "Активы"),
-            new MetadataTypeFilterOption("phone", "Телефон"),
-            new MetadataTypeFilterOption("interface", "Интерфейс"),
-            new MetadataTypeFilterOption("world", "Мир"),
-            new MetadataTypeFilterOption("credits", "Титры"),
-            new MetadataTypeFilterOption("misc", "Прочее"),
-        ];
-        selectedMetadataType = MetadataTypeOptions[0];
-        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
-        selectedMetadataBlock = MetadataBlockOptions[0];
-
-        SortOptions =
-        [
-            new EntrySortOption(EntrySortMode.EncounterOrder, "Encounter order"),
-            new EntrySortOption(EntrySortMode.GxtOrder, "GXT order"),
-        ];
-        selectedSortOption = SortOptions[1];
+        _session = session ?? new EditorSession();
+        EntryList = new EntryListViewModel(_session);
+        EntryList.PropertyChanged += OnEntryListPropertyChanged;
+        EntryList.ComparisonColumns.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsComparisonLoaded));
+            OnPropertyChanged(nameof(HasEnglishSource));
+        };
     }
 
-    public ObservableCollection<GxtEntryRow> Entries { get; } = [];
+    public EntryListViewModel EntryList { get; }
 
-    public ObservableCollection<GxtComparisonColumn> ComparisonColumns { get; } = [];
+    public ObservableCollection<GxtEntryRow> Entries => EntryList.Entries;
 
-    public ObservableCollection<MetadataBlockFilterOption> MetadataBlockOptions { get; } = [];
+    public ObservableCollection<GxtComparisonColumn> ComparisonColumns => EntryList.ComparisonColumns;
 
-    public ICollectionView EntriesView { get; }
+    public ObservableCollection<MetadataBlockFilterOption> MetadataBlockOptions =>
+        EntryList.MetadataBlockOptions;
 
-    public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
+    public ICollectionView EntriesView => EntryList.EntriesView;
 
-    public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions { get; }
+    public IReadOnlyList<SearchColumnOption> SearchColumns => EntryList.SearchColumns;
 
-    public IReadOnlyList<EntrySortOption> SortOptions { get; }
+    public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions =>
+        EntryList.MetadataTypeOptions;
+
+    public IReadOnlyList<EntrySortOption> SortOptions => EntryList.SortOptions;
 
     public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
 
     public bool HasEnglishSource => ComparisonColumns.Count > 0;
 
-    public bool HasEncounterMetadata => Entries.Any(entry => entry.Occurrences.Count > 0);
+    public bool HasEncounterMetadata => EntryList.HasEncounterMetadata;
 
     public bool HasTxdAttachment => AttachedTxd is not null;
 
@@ -132,35 +114,61 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string gxtSourceName = string.Empty;
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-    private bool isProjectDirty;
+    public bool IsProjectDirty => _session.IsDirty;
 
     [ObservableProperty]
-    private string searchText = string.Empty;
+    private bool isBusy;
 
     [ObservableProperty]
-    private SearchColumnOption selectedSearchColumn;
+    private string busyText = string.Empty;
 
-    [ObservableProperty]
-    private MetadataTypeFilterOption selectedMetadataType;
+    public string SearchText
+    {
+        get => EntryList.SearchText;
+        set => EntryList.SearchText = value;
+    }
 
-    [ObservableProperty]
-    private MetadataBlockFilterOption selectedMetadataBlock;
+    public SearchColumnOption SelectedSearchColumn
+    {
+        get => EntryList.SelectedSearchColumn;
+        set => EntryList.SelectedSearchColumn = value;
+    }
 
-    [ObservableProperty]
-    private EntrySortOption selectedSortOption;
+    public MetadataTypeFilterOption SelectedMetadataType
+    {
+        get => EntryList.SelectedMetadataType;
+        set => EntryList.SelectedMetadataType = value;
+    }
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommentCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ClearCommentCommand))]
-    private string commentDraft = string.Empty;
+    public MetadataBlockFilterOption SelectedMetadataBlock
+    {
+        get => EntryList.SelectedMetadataBlock;
+        set => EntryList.SelectedMetadataBlock = value;
+    }
 
-    [ObservableProperty]
-    private bool caseSensitive;
+    public EntrySortOption SelectedSortOption
+    {
+        get => EntryList.SelectedSortOption;
+        set => EntryList.SelectedSortOption = value;
+    }
 
-    [ObservableProperty]
-    private bool liveSearch = true;
+    public string CommentDraft
+    {
+        get => EntryList.CommentDraft;
+        set => EntryList.CommentDraft = value;
+    }
+
+    public bool CaseSensitive
+    {
+        get => EntryList.CaseSensitive;
+        set => EntryList.CaseSensitive = value;
+    }
+
+    public bool LiveSearch
+    {
+        get => EntryList.LiveSearch;
+        set => EntryList.LiveSearch = value;
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReloadCommand))]
@@ -177,12 +185,11 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
     private bool isDocumentLoaded;
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(EditEntryCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DeleteEntryCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommentCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ClearCommentCommand))]
-    private GxtEntryRow? selectedEntry;
+    public GxtEntryRow? SelectedEntry
+    {
+        get => EntryList.SelectedEntry;
+        set => EntryList.SelectedEntry = value;
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
@@ -203,74 +210,48 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    partial void OnSearchTextChanged(string value)
+    public async Task OpenFromCommandLineAsync(string path)
     {
-        if (LiveSearch)
+        if (TryContinueAfterUnsavedChanges())
         {
-            ApplyFilter();
+            await RunBusyAsync("Открытие документа…", token => OpenDocumentAsync(path, token));
         }
     }
 
-    partial void OnSelectedSearchColumnChanged(SearchColumnOption value)
+    private void OnEntryListPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (LiveSearch)
+        OnPropertyChanged(e.PropertyName);
+        if (e.PropertyName is nameof(EntryListViewModel.SelectedEntry))
         {
-            ApplyFilter();
+            EditEntryCommand.NotifyCanExecuteChanged();
+            DeleteEntryCommand.NotifyCanExecuteChanged();
+        }
+
+        if (e.PropertyName is nameof(EntryListViewModel.SelectedEntry) or
+            nameof(EntryListViewModel.CommentDraft))
+        {
+            SaveCommentCommand.NotifyCanExecuteChanged();
+            ClearCommentCommand.NotifyCanExecuteChanged();
+        }
+
+        if (e.PropertyName == nameof(EntryListViewModel.SelectedSortOption))
+        {
+            UpdateStatus();
         }
     }
 
-    partial void OnCaseSensitiveChanged(bool value)
-    {
-        if (LiveSearch)
-        {
-            ApplyFilter();
-        }
-    }
-
-    partial void OnLiveSearchChanged(bool value)
-    {
-        if (value)
-        {
-            ApplyFilter();
-        }
-    }
-
-    partial void OnSelectedMetadataTypeChanged(MetadataTypeFilterOption value)
-    {
-        RebuildMetadataBlockOptions();
-        ApplySort();
-        ApplyFilter();
-    }
-
-    partial void OnSelectedMetadataBlockChanged(MetadataBlockFilterOption value)
-    {
-        ApplySort();
-        ApplyFilter();
-    }
-
-    partial void OnSelectedSortOptionChanged(EntrySortOption value)
-    {
-        ApplySort();
-        UpdateStatus();
-    }
-
-    partial void OnSelectedEntryChanged(GxtEntryRow? value)
-    {
-        CommentDraft = value?.Comment ?? string.Empty;
-    }
-
-    [RelayCommand]
-    private void OpenFile()
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
+    private async Task OpenFileAsync()
     {
         var path = _dialogs.OpenFile("Открыть GXT или проект BYX", DocumentFileFilter);
         if (path is not null && TryContinueAfterUnsavedChanges())
         {
-            OpenDocument(path);
+            await RunBusyAsync("Открытие документа…", token => OpenDocumentAsync(path, token));
         }
     }
 
-    [RelayCommand]
-    private void OpenFileWithDictionary()
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
+    private async Task OpenFileWithDictionaryAsync()
     {
         var path = _dialogs.OpenFile("Открыть GXT-файл с маппингом", GxtFileFilter);
         if (path is null)
@@ -281,12 +262,14 @@ public partial class MainWindowViewModel : ObservableObject
         var dictionaryPath = _dialogs.OpenFile("Выбрать маппинг символов", CharacterMapFileFilter);
         if (dictionaryPath is not null && TryContinueAfterUnsavedChanges())
         {
-            LoadDocument(path, dictionaryPath);
+            await RunBusyAsync(
+                "Открытие GXT…",
+                token => LoadDocumentAsync(path, dictionaryPath, cancellationToken: token));
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void OpenComparisonFile()
+    private async Task OpenComparisonFileAsync()
     {
         var paths = _dialogs.OpenFiles("Добавить английский оригинал или GXT для сравнения", GxtFileFilter);
         if (paths.Count == 0)
@@ -294,79 +277,85 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var loadedCount = 0;
-        foreach (var path in paths)
+        await RunBusyAsync("Открытие файлов сравнения…", async token =>
         {
-            if (TryAddComparisonFile(path))
+            var loaded = new List<(string Path, Dictionary<GxtEntryIdentity, string> Texts)>();
+            foreach (var path in paths)
             {
-                loadedCount++;
+                token.ThrowIfCancellationRequested();
+                if (await TryLoadComparisonFileAsync(path, token) is { } texts)
+                {
+                    loaded.Add((path, texts));
+                }
             }
-        }
 
-        if (loadedCount == 0)
-        {
-            return;
-        }
+            if (loaded.Count == 0)
+            {
+                return;
+            }
 
-        OnPropertyChanged(nameof(IsComparisonLoaded));
-        OnPropertyChanged(nameof(HasEnglishSource));
-        var selected = SelectedEntry;
-        RefreshEntries(selected?.Name, selected?.RawTableName);
-        StatusText = $"Загружено файлов для сравнения: {loadedCount}; всего: {ComparisonColumns.Count}";
+            token.ThrowIfCancellationRequested();
+            foreach (var (path, texts) in loaded)
+            {
+                EntryList.AddOrReplaceComparison(path, texts);
+            }
+
+            OnPropertyChanged(nameof(IsComparisonLoaded));
+            OnPropertyChanged(nameof(HasEnglishSource));
+            var selected = SelectedEntry;
+            RefreshEntries(selected?.Name, selected?.RawTableName);
+            StatusText = $"Загружено файлов для сравнения: {loaded.Count}; " +
+                         $"всего: {ComparisonColumns.Count}";
+        });
     }
 
-    private bool TryAddComparisonFile(string path)
+    private async Task<Dictionary<GxtEntryIdentity, string>?> TryLoadComparisonFileAsync(
+        string path,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var type = _managerFactory.DetectType(path);
+            var type = _documentWorkflow.DetectType(path);
             if (type != _loadedType)
             {
                 _dialogs.ShowError(
                     $"Тип файла '{Path.GetFileName(path)}' не соответствует открытому GXT.");
-                return false;
+                return null;
             }
 
-            var comparisonManager = OpenRelatedGxt(path);
-            var comparisonTexts = new Dictionary<EntryIdentity, string>();
+            var comparisonManager = await _documentWorkflow.OpenRelatedGxtAsync(
+                path,
+                _session,
+                cancellationToken);
+            var comparisonTexts = new Dictionary<GxtEntryIdentity, string>();
             foreach (var entry in comparisonManager.GXTEntries)
             {
-                comparisonTexts[GetEntryIdentity(entry)] = comparisonManager
+                var identity = GxtDomainRules.CreateIdentity(
+                    _loadedType,
+                    entry.DatName.GetClearName(),
+                    GxtDomainRules.GetTableName(_loadedType, entry));
+                comparisonTexts[identity] = comparisonManager
                     .ConvertBytesToText(entry.Value)
                     .GetClearName();
             }
 
-            var existingIndex = _comparisonDocuments.FindIndex(document =>
-                string.Equals(document.Path, path, StringComparison.OrdinalIgnoreCase));
-            var columnName = existingIndex >= 0
-                ? ComparisonColumns[existingIndex].Name
-                : CreateComparisonColumnName(path, isEnglishSource: ComparisonColumns.Count == 0);
-            var comparisonDocument = new ComparisonDocument(path, comparisonTexts);
-
-            if (existingIndex >= 0)
-            {
-                _comparisonDocuments[existingIndex] = comparisonDocument;
-                ComparisonColumns[existingIndex] = new GxtComparisonColumn(columnName, path);
-            }
-            else
-            {
-                _comparisonDocuments.Add(comparisonDocument);
-                ComparisonColumns.Add(new GxtComparisonColumn(columnName, path));
-            }
-
-            return true;
+            return comparisonTexts;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception exception)
         {
             _dialogs.ShowError(
                 $"Не удалось открыть '{Path.GetFileName(path)}' для сравнения.\n\n{exception.Message}",
                 "Ошибка открытия");
-            return false;
+            return null;
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void Reload()
+    private async Task ReloadAsync()
     {
         if (!TryContinueAfterUnsavedChanges())
         {
@@ -375,7 +364,9 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (_project?.ProjectPath is { Length: > 0 } projectPath)
         {
-            LoadProject(projectPath);
+            await RunBusyAsync(
+                "Перезагрузка проекта…",
+                token => LoadProjectAsync(projectPath, token));
             return;
         }
 
@@ -386,30 +377,31 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var selected = SelectedEntry;
-        var dictionaryPath = _manager?.CyrillicCharsDictionaryPath;
+        var dictionaryPath = _manager?.CharacterMapPath;
 
-        ReloadGxtInProject(
-            sourcePath,
-            dictionaryPath: dictionaryPath,
-            selectedName: selected?.Name,
-            selectedTable: selected?.RawTableName,
-            language: _manager?.Language ?? GxtLanguage.Auto);
+        await RunBusyAsync(
+            "Перезагрузка GXT…",
+            token => ReloadGxtInProjectAsync(
+                sourcePath,
+                dictionaryPath,
+                selected?.Name,
+                selected?.RawTableName,
+                _manager?.Language ?? GxtLanguage.Auto,
+                token));
     }
 
     [RelayCommand]
     private void ApplyFilter()
     {
-        EntriesView.Refresh();
+        EntryList.ApplyFilter();
         UpdateStatus();
     }
 
     [RelayCommand]
     private void ClearSearch()
     {
-        SearchText = string.Empty;
-        SelectedMetadataType = MetadataTypeOptions[0];
-        SelectedMetadataBlock = MetadataBlockOptions[0];
-        ApplyFilter();
+        EntryList.ClearSearch();
+        UpdateStatus();
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
@@ -533,22 +525,19 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void Save()
-    {
-        _ = SaveCurrentDocument();
-    }
+    private Task SaveAsync() => RunBusyAsync(
+        "Сохранение документа…",
+        async token => _ = await SaveCurrentDocumentAsync(token));
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void ExportGxt()
-    {
-        _ = SaveGxtAs(markProjectSaved: false);
-    }
+    private Task ExportGxtAsync() => RunBusyAsync(
+        "Экспорт GXT…",
+        async token => _ = await SaveGxtAsAsync(markProjectSaved: false, token));
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void SaveProjectAs()
-    {
-        _ = SaveProject(forceSaveAs: true);
-    }
+    private Task SaveProjectAsAsync() => RunBusyAsync(
+        "Сохранение проекта…",
+        async token => _ = await SaveProjectAsync(forceSaveAs: true, token));
 
     private bool SaveCurrentDocument()
     {
@@ -588,7 +577,8 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            _manager.SaveGXTChanges(targetPath);
+            var snapshot = _documentWorkflow.CreateSnapshot(_project);
+            _documentWorkflow.SaveGxt(targetPath, snapshot);
             if (markProjectSaved)
             {
                 _project.GxtSourcePath = targetPath;
@@ -634,7 +624,8 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            _projectSerializer.Save(targetPath, _project);
+            var snapshot = _documentWorkflow.CreateSnapshot(_project);
+            _documentWorkflow.SaveProject(targetPath, snapshot);
             _project.ProjectPath = targetPath;
             ProjectPath = targetPath;
             SetDirty(false);
@@ -648,8 +639,126 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private Task<bool> SaveCurrentDocumentAsync(CancellationToken cancellationToken)
+    {
+        if (_project is null || _manager is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        return !string.IsNullOrWhiteSpace(_project.ProjectPath) ||
+               AttachedTxd is not null ||
+               HasPersistableProjectMetadata()
+            ? SaveProjectAsync(forceSaveAs: false, cancellationToken)
+            : SaveGxtAsAsync(markProjectSaved: true, cancellationToken);
+    }
+
+    private async Task<bool> SaveGxtAsAsync(
+        bool markProjectSaved,
+        CancellationToken cancellationToken)
+    {
+        if (_manager is null || _project is null)
+        {
+            return false;
+        }
+
+        var sourcePath = _project.GxtSourcePath ?? GxtPath;
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var suggestedPath = Path.Combine(
+            directory,
+            $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}_modified.gxt");
+        var targetPath = _dialogs.SaveFile("Сохранить GXT-файл", GxtFileFilter, suggestedPath);
+        if (targetPath is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var snapshot = await _documentWorkflow.CreateSnapshotAsync(
+                _project,
+                cancellationToken);
+            await _documentWorkflow.SaveGxtAsync(
+                targetPath,
+                snapshot,
+                cancellationToken);
+            if (markProjectSaved)
+            {
+                _project.GxtSourcePath = targetPath;
+                _project.GxtSourceName = Path.GetFileName(targetPath);
+                GxtPath = targetPath;
+                GxtSourceName = _project.GxtSourceName;
+                SetDirty(false);
+            }
+
+            StatusText = $"Сохранено: {targetPath}";
+            OfferCharacterMapExport(targetPath);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+            return false;
+        }
+    }
+
+    private async Task<bool> SaveProjectAsync(
+        bool forceSaveAs,
+        CancellationToken cancellationToken)
+    {
+        if (_project is null)
+        {
+            return false;
+        }
+
+        var targetPath = forceSaveAs ? null : _project.ProjectPath;
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            var sourcePath = _project.GxtSourcePath ?? GxtPath;
+            var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+            var suggestedPath = Path.Combine(
+                directory,
+                $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}.byx");
+            targetPath = _dialogs.SaveFile("Сохранить проект BYX", ByxFileFilter, suggestedPath);
+        }
+
+        if (targetPath is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var snapshot = await _documentWorkflow.CreateSnapshotAsync(
+                _project,
+                cancellationToken);
+            await _documentWorkflow.SaveProjectAsync(
+                targetPath,
+                snapshot,
+                cancellationToken);
+            _project.ProjectPath = targetPath;
+            ProjectPath = targetPath;
+            SetDirty(false);
+            StatusText = $"Проект сохранён: {targetPath}";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError($"Не удалось сохранить проект BYX.\n\n{exception.Message}");
+            return false;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanAddTxd))]
-    private void AddTxd()
+    private async Task AddTxdAsync()
     {
         var path = _dialogs.OpenFile("Подключить или заменить TXD GTA Vice City", TxdFileFilter);
         if (path is null)
@@ -657,49 +766,49 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        var existing = AttachedTxd;
+        if (existing is not null &&
+            !string.Equals(existing.SourcePath, path, StringComparison.OrdinalIgnoreCase) &&
+            !_dialogs.Confirm(
+                $"Заменить подключённый TXD '{existing.DisplayName}' на '{Path.GetFileName(path)}'? " +
+                "Текущий маппинг будет сохранён как непроверенный черновик.",
+                "Замена TXD"))
         {
-            var data = File.ReadAllBytes(path);
-            var document = _txdReader.Read(data, path);
-            var existing = AttachedTxd;
-            if (existing is not null &&
-                !string.Equals(existing.SourcePath, path, StringComparison.OrdinalIgnoreCase) &&
-                !_dialogs.Confirm(
-                    $"Заменить подключённый TXD '{existing.DisplayName}' на '{Path.GetFileName(path)}'? " +
-                    "Текущий маппинг будет сохранён как непроверенный черновик.",
-                    "Замена TXD"))
-            {
-                return;
-            }
-
-            var attachment = new TxdAttachment
-            {
-                Id = existing?.Id ?? Guid.NewGuid(),
-                OriginalFileName = Path.GetFileName(path),
-                DisplayName = Path.GetFileNameWithoutExtension(path),
-                SourcePath = path,
-                Data = data,
-                Document = document,
-            };
-
-            if (_project is not null)
-            {
-                _project.CharacterMap ??= CharacterMapProfile.FromDictionary(
-                    _manager?.CyrillicCharsDictionary ?? [],
-                    isVerified: false);
-                _project.CharacterMap.IsVerified = false;
-                _project.AttachedTxd = attachment;
-            }
-
-            AttachedTxd = attachment;
-            OnTxdAttachmentChanged();
-            SetDirty(true);
-            StatusText = $"Подключён TXD: {attachment.OriginalFileName} — {document.Textures.Count} текстур";
+            return;
         }
-        catch (Exception exception)
+
+        await RunBusyAsync("Чтение TXD…", async token =>
         {
-            _dialogs.ShowError($"Не удалось подключить TXD.\n\n{exception.Message}");
-        }
+            try
+            {
+                var attachment = await _characterMapWorkflow.LoadAttachmentAsync(
+                    path,
+                    existing?.Id,
+                    token);
+
+                if (_project is not null)
+                {
+                    _project.CharacterMap ??=
+                        _manager?.CharacterMap.Clone() ?? new CharacterMapProfile();
+                    _project.CharacterMap.IsVerified = false;
+                    _project.AttachedTxd = attachment;
+                }
+
+                AttachedTxd = attachment;
+                OnTxdAttachmentChanged();
+                SetDirty(true);
+                StatusText = $"Подключён TXD: {attachment.OriginalFileName} — " +
+                             $"{attachment.Document.Textures.Count} текстур";
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось подключить TXD.\n\n{exception.Message}");
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseAttachedTxd))]
@@ -727,7 +836,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanUseAttachedTxd))]
-    private void ExportTxd()
+    private async Task ExportTxdAsync()
     {
         if (AttachedTxd is not { } selected)
         {
@@ -745,16 +854,23 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        await RunBusyAsync("Экспорт TXD…", async token =>
         {
-            File.WriteAllBytes(targetPath, selected.Data);
-            StatusText = $"TXD экспортирован: {targetPath}";
-            OfferCharacterMapExport(targetPath);
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось экспортировать TXD.\n\n{exception.Message}");
-        }
+            try
+            {
+                await _characterMapWorkflow.ExportAttachmentAsync(targetPath, selected, token);
+                StatusText = $"TXD экспортирован: {targetPath}";
+                OfferCharacterMapExport(targetPath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось экспортировать TXD.\n\n{exception.Message}");
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanViewTxd))]
@@ -765,9 +881,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var profile = _project.CharacterMap?.Clone() ?? CharacterMapProfile.FromDictionary(
-            _manager.CyrillicCharsDictionary,
-            isVerified: false);
+        var profile = _project.CharacterMap?.Clone() ?? _manager.CharacterMap.Clone();
         var result = _dialogs.EditCharacterMap(new CharacterMapEditorRequest(
             AttachedTxd,
             _project.GameType,
@@ -780,7 +894,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var preview = CharacterMapService.Preview(_manager, result.Profile, result.ApplyMode);
+        var preview = _characterMapWorkflow.Preview(_manager, result.Profile, result.ApplyMode);
         if (!preview.CanApply)
         {
             _dialogs.ShowError(
@@ -810,7 +924,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            CharacterMapService.Apply(_manager, result.Profile, result.ApplyMode);
+            _characterMapWorkflow.Apply(_manager, result.Profile, result.ApplyMode);
             _project.CharacterMap = result.Profile.Clone();
             _project.CharacterMap.IsVerified = true;
             _project.UsesCustomDictionary = true;
@@ -827,7 +941,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void ExportJson()
+    private async Task ExportJsonAsync()
     {
         var sourcePath = _project?.GxtSourcePath ?? _project?.ProjectPath ?? GxtPath;
         var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
@@ -845,24 +959,34 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        var entries = Entries.ToArray();
+        await RunBusyAsync("Экспорт JSON…", async token =>
         {
-            GxtJsonExporter.Export(
-                targetPath,
-                sourceName,
-                DocumentType,
-                Entries,
-                _manager?.Language ?? GxtLanguage.Auto);
-            StatusText = $"Экспортировано в JSON: {targetPath}";
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось экспортировать JSON.\n\n{exception.Message}");
-        }
+            try
+            {
+                await BackgroundOperation.Run(
+                    () => GxtJsonExporter.Export(
+                        targetPath,
+                        sourceName,
+                        DocumentType,
+                        entries,
+                        _manager?.Language ?? GxtLanguage.Auto),
+                    token);
+                StatusText = $"Экспортировано в JSON: {targetPath}";
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось экспортировать JSON.\n\n{exception.Message}");
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void ImportComments()
+    private async Task ImportCommentsAsync()
     {
         if (_project is null)
         {
@@ -875,32 +999,44 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        var selected = SelectedEntry;
+        await RunBusyAsync("Импорт комментариев…", async token =>
         {
-            var selected = SelectedEntry;
-            var result = GxtCommentsImporter.Import(sourcePath, _project);
-            if (result.ChangedEntryCount > 0)
+            try
             {
-                RemoveEmptyProjectMetadataEntries();
-                SetDirty(true);
-                RefreshEntries(selected?.Name, selected?.RawTableName);
-            }
+                var snapshot = await _documentWorkflow.CreateSnapshotAsync(_project, token);
+                var result = await BackgroundOperation.Run(
+                    () => GxtCommentsImporter.Import(sourcePath, snapshot),
+                    token);
+                token.ThrowIfCancellationRequested();
+                if (result.ChangedEntryCount > 0)
+                {
+                    _project.Metadata = snapshot.Metadata;
+                    RemoveEmptyProjectMetadataEntries();
+                    SetDirty(true);
+                    RefreshEntries(selected?.Name, selected?.RawTableName);
+                }
 
-            var summary =
-                $"Обновлено: {result.UpdatedEntryCount}; удалено: {result.ClearedEntryCount}; " +
-                $"без изменений: {result.UnchangedEntryCount}; отсутствует в GXT: " +
-                $"{result.MissingEntries.Count}; текст отличается: {result.TextMismatches.Count}.";
-            StatusText = $"Импорт комментариев завершён — {summary}";
-            _dialogs.ShowInfo(summary, "Импорт комментариев");
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось импортировать комментарии.\n\n{exception.Message}");
-        }
+                var summary =
+                    $"Обновлено: {result.UpdatedEntryCount}; удалено: {result.ClearedEntryCount}; " +
+                    $"без изменений: {result.UnchangedEntryCount}; отсутствует в GXT: " +
+                    $"{result.MissingEntries.Count}; текст отличается: {result.TextMismatches.Count}.";
+                StatusText = $"Импорт комментариев завершён — {summary}";
+                _dialogs.ShowInfo(summary, "Импорт комментариев");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось импортировать комментарии.\n\n{exception.Message}");
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void ExportComments()
+    private async Task ExportCommentsAsync()
     {
         if (_project is null)
         {
@@ -920,30 +1056,34 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        await RunBusyAsync("Экспорт комментариев…", async token =>
         {
-            GxtCommentsExporter.Export(targetPath, _project, includeText: true);
-            StatusText = $"Комментарии экспортированы: {targetPath}";
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось экспортировать комментарии.\n\n{exception.Message}");
-        }
+            try
+            {
+                var snapshot = await _documentWorkflow.CreateSnapshotAsync(_project, token);
+                await BackgroundOperation.Run(
+                    () => GxtCommentsExporter.Export(targetPath, snapshot, includeText: true),
+                    token);
+                StatusText = $"Комментарии экспортированы: {targetPath}";
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось экспортировать комментарии.\n\n{exception.Message}");
+            }
+        });
     }
 
-    [RelayCommand]
-    private void ImportJson()
-    {
-        ImportJson(useCustomDictionary: false);
-    }
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
+    private Task ImportJsonAsync() => ImportJsonAsync(useCustomDictionary: false);
 
-    [RelayCommand]
-    private void ImportJsonWithDictionary()
-    {
-        ImportJson(useCustomDictionary: true);
-    }
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
+    private Task ImportJsonWithDictionaryAsync() => ImportJsonAsync(useCustomDictionary: true);
 
-    private void ImportJson(bool useCustomDictionary)
+    private async Task ImportJsonAsync(bool useCustomDictionary)
     {
         if (!TryContinueAfterUnsavedChanges())
         {
@@ -979,33 +1119,43 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        await RunBusyAsync("Преобразование JSON в GXT…", async token =>
         {
-            var result = GxtJsonImporter.Import(sourcePath, targetPath, dictionaryPath);
-            if (LoadDocument(
-                    targetPath,
-                    dictionaryPath: dictionaryPath,
-                    language: result.Language))
+            try
             {
-                var game = result.Type == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
-                StatusText = $"JSON преобразован в {game} GXT: {result.EntryCount} ключей";
+                var result = await BackgroundOperation.Run(
+                    () => GxtJsonImporter.Import(sourcePath, targetPath, dictionaryPath),
+                    token);
+                if (await LoadDocumentAsync(
+                        targetPath,
+                        dictionaryPath: dictionaryPath,
+                        language: result.Language,
+                        cancellationToken: token))
+                {
+                    var game = GxtDomainRules.ToGameName(result.Type);
+                    StatusText = $"JSON преобразован в {game} GXT: {result.EntryCount} ключей";
+                }
             }
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось преобразовать JSON в GXT.\n\n{exception.Message}");
-        }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError($"Не удалось преобразовать JSON в GXT.\n\n{exception.Message}");
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void AddMissingEntries()
+    private async Task AddMissingEntriesAsync()
     {
-        if (_manager is null)
+        if (_manager is null || _project is null)
         {
             return;
         }
 
-        var gameName = _loadedType == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
+        var gameName = GxtDomainRules.ToGameName(_loadedType);
         var path = _dialogs.OpenFile(
             $"Добавить отсутствующие ключи из {gameName}",
             $"{gameName} GXT (*.gxt)|*.gxt|Все файлы (*.*)|*.*");
@@ -1014,44 +1164,63 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        await RunBusyAsync("Чтение исходного GXT…", async token =>
         {
-            if (_managerFactory.DetectType(path) != _loadedType)
+            try
             {
-                _dialogs.ShowError("Тип выбранного GXT-файла не соответствует открытому файлу.");
-                return;
+                if (_documentWorkflow.DetectType(path) != _loadedType)
+                {
+                    _dialogs.ShowError("Тип выбранного GXT-файла не соответствует открытому файлу.");
+                    return;
+                }
+
+                var sourceManager = await _documentWorkflow.OpenRelatedGxtAsync(
+                    path,
+                    _session,
+                    token);
+                var workingProject = await _documentWorkflow.CreateSnapshotAsync(
+                    _project,
+                    token);
+                var workingManager = workingProject.GxtManager;
+                var missingEntries = sourceManager.GXTEntries
+                    .Except(workingManager.GXTEntries, new GXTEntryEqualityComparer())
+                    .ToList();
+
+                foreach (var entry in missingEntries)
+                {
+                    var text = sourceManager.ConvertBytesToText(entry.Value);
+                    var table = (entry as GTAVC.GXTEntry)?.TableName;
+                    workingManager.AddGXTEntry(entry.DatName.GetClearName(), text, table);
+                }
+
+                if (missingEntries.Count > 0)
+                {
+                    token.ThrowIfCancellationRequested();
+                    workingProject.IsDirty = true;
+                    var selected = SelectedEntry;
+                    CommitProject(
+                        workingProject,
+                        selected?.Name,
+                        selected?.RawTableName,
+                        clearTransientState: false);
+                }
+                _dialogs.ShowInfo($"Добавлено отсутствующих ключей: {missingEntries.Count}.");
             }
-
-            var sourceManager = OpenRelatedGxt(path);
-            var missingEntries = sourceManager.GXTEntries
-                .Except(_manager.GXTEntries, new GXTEntryEqualityComparer())
-                .ToList();
-
-            foreach (var entry in missingEntries)
+            catch (OperationCanceledException)
             {
-                var text = sourceManager.ConvertBytesToText(entry.Value);
-                var table = (entry as GTAVC.GXTEntry)?.TableName;
-                _manager.AddGXTEntry(entry.DatName.GetClearName(), text, table);
+                throw;
             }
-
-            if (missingEntries.Count > 0)
+            catch (Exception exception)
             {
-                SetDirty(true);
+                _dialogs.ShowError($"Не удалось добавить ключи.\n\n{exception.Message}");
             }
-
-            RefreshEntries();
-            _dialogs.ShowInfo($"Добавлено отсутствующих ключей: {missingEntries.Count}.");
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось добавить ключи.\n\n{exception.Message}");
-        }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
-    private void ConvertDictionary()
+    private async Task ConvertDictionaryAsync()
     {
-        if (_manager is null)
+        if (_manager is null || _project is null)
         {
             return;
         }
@@ -1064,58 +1233,38 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        try
+        await RunBusyAsync("Преобразование маппинга…", async token =>
         {
-            var sourceDictionary = _manager.CyrillicCharsDictionary;
-            var targetDictionary = CharacterMapFileSerializer.LoadDictionary(targetPath);
-
-            if (sourceDictionary.Count != targetDictionary.Count ||
-                !sourceDictionary.Values.ToHashSet().SetEquals(targetDictionary.Values))
+            try
             {
-                _dialogs.ShowError(
-                    "Маппинги должны содержать одинаковое количество и одинаковый набор символов.");
-                return;
+                var workingProject = await _documentWorkflow.CreateSnapshotAsync(
+                    _project,
+                    token);
+                var convertedProfile = await _characterMapWorkflow.ConvertAsync(
+                    workingProject.GxtManager,
+                    targetPath,
+                    token);
+                token.ThrowIfCancellationRequested();
+                workingProject.UsesCustomDictionary = true;
+                workingProject.CharacterMap = convertedProfile;
+                workingProject.IsDirty = true;
+                var selected = SelectedEntry;
+                CommitProject(
+                    workingProject,
+                    selected?.Name,
+                    selected?.RawTableName,
+                    clearTransientState: false);
+                _dialogs.ShowInfo("Маппинг символов успешно преобразован.");
             }
-
-            var targetBytesByCharacter = targetDictionary
-                .ToDictionary(pair => pair.Value, pair => checked((byte)pair.Key[0]));
-            var byteMap = sourceDictionary
-                .SelectMany(pair => pair.Key.Select(index => new
-                {
-                    Source = checked((byte)index),
-                    Target = targetBytesByCharacter[pair.Value],
-                }))
-                .ToDictionary(pair => pair.Source, pair => pair.Target);
-
-            foreach (var entry in _manager.GXTEntries)
+            catch (OperationCanceledException)
             {
-                for (var index = 0; index < entry.Value.Length; index++)
-                {
-                    if (byteMap.TryGetValue(entry.Value[index], out var replacement))
-                    {
-                        entry.Value[index] = replacement;
-                    }
-                }
+                throw;
             }
-
-            _manager.CyrillicCharsDictionaryPath = targetPath;
-            _manager.ReloadCyrillicCharsDictionary();
-            if (_project is not null)
+            catch (Exception exception)
             {
-                _project.UsesCustomDictionary = true;
-                _project.CharacterMap = CharacterMapProfile.FromDictionary(
-                    _manager.CyrillicCharsDictionary,
-                    isVerified: false);
+                _dialogs.ShowError($"Не удалось преобразовать маппинг.\n\n{exception.Message}");
             }
-
-            SetDirty(true);
-            RefreshEntries();
-            _dialogs.ShowInfo("Маппинг символов успешно преобразован.");
-        }
-        catch (Exception exception)
-        {
-            _dialogs.ShowError($"Не удалось преобразовать маппинг.\n\n{exception.Message}");
-        }
+        });
     }
 
     private bool LoadDocument(
@@ -1125,28 +1274,9 @@ public partial class MainWindowViewModel : ObservableObject
         string? selectedTable = null,
         GxtLanguage language = GxtLanguage.Auto)
     {
-        if (!File.Exists(path))
-        {
-            _dialogs.ShowError($"Файл '{path}' не существует или недоступен.");
-            return false;
-        }
-
         try
         {
-            var manager = _managerFactory.Open(path, dictionaryPath, language);
-            var type = _managerFactory.DetectType(path);
-            var project = new EditorProject
-            {
-                ProjectPath = null,
-                GxtSourceName = Path.GetFileName(path),
-                GxtSourcePath = path,
-                GameType = type,
-                GxtManager = manager,
-                UsesCustomDictionary = dictionaryPath is not null,
-                AttachedTxd = null,
-                CharacterMap = null,
-                IsDirty = false,
-            };
+            var project = _documentWorkflow.OpenGxt(path, dictionaryPath, language);
             CommitProject(project, selectedName, selectedTable, clearTransientState: true);
             StatusText = $"Открыт {Path.GetFileName(path)} — {Entries.Count} ключей";
             return true;
@@ -1160,375 +1290,75 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private async Task<bool> LoadDocumentAsync(
+        string path,
+        string? dictionaryPath = null,
+        string? selectedName = null,
+        string? selectedTable = null,
+        GxtLanguage language = GxtLanguage.Auto,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var project = await _documentWorkflow.OpenGxtAsync(
+                path,
+                dictionaryPath,
+                language,
+                cancellationToken);
+            CommitProject(project, selectedName, selectedTable, clearTransientState: true);
+            StatusText = $"Открыт {Path.GetFileName(path)} — {Entries.Count} ключей";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(
+                $"Не удалось открыть '{Path.GetFileName(path)}'.\n\n{exception.Message}",
+                "Ошибка открытия");
+            return false;
+        }
+    }
+
     private void RefreshEntries(string? selectedName = null, string? selectedTable = null)
     {
-        Entries.Clear();
-
-        if (_manager is null)
-        {
-            return;
-        }
-
-        var projectEntries = (_project?.Metadata.Entries ?? [])
-            .ToDictionary(
-                entry => CreateMetadataIdentity(entry.Key, entry.Table),
-                entry => entry);
-        var projectBlocks = (_project?.Metadata.Blocks ?? [])
-            .Select((block, index) => new EncounterMetadataBlockIndex(block, index))
-            .ToDictionary(block => block.Block.Id, StringComparer.Ordinal);
-
-        var sourceIndex = 0;
-        foreach (var entry in _manager.GXTEntries)
-        {
-            var rawTable = (entry as GTAVC.GXTEntry)?.TableName;
-            var identity = GetEntryIdentity(entry);
-            var metadataIdentity = CreateMetadataIdentity(
-                entry.DatName.GetClearName(),
-                rawTable?.GetClearName());
-            projectEntries.TryGetValue(metadataIdentity, out var projectEntry);
-            var occurrences = BuildOccurrences(metadataIdentity, projectEntry, projectBlocks);
-            Entries.Add(new GxtEntryRow(
-                entry.DatName.GetClearName(),
-                _manager.ConvertBytesToText(entry.Value).GetClearName(),
-                rawTable?.GetClearName() ?? string.Empty,
-                rawTable)
-            {
-                SourceIndex = sourceIndex++,
-                ComparisonTexts = _comparisonDocuments
-                    .Select(document => document.Texts.GetValueOrDefault(identity))
-                    .ToArray(),
-                Comment = projectEntry?.Comment,
-                Occurrences = occurrences,
-                PrimaryOccurrence = occurrences.Length > 0 ? occurrences[0] : null,
-            });
-        }
-
-        RebuildMetadataBlockOptions();
-        ApplySort();
-        EntriesView.Refresh();
-        SelectedEntry = Entries.FirstOrDefault(entry =>
-            string.Equals(entry.Name, selectedName, StringComparison.Ordinal) &&
-            string.Equals(entry.RawTableName, selectedTable, StringComparison.Ordinal));
+        EntryList.RefreshEntries(selectedName, selectedTable);
         OnPropertyChanged(nameof(HasEncounterMetadata));
         UpdateStatus();
     }
 
-    private GxtEntryOccurrenceView[] BuildOccurrences(
-        EncounterMetadataIdentity identity,
-        ProjectEntryMetadata? projectEntry,
-        IReadOnlyDictionary<string, EncounterMetadataBlockIndex> projectBlocks)
-    {
-        ProjectEntryMetadata? occurrenceEntry;
-        IReadOnlyDictionary<string, EncounterMetadataBlockIndex> blocks;
-        EncounterMetadataSource source;
-
-        if (projectEntry is { Occurrences.Count: > 0 })
-        {
-            occurrenceEntry = projectEntry;
-            blocks = projectBlocks;
-            source = EncounterMetadataSource.Project;
-        }
-        else if (_canonicalMetadata?.Entries.TryGetValue(identity, out var canonicalEntry) == true)
-        {
-            occurrenceEntry = canonicalEntry;
-            blocks = _canonicalMetadata.Blocks;
-            source = EncounterMetadataSource.Canonical;
-        }
-        else
-        {
-            return [];
-        }
-
-        var result = new List<GxtEntryOccurrenceView>(occurrenceEntry.Occurrences.Count);
-        foreach (var occurrence in occurrenceEntry.Occurrences)
-        {
-            if (!blocks.TryGetValue(occurrence.BlockId, out var block))
-            {
-                continue;
-            }
-
-            result.Add(new GxtEntryOccurrenceView(
-                block.Block.Id,
-                block.Block.Type,
-                block.Block.Name,
-                block.Block.Description,
-                block.Block.Order,
-                block.Sequence,
-                occurrence.Order,
-                occurrence.Context,
-                source));
-        }
-
-        return result
-            .OrderBy(occurrence => occurrence.BlockOrder)
-            .ThenBy(occurrence => occurrence.BlockSequence)
-            .ThenBy(occurrence => occurrence.OccurrenceOrder)
-            .ThenBy(occurrence => occurrence.BlockId, StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private EncounterMetadataIdentity CreateMetadataIdentity(string key, string? table) =>
-        new(_loadedType == GXTType.GtaViceCity ? table : null, key);
-
-    private void RebuildMetadataBlockOptions()
-    {
-        var selectedId = SelectedMetadataBlock?.Id;
-        var selectedType = SelectedMetadataType?.Type;
-        var blocks = Entries
-            .SelectMany(entry => entry.Occurrences)
-            .Where(occurrence => selectedType is null ||
-                string.Equals(occurrence.BlockType, selectedType, StringComparison.Ordinal))
-            .GroupBy(occurrence => occurrence.BlockId, StringComparer.Ordinal)
-            .Select(group => group
-                .OrderBy(occurrence => occurrence.Source == EncounterMetadataSource.Project ? 0 : 1)
-                .ThenBy(occurrence => occurrence.BlockSequence)
-                .First())
-            .OrderBy(occurrence => occurrence.BlockOrder)
-            .ThenBy(occurrence => occurrence.BlockSequence)
-            .ThenBy(occurrence => occurrence.BlockName, StringComparer.Ordinal)
-            .ToArray();
-
-        MetadataBlockOptions.Clear();
-        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
-        foreach (var block in blocks)
-        {
-            MetadataBlockOptions.Add(new MetadataBlockFilterOption(
-                block.BlockId,
-                $"{block.BlockName} · {block.BlockType}",
-                block.BlockType));
-        }
-
-        SelectedMetadataBlock = MetadataBlockOptions.FirstOrDefault(option =>
-            string.Equals(option.Id, selectedId, StringComparison.Ordinal)) ??
-            MetadataBlockOptions[0];
-    }
-
-    private void ApplySort()
-    {
-        if (EntriesView is not ListCollectionView view)
-        {
-            return;
-        }
-
-        view.CustomSort = new GxtEntryRowComparer(
-            SelectedSortOption.Mode,
-            SelectedMetadataBlock.Id,
-            SelectedMetadataType.Type);
-    }
-
     private List<TableOption> GetTableOptions()
-    {
-        if (_loadedType != GXTType.GtaViceCity || _manager is null)
-        {
-            return [];
-        }
-
-        return _manager.GXTEntries
-            .OfType<GTAVC.GXTEntry>()
-            .Select(entry => entry.TableName)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(table => table, new ASCIIStringComparer())
-            .Select(table => new TableOption(table, table.GetClearName()))
-            .ToList();
-    }
+        => EntryList.GetTableOptions();
 
     private bool EntryExists(string name, string? rawTableName)
-    {
-        return Entries.Any(entry =>
-            string.Equals(entry.Name, name, StringComparison.Ordinal) &&
-            string.Equals(entry.RawTableName, rawTableName, StringComparison.Ordinal));
-    }
-
-    private bool FilterEntry(object item)
-    {
-        if (item is not GxtEntryRow entry)
-        {
-            return false;
-        }
-
-        if (SelectedMetadataType.Type is { } selectedType &&
-            !entry.Occurrences.Any(occurrence =>
-                string.Equals(occurrence.BlockType, selectedType, StringComparison.Ordinal)))
-        {
-            return false;
-        }
-
-        if (SelectedMetadataBlock.Id is { } selectedBlockId &&
-            !entry.Occurrences.Any(occurrence =>
-                string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal)))
-        {
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(SearchText))
-        {
-            return true;
-        }
-
-        var comparison = CaseSensitive
-            ? StringComparison.Ordinal
-            : StringComparison.OrdinalIgnoreCase;
-
-        bool Contains(string? value) => value?.Contains(SearchText, comparison) == true;
-        bool ContainsMetadata() => entry.Occurrences.Any(occurrence =>
-            Contains(occurrence.BlockId) ||
-            Contains(occurrence.BlockType) ||
-            Contains(occurrence.BlockName) ||
-            Contains(occurrence.BlockDescription) ||
-            Contains(occurrence.Context));
-
-        return SelectedSearchColumn.Column switch
-        {
-            SearchColumn.Name => Contains(entry.Name),
-            SearchColumn.Text => Contains(entry.Text),
-            SearchColumn.Source => Contains(entry.SourceText),
-            SearchColumn.Comparison => entry.ComparisonTexts.Any(Contains),
-            SearchColumn.Table => Contains(entry.Table),
-            SearchColumn.Metadata => ContainsMetadata(),
-            SearchColumn.Comment => Contains(entry.Comment),
-            _ => Contains(entry.Name) ||
-                 Contains(entry.Text) ||
-                 entry.ComparisonTexts.Any(Contains) ||
-                 Contains(entry.Table) ||
-                 ContainsMetadata() ||
-                 Contains(entry.Comment),
-        };
-    }
+        => EntryList.EntryExists(name, rawTableName);
 
     private bool SetProjectComment(string key, string? rawTableName, string? comment)
-    {
-        if (_project is null)
-        {
-            return false;
-        }
-
-        var normalizedComment = string.IsNullOrWhiteSpace(comment) ? null : comment;
-        var table = _loadedType == GXTType.GtaViceCity
-            ? rawTableName?.GetClearName()
-            : null;
-        var entry = _project.Metadata.Entries.FirstOrDefault(candidate =>
-            string.Equals(candidate.Key, key, StringComparison.Ordinal) &&
-            string.Equals(candidate.Table, table, StringComparison.Ordinal));
-
-        if (string.Equals(entry?.Comment, normalizedComment, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (entry is null)
-        {
-            if (normalizedComment is null)
-            {
-                return false;
-            }
-
-            entry = new ProjectEntryMetadata
-            {
-                Key = key,
-                Table = table,
-            };
-            _project.Metadata.Entries.Add(entry);
-        }
-
-        entry.Comment = normalizedComment;
-        if (entry.Comment is null && entry.Occurrences.Count == 0)
-        {
-            _project.Metadata.Entries.Remove(entry);
-        }
-
-        return true;
-    }
+        => EntryList.SetProjectComment(key, rawTableName, comment);
 
     private void MoveProjectEntryMetadata(
         string key,
         string? oldRawTableName,
         string? newRawTableName)
-    {
-        if (_project is null || _loadedType != GXTType.GtaViceCity)
-        {
-            return;
-        }
-
-        var oldTable = oldRawTableName?.GetClearName();
-        var newTable = newRawTableName?.GetClearName();
-        if (string.Equals(oldTable, newTable, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var entry = _project.Metadata.Entries.FirstOrDefault(candidate =>
-            string.Equals(candidate.Key, key, StringComparison.Ordinal) &&
-            string.Equals(candidate.Table, oldTable, StringComparison.Ordinal));
-        if (entry is not null)
-        {
-            entry.Table = newTable;
-        }
-    }
+        => EntryList.MoveProjectEntryMetadata(key, oldRawTableName, newRawTableName);
 
     private void RemoveEmptyProjectMetadataEntries()
-    {
-        if (_project is null)
-        {
-            return;
-        }
-
-        _project.Metadata.Entries.RemoveAll(entry =>
-            string.IsNullOrWhiteSpace(entry.Comment) && entry.Occurrences.Count == 0);
-    }
+        => EntryList.RemoveEmptyProjectMetadataEntries();
 
     private bool HasPersistableProjectMetadata() =>
-        _project?.Metadata.Blocks.Count > 0 ||
-        _project?.Metadata.Entries.Any(entry =>
-            !string.IsNullOrWhiteSpace(entry.Comment) || entry.Occurrences.Count > 0) == true;
+        EntryList.HasPersistableProjectMetadata();
 
-    private bool CanSaveComment() =>
-        SelectedEntry is not null &&
-        !string.Equals(
-            string.IsNullOrWhiteSpace(CommentDraft) ? null : CommentDraft,
-            SelectedEntry.Comment,
-            StringComparison.Ordinal);
+    private bool CanSaveComment() => !IsBusy && EntryList.CanSaveComment();
 
-    private bool CanClearComment() =>
-        SelectedEntry is not null &&
-        (!string.IsNullOrWhiteSpace(SelectedEntry.Comment) ||
-         !string.IsNullOrWhiteSpace(CommentDraft));
+    private bool CanClearComment() => !IsBusy && EntryList.CanClearComment();
 
     private void ClearComparisons()
     {
-        _comparisonDocuments.Clear();
-        ComparisonColumns.Clear();
+        EntryList.ClearComparisons();
         OnPropertyChanged(nameof(IsComparisonLoaded));
         OnPropertyChanged(nameof(HasEnglishSource));
-    }
-
-    private string CreateComparisonColumnName(string path, bool isEnglishSource)
-    {
-        var normalizedName = Path.GetFileNameWithoutExtension(path).Trim();
-        if (string.IsNullOrEmpty(normalizedName))
-        {
-            normalizedName = "GXT";
-        }
-
-        var usedNames = ComparisonColumns
-            .Select(column => column.Name.StartsWith(
-                    "English source — ",
-                    StringComparison.Ordinal)
-                ? column.Name[17..]
-                : column.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!usedNames.Contains(normalizedName))
-        {
-            return isEnglishSource ? $"English source — {normalizedName}" : normalizedName;
-        }
-
-        for (var suffix = 2; ; suffix++)
-        {
-            var candidate = $"{normalizedName} ({suffix})";
-            if (!usedNames.Contains(candidate))
-            {
-                return isEnglishSource ? $"English source — {candidate}" : candidate;
-            }
-        }
     }
 
     private void OpenDocument(string path)
@@ -1547,11 +1377,27 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private async Task OpenDocumentAsync(string path, CancellationToken cancellationToken)
+    {
+        switch (Path.GetExtension(path).ToLowerInvariant())
+        {
+            case ".byx":
+                _ = await LoadProjectAsync(path, cancellationToken);
+                break;
+            case ".gxt":
+                _ = await LoadDocumentAsync(path, cancellationToken: cancellationToken);
+                break;
+            default:
+                _dialogs.ShowError("Поддерживаются только файлы GXT и проекты BYX.");
+                break;
+        }
+    }
+
     private bool LoadProject(string path)
     {
         try
         {
-            var project = _projectSerializer.Load(path);
+            var project = _documentWorkflow.OpenProject(path);
             CommitProject(project, clearTransientState: true);
             StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
                          $"TXD: {(AttachedTxd is null ? 0 : 1)}";
@@ -1566,31 +1412,53 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private bool ReloadGxtInProject(
+    private async Task<bool> LoadProjectAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var project = await _documentWorkflow.OpenProjectAsync(path, cancellationToken);
+            CommitProject(project, clearTransientState: true);
+            StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
+                         $"TXD: {(AttachedTxd is null ? 0 : 1)}";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(
+                $"Не удалось открыть проект '{Path.GetFileName(path)}'.\n\n{exception.Message}",
+                "Ошибка открытия BYX");
+            return false;
+        }
+    }
+
+    private async Task<bool> ReloadGxtInProjectAsync(
         string path,
         string? dictionaryPath,
         string? selectedName,
         string? selectedTable,
-        GxtLanguage language)
+        GxtLanguage language,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var manager = _managerFactory.Open(path, dictionaryPath, language);
-            var project = new EditorProject
-            {
-                ProjectPath = null,
-                GxtSourceName = Path.GetFileName(path),
-                GxtSourcePath = path,
-                GameType = _managerFactory.DetectType(path),
-                GxtManager = manager,
-                UsesCustomDictionary = dictionaryPath is not null,
-                AttachedTxd = null,
-                CharacterMap = null,
-                IsDirty = false,
-            };
+            var project = await _documentWorkflow.OpenGxtAsync(
+                path,
+                dictionaryPath,
+                language,
+                cancellationToken);
             CommitProject(project, selectedName, selectedTable, clearTransientState: false);
             StatusText = $"Перезагружен {Path.GetFileName(path)}";
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception exception)
         {
@@ -1611,9 +1479,7 @@ public partial class MainWindowViewModel : ObservableObject
             ClearComparisons();
         }
 
-        _project = project;
-        _manager = project.GxtManager;
-        _loadedType = project.GameType;
+        _session.Commit(project, clearComparisons: false);
         try
         {
             _canonicalMetadata = _encounterMetadataProvider.GetIndex(project.GameType);
@@ -1643,40 +1509,12 @@ public partial class MainWindowViewModel : ObservableObject
         GxtSourceName = project.GxtSourceName;
         GxtPath = project.GxtSourcePath ?? project.GxtSourceName;
         ProjectPath = project.ProjectPath ?? string.Empty;
-        DocumentType = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City";
+        DocumentType = GxtDomainRules.ToGameName(project.GameType);
         IsDocumentLoaded = true;
         SetDirty(project.IsDirty);
         AttachedTxd = project.AttachedTxd;
         OnTxdAttachmentChanged();
         RefreshEntries(selectedName, selectedTable);
-    }
-
-    private static EntryIdentity GetEntryIdentity(GXTBase entry) =>
-        new(
-            entry.DatName.GetClearName(),
-            (entry as GTAVC.GXTEntry)?.TableName);
-
-    private CommonGXTManager OpenRelatedGxt(string path)
-    {
-        var manager = _managerFactory.Open(
-            path,
-            _manager?.CyrillicCharsDictionaryPath,
-            _manager?.Language ?? GxtLanguage.Auto);
-        if (_project?.CharacterMap is not null &&
-            _manager is not null)
-        {
-            manager.CyrillicCharsDictionary = _project.CharacterMap.ToCharacterDictionary();
-        }
-        else if (_project?.UsesCustomDictionary == true &&
-            string.IsNullOrWhiteSpace(_manager?.CyrillicCharsDictionaryPath) &&
-            _manager is not null)
-        {
-            manager.CyrillicCharsDictionary = _manager.CyrillicCharsDictionary.ToDictionary(
-                pair => pair.Key.ToArray(),
-                pair => pair.Value);
-        }
-
-        return manager;
     }
 
     private void UpdateStatus()
@@ -1692,17 +1530,90 @@ public partial class MainWindowViewModel : ObservableObject
             : $"Показано {visibleCount} из {Entries.Count} ключей";
     }
 
-    private bool CanUseDocument() => IsDocumentLoaded && _manager is not null;
+    [RelayCommand(CanExecute = nameof(CanCancelOperation))]
+    private void CancelOperation() => _operationCancellation?.Cancel();
 
-    private bool CanAddTxd() => CanAttachTxd;
+    private async Task RunBusyAsync(
+        string operationName,
+        Func<CancellationToken, Task> operation)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
 
-    private bool CanUseAttachedTxd() => AttachedTxd is not null;
+        using var cancellation = new CancellationTokenSource();
+        _operationCancellation = cancellation;
+        BusyText = operationName;
+        IsBusy = true;
+        try
+        {
+            await operation(cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Операция отменена";
+        }
+        finally
+        {
+            _operationCancellation = null;
+            IsBusy = false;
+            BusyText = string.Empty;
+        }
+    }
 
-    private bool CanViewTxd() => AttachedTxd is not null;
+    partial void OnIsBusyChanged(bool value)
+    {
+        OpenFileCommand.NotifyCanExecuteChanged();
+        OpenFileWithDictionaryCommand.NotifyCanExecuteChanged();
+        OpenComparisonFileCommand.NotifyCanExecuteChanged();
+        ReloadCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged();
+        ExportGxtCommand.NotifyCanExecuteChanged();
+        SaveProjectAsCommand.NotifyCanExecuteChanged();
+        AddEntryCommand.NotifyCanExecuteChanged();
+        EditEntryCommand.NotifyCanExecuteChanged();
+        DeleteEntryCommand.NotifyCanExecuteChanged();
+        SaveCommentCommand.NotifyCanExecuteChanged();
+        ClearCommentCommand.NotifyCanExecuteChanged();
+        AddTxdCommand.NotifyCanExecuteChanged();
+        RemoveTxdCommand.NotifyCanExecuteChanged();
+        ExportTxdCommand.NotifyCanExecuteChanged();
+        ViewTxdCommand.NotifyCanExecuteChanged();
+        ExportJsonCommand.NotifyCanExecuteChanged();
+        ImportCommentsCommand.NotifyCanExecuteChanged();
+        ExportCommentsCommand.NotifyCanExecuteChanged();
+        ImportJsonCommand.NotifyCanExecuteChanged();
+        ImportJsonWithDictionaryCommand.NotifyCanExecuteChanged();
+        AddMissingEntriesCommand.NotifyCanExecuteChanged();
+        ConvertDictionaryCommand.NotifyCanExecuteChanged();
+        CancelOperationCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanStartOperation() => !IsBusy;
+
+    private bool CanUseDocument() => !IsBusy && IsDocumentLoaded && _manager is not null;
+
+    private bool CanAddTxd() => !IsBusy && CanAttachTxd;
+
+    private bool CanUseAttachedTxd() => !IsBusy && AttachedTxd is not null;
+
+    private bool CanViewTxd() => !IsBusy && AttachedTxd is not null;
 
     private bool CanUseSelection() => CanUseDocument() && SelectedEntry is not null;
 
-    public bool CanClose() => TryContinueAfterUnsavedChanges();
+    private bool CanCancelOperation() => IsBusy && _operationCancellation is not null;
+
+    public bool CanClose()
+    {
+        if (IsBusy)
+        {
+            _operationCancellation?.Cancel();
+            return false;
+        }
+
+        return TryContinueAfterUnsavedChanges();
+    }
 
     private bool TryContinueAfterUnsavedChanges()
     {
@@ -1721,11 +1632,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void SetDirty(bool value)
     {
-        IsProjectDirty = value;
-        if (_project is not null)
-        {
-            _project.IsDirty = value;
-        }
+        _session.SetDirty(value);
+        OnPropertyChanged(nameof(IsProjectDirty));
+        SaveCommand.NotifyCanExecuteChanged();
     }
 
     private void OnTxdAttachmentChanged()
@@ -1769,80 +1678,4 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private readonly record struct EntryIdentity(string Name, string? Table);
-
-    private sealed class GxtEntryRowComparer(
-        EntrySortMode mode,
-        string? selectedBlockId,
-        string? selectedBlockType) : IComparer
-    {
-        public int Compare(object? x, object? y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return 0;
-            }
-
-            if (x is not GxtEntryRow left)
-            {
-                return -1;
-            }
-
-            if (y is not GxtEntryRow right)
-            {
-                return 1;
-            }
-
-            if (mode == EntrySortMode.GxtOrder)
-            {
-                return left.SourceIndex.CompareTo(right.SourceIndex);
-            }
-
-            var leftOccurrence = SelectOccurrence(left);
-            var rightOccurrence = SelectOccurrence(right);
-            if (leftOccurrence is null || rightOccurrence is null)
-            {
-                if (leftOccurrence is not null)
-                {
-                    return -1;
-                }
-
-                if (rightOccurrence is not null)
-                {
-                    return 1;
-                }
-
-                return left.SourceIndex.CompareTo(right.SourceIndex);
-            }
-
-            var result = leftOccurrence.BlockOrder.CompareTo(rightOccurrence.BlockOrder);
-            if (result == 0)
-            {
-                result = leftOccurrence.BlockSequence.CompareTo(rightOccurrence.BlockSequence);
-            }
-
-            if (result == 0)
-            {
-                result = leftOccurrence.OccurrenceOrder.CompareTo(rightOccurrence.OccurrenceOrder);
-            }
-
-            return result != 0 ? result : left.SourceIndex.CompareTo(right.SourceIndex);
-        }
-
-        private GxtEntryOccurrenceView? SelectOccurrence(GxtEntryRow entry) =>
-            selectedBlockId is not null
-                ? entry.Occurrences.FirstOrDefault(occurrence =>
-                    string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal))
-                : selectedBlockType is not null
-                    ? entry.Occurrences.FirstOrDefault(occurrence =>
-                        string.Equals(
-                            occurrence.BlockType,
-                            selectedBlockType,
-                            StringComparison.Ordinal))
-                    : entry.PrimaryOccurrence;
-    }
-
-    private sealed record ComparisonDocument(
-        string Path,
-        Dictionary<EntryIdentity, string> Texts);
 }

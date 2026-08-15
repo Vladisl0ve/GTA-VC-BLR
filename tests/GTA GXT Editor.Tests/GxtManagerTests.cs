@@ -52,6 +52,32 @@ public sealed class GxtManagerTests
     }
 
     [TestMethod]
+    public void GtaIII_Save_DoesNotReorderEntriesInOpenDocument()
+    {
+        var outputPath = Path.Combine(_testDirectory, "stable-order.gxt");
+        var manager = GxtManagerFactory.Create(
+            GXTType.GtaIII,
+            _dictionaryPath,
+            sourceName: "stable-order.gxt",
+            sourceTexts: ["Last", "First"]);
+        manager.AddGXTEntry("ZZZ", "Last");
+        manager.AddGXTEntry("AAA", "First");
+        var originalOrder = manager.GXTEntries
+            .Select(entry => entry.DatName.GetClearName())
+            .ToArray();
+
+        manager.SaveGXTChanges(outputPath);
+
+        CollectionAssert.AreEqual(
+            originalOrder,
+            manager.GXTEntries.Select(entry => entry.DatName.GetClearName()).ToArray());
+        var reopened = new GTAIII.GXTManager(outputPath, _dictionaryPath);
+        CollectionAssert.AreEqual(
+            new[] { "AAA", "ZZZ" },
+            reopened.GXTEntries.Select(entry => entry.DatName.GetClearName()).ToArray());
+    }
+
+    [TestMethod]
     public void ViceCity_ClearNames_CanBeEditedAndRemoved()
     {
         var sourcePath = Path.Combine(_testDirectory, "vice-city.gxt");

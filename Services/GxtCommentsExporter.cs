@@ -94,42 +94,15 @@ public static class GxtCommentsExporter
     internal static GxtEntryIdentity CreateIdentity(
         GXTType gameType,
         string key,
-        string? table)
-    {
-        ValidateGameType(gameType);
-        return gameType == GXTType.GtaViceCity
-            ? new GxtEntryIdentity(key, table)
-            : new GxtEntryIdentity(key);
-    }
+        string? table) => GxtDomainRules.CreateIdentity(gameType, key, table);
 
     internal static string? GetTableName(GXTType gameType, GXTBase entry)
-    {
-        ArgumentNullException.ThrowIfNull(entry);
-        return (gameType, entry) switch
-        {
-            (GXTType.GtaIII, GTAIII.GXTEntry) => null,
-            (GXTType.GtaViceCity, GTAVC.GXTEntry viceCityEntry) =>
-                viceCityEntry.TableName.GetClearName(),
-            _ => throw new InvalidDataException(
-                $"Тип записи '{entry.GetType().Name}' не соответствует типу проекта " +
-                $"{ToGameName(gameType)}."),
-        };
-    }
+        => GxtDomainRules.GetTableName(gameType, entry);
 
-    internal static string ToGameName(GXTType gameType) => gameType switch
-    {
-        GXTType.GtaIII => "GTA III",
-        GXTType.GtaViceCity => "GTA Vice City",
-        _ => throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "Неподдерживаемый тип GXT."),
-    };
+    internal static string ToGameName(GXTType gameType) => GxtDomainRules.ToGameName(gameType);
 
-    internal static void ValidateGameType(GXTType gameType)
-    {
-        if (gameType is not (GXTType.GtaIII or GXTType.GtaViceCity))
-        {
-            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "Неподдерживаемый тип GXT.");
-        }
-    }
+    internal static void ValidateGameType(GXTType gameType) =>
+        GxtDomainRules.ValidateGameType(gameType);
 
     private sealed class CommentsExportDocument
     {

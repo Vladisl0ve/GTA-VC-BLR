@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,13 +12,20 @@ namespace GTA_GXT_Editor.ViewModels;
 
 public partial class TxdViewerViewModel : ObservableObject
 {
+    private const string CharacterMapImportFilter =
+        "Маппинг (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Словарь (*.txt)|*.txt";
+    private const string CharacterMapExportFilter =
+        "Маппинг JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json";
+
     private readonly CharacterMapEditorRequest _request;
+    private readonly IDialogService? _dialogs;
     private CharacterMapProfile _profile;
 
-    public TxdViewerViewModel(CharacterMapEditorRequest request)
+    public TxdViewerViewModel(CharacterMapEditorRequest request, IDialogService? dialogs = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         _request = request;
+        _dialogs = dialogs;
         _profile = request.Profile.Clone();
         Attachment = request.Attachment;
         ApplyModes =
@@ -50,6 +58,10 @@ public partial class TxdViewerViewModel : ObservableObject
     public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; }
 
     public CharacterMapProfile Profile => _profile;
+
+    public CharacterMapEditorResult? Result { get; private set; }
+
+    public event EventHandler? ApplySucceeded;
 
     public string GlyphAtlasHeading => _request.GameType == GXTType.GtaViceCity
         ? "Ячейки font1 / font2"
@@ -237,6 +249,67 @@ public partial class TxdViewerViewModel : ObservableObject
         OnPropertyChanged(nameof(Profile));
         OnPropertyChanged(nameof(VerificationText));
     }
+
+    [RelayCommand(CanExecute = nameof(CanUseDialogs))]
+    private void ImportProfile()
+    {
+        var path = _dialogs?.OpenFile(
+            "Импортировать маппинг символов",
+            CharacterMapImportFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ReplaceProfile(CharacterMapFileSerializer.Load(path));
+        }
+        catch (Exception exception)
+        {
+            _dialogs!.ShowError(exception.Message, "Ошибка импорта");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDialogs))]
+    private void ExportProfile()
+    {
+        var source = Attachment.SourcePath ?? Environment.CurrentDirectory;
+        var directory = Path.GetDirectoryName(source) ?? Environment.CurrentDirectory;
+        var path = _dialogs?.SaveFile(
+            "Экспортировать маппинг символов",
+            CharacterMapExportFilter,
+            Path.Combine(directory, "characters.gxtmap.json"));
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            CharacterMapFileSerializer.Save(path, Profile);
+        }
+        catch (Exception exception)
+        {
+            _dialogs!.ShowError(exception.Message, "Ошибка экспорта");
+        }
+    }
+
+    [RelayCommand]
+    private void Apply()
+    {
+        try
+        {
+            Result = CreateResult();
+            ApplySucceeded?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception exception)
+        {
+            _dialogs?.ShowError(exception.Message, "Проверка профиля");
+        }
+    }
+
+    private bool CanUseDialogs() => _dialogs is not null;
 
     public void ReplaceProfile(CharacterMapProfile profile)
     {

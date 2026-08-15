@@ -10,7 +10,7 @@ namespace GTA_GXT_Editor;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -26,7 +26,7 @@ public partial class App : Application
 
         if (e.Args.FirstOrDefault(File.Exists) is { } startupFile)
         {
-            viewModel.OpenFromCommandLine(startupFile);
+            await viewModel.OpenFromCommandLineAsync(startupFile);
         }
     }
 

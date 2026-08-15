@@ -84,21 +84,19 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var characterMap = manifest.CharacterMap is null
             ? null
             : LoadCharacterMap(archive, manifest.CharacterMap);
-        var dictionary = characterMap?.ToCharacterDictionary();
-
         var gxtData = ReadValidatedEntry(archive, manifest.Gxt, MaximumArchiveSize);
         var txdData = manifest.Txd is null
             ? null
             : ReadValidatedEntry(archive, manifest.Txd, MaximumArchiveSize);
-        var gameType = ParseGame(manifest.Game);
+        var gameType = GxtDomainRules.ParseCanonicalGameName(manifest.Game, "BYX");
         var metadataData = ReadValidatedEntry(archive, manifest.Metadata, MaximumMetadataSize);
         var metadata = ProjectMetadataJsonSerializer.Deserialize(metadataData, gameType);
         var manager = _gxtManagerFactory.Open(
             gxtData,
             gameType,
             manifest.Gxt.OriginalFileName,
-            ParseLanguage(manifest.Language),
-            dictionary);
+            GxtDomainRules.ParseLanguageCode(manifest.Language),
+            characterMap);
         var attachment = manifest.Txd is null || txdData is null
             ? null
             : LoadTxd(manifest.Txd, txdData, gameType);
@@ -131,9 +129,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var profile = project.CharacterMap?.Clone();
         if (profile is null && project.UsesCustomDictionary)
         {
-            profile = CharacterMapProfile.FromDictionary(
-                project.GxtManager.CyrillicCharsDictionary,
-                isVerified: false);
+            profile = project.GxtManager.CharacterMap;
+            profile.IsVerified = false;
         }
 
         var characterMapData = profile is null
@@ -148,8 +145,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         {
             Format = "BYX",
             Version = CurrentVersion,
-            Game = project.GameType == GXTType.GtaIII ? "GTA III" : "GTA Vice City",
-            Language = ToLanguageCode(project.GxtManager.Language),
+            Game = GxtDomainRules.ToGameName(project.GameType),
+            Language = GxtDomainRules.ToLanguageCode(project.GxtManager.Language),
             Gxt = new ByxGxtItem
             {
                 OriginalFileName = SanitizeFileName(project.GxtSourceName, "main.gxt"),
@@ -316,8 +313,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             throw new InvalidDataException("Manifest проекта BYX v3 заполнен не полностью.");
         }
 
-        _ = ParseGame(manifest.Game);
-        _ = ParseLanguage(manifest.Language);
+        _ = GxtDomainRules.ParseCanonicalGameName(manifest.Game, "BYX");
+        _ = GxtDomainRules.ParseLanguageCode(manifest.Language);
         ValidateGxtItem(manifest.Gxt);
         ValidateArchiveItem(manifest.Metadata, MetadataEntryName, "метаданных");
         if (manifest.Txd is not null)
@@ -525,27 +522,4 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         return string.IsNullOrWhiteSpace(name) ? fallback : name;
     }
 
-    private static GXTType ParseGame(string game) => game switch
-    {
-        "GTA III" => GXTType.GtaIII,
-        "GTA Vice City" => GXTType.GtaViceCity,
-        _ => throw new InvalidDataException($"Игра '{game}' в BYX не поддерживается."),
-    };
-
-    private static string ToLanguageCode(GxtLanguage language) => language switch
-    {
-        GxtLanguage.Belarusian => "be",
-        GxtLanguage.Russian => "ru",
-        GxtLanguage.Ukrainian => "uk",
-        _ => "en",
-    };
-
-    private static GxtLanguage ParseLanguage(string? language) => language?.ToLowerInvariant() switch
-    {
-        "be" => GxtLanguage.Belarusian,
-        "ru" => GxtLanguage.Russian,
-        "uk" => GxtLanguage.Ukrainian,
-        "en" => GxtLanguage.English,
-        _ => throw new InvalidDataException($"Язык '{language}' в BYX не поддерживается."),
-    };
 }

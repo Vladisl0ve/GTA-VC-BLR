@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
 
@@ -21,8 +22,8 @@ public static class GxtJsonImporter
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
 
         var document = ReadDocument(sourcePath);
-        var type = ParseGame(document.Game);
-        var language = GxtLanguageDetector.ParseJsonLanguage(document.Language);
+        var type = GxtDomainRules.ParseJsonGameName(document.Game);
+        var language = GxtDomainRules.ParseFlexibleLanguageCode(document.Language);
         var entries = ValidateEntries(document.Entries, type);
         var manager = GxtManagerFactory.Create(
             type,
@@ -68,18 +69,6 @@ public static class GxtJsonImporter
         }
     }
 
-    private static GXTType ParseGame(string? game)
-    {
-        return game?.Trim().ToUpperInvariant() switch
-        {
-            "GTA III" or "GTA 3" or "GTA3" => GXTType.GtaIII,
-            "GTA VICE CITY" or "VICE CITY" or "GTAVC" => GXTType.GtaViceCity,
-            null or "" => throw new InvalidDataException("В JSON отсутствует обязательное поле 'game'."),
-            _ => throw new InvalidDataException(
-                $"Игра '{game}' не поддерживается. Ожидается 'GTA III' или 'GTA Vice City'."),
-        };
-    }
-
     private static List<ValidatedEntry> ValidateEntries(
         List<JsonGxtEntry?>? sourceEntries,
         GXTType type)
@@ -90,7 +79,7 @@ public static class GxtJsonImporter
         }
 
         var result = new List<ValidatedEntry>(sourceEntries.Count);
-        var identities = new HashSet<string>(StringComparer.Ordinal);
+        var identities = new HashSet<GxtEntryIdentity>();
 
         for (var index = 0; index < sourceEntries.Count; index++)
         {
@@ -120,9 +109,7 @@ public static class GxtJsonImporter
                 ValidateAsciiName(table, "Таблица", displayIndex);
             }
 
-            var identity = type == GXTType.GtaViceCity
-                ? $"{table}\u001f{key}"
-                : key;
+            var identity = GxtDomainRules.CreateIdentity(type, key, table);
             if (!identities.Add(identity))
             {
                 throw new InvalidDataException(
@@ -138,13 +125,14 @@ public static class GxtJsonImporter
 
     private static void ValidateAsciiName(string name, string fieldName, int entryIndex)
     {
-        if (name.Length > 8)
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.TooLong)
         {
             throw new InvalidDataException(
-                $"{fieldName} записи {entryIndex} может содержать не более 8 символов.");
+                $"{fieldName} записи {entryIndex} может содержать не более " +
+                $"{GxtDomainRules.MaximumNameLength} символов.");
         }
 
-        if (name.Any(character => character is '\0' or > '\u007f'))
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.NonAscii)
         {
             throw new InvalidDataException(
                 $"{fieldName} записи {entryIndex} должен содержать только ASCII-символы без NUL.");

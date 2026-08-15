@@ -114,16 +114,50 @@ public sealed class CharacterMapTests
     }
 
     [TestMethod]
+    public void Manager_UsesDetachedCanonicalProfile()
+    {
+        var manager = GxtManagerFactory.Create(
+            GXTType.GtaIII,
+            sourceTexts: ["Text"],
+            language: GxtLanguage.English);
+        var profile = SingleMapping('Ж', 0x80);
+        profile.IsVerified = true;
+
+        manager.CharacterMap = profile;
+        profile.Mappings[0].PreferredCode = 0x81;
+
+        Assert.IsTrue(manager.CharacterMap.IsVerified);
+        Assert.AreEqual((byte)0x80, manager.EncodeCharacterMap['Ж']);
+        Assert.AreEqual('Ж', manager.DecodeCharacterMap[0x80]);
+        var returnedProfile = manager.CharacterMap;
+        returnedProfile.Mappings[0].PreferredCode = 0x82;
+        Assert.AreEqual((byte)0x80, manager.EncodeCharacterMap['Ж']);
+    }
+
+    [TestMethod]
     public void CustomCodec_PreservesTokensAndLatinWordsWithAsciiAliases()
     {
         var manager = GxtManagerFactory.Create(
             GXTType.GtaViceCity,
             sourceTexts: ["Hello"],
             language: GxtLanguage.English);
-        manager.CyrillicCharsDictionary = new Dictionary<int[], char>
+        manager.CharacterMap = new CharacterMapProfile
         {
-            [[0x80, (byte)'B']] = 'В',
-            [[0x81]] = 'Ж',
+            Mappings =
+            [
+                new CharacterMapEntry
+                {
+                    Character = 'В',
+                    Codes = [0x80, (byte)'B'],
+                    PreferredCode = 0x80,
+                },
+                new CharacterMapEntry
+                {
+                    Character = 'Ж',
+                    Codes = [0x81],
+                    PreferredCode = 0x81,
+                },
+            ],
         };
         const string text = "~h~ В BETA Ж";
 
@@ -159,7 +193,7 @@ public sealed class CharacterMapTests
             GXTType.GtaViceCity,
             sourceTexts: ["А"],
             language: GxtLanguage.English);
-        manager.CyrillicCharsDictionary = SingleMapping('А', 0x80).ToCharacterDictionary();
+        manager.CharacterMap = SingleMapping('А', 0x80);
         manager.AddGXTEntry("HELLO", "А");
         var target = SingleMapping('А', 0x81);
 
@@ -181,7 +215,7 @@ public sealed class CharacterMapTests
             sourceTexts: ["А"],
             language: GxtLanguage.English);
         var originalProfile = SingleMapping('А', 0x80);
-        manager.CyrillicCharsDictionary = originalProfile.ToCharacterDictionary();
+        manager.CharacterMap = originalProfile;
         manager.AddGXTEntry("HELLO", "А");
         var originalBytes = manager.GXTEntries.Single().Value.ToArray();
         var invalidTarget = new CharacterMapProfile();
@@ -197,7 +231,7 @@ public sealed class CharacterMapTests
             invalidTarget,
             CharacterMapApplyMode.Reencode));
         CollectionAssert.AreEqual(originalBytes, manager.GXTEntries.Single().Value);
-        Assert.AreEqual((byte)0x80, manager.CyrillicCharsDictionary.Single().Key[0]);
+        Assert.AreEqual((byte)0x80, manager.EncodeCharacterMap['А']);
     }
 
     [TestMethod]
@@ -207,7 +241,7 @@ public sealed class CharacterMapTests
             GXTType.GtaViceCity,
             sourceTexts: ["А"],
             language: GxtLanguage.English);
-        manager.CyrillicCharsDictionary = SingleMapping('А', 0x80).ToCharacterDictionary();
+        manager.CharacterMap = SingleMapping('А', 0x80);
         manager.AddGXTEntry("HELLO", "А");
         var originalBytes = manager.GXTEntries.Single().Value.ToArray();
         var invalidTarget = new CharacterMapProfile
@@ -240,7 +274,7 @@ public sealed class CharacterMapTests
             invalidTarget,
             CharacterMapApplyMode.Reencode));
         CollectionAssert.AreEqual(originalBytes, manager.GXTEntries.Single().Value);
-        Assert.AreEqual((byte)0x80, manager.CyrillicCharsDictionary.Single().Key[0]);
+        Assert.AreEqual((byte)0x80, manager.EncodeCharacterMap['А']);
     }
 
     private static CharacterMapProfile SingleMapping(char character, byte code) => new()

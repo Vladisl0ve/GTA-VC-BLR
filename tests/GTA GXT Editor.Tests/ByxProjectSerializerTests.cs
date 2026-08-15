@@ -50,7 +50,7 @@ public sealed class ByxProjectSerializerTests
         Assert.AreEqual(GxtLanguage.Belarusian, loaded.GxtManager.Language);
         Assert.IsTrue(loaded.UsesCustomDictionary);
         Assert.IsFalse(loaded.IsDirty);
-        Assert.AreEqual('Ж', loaded.GxtManager.GetCharacterMap()[200]);
+        Assert.AreEqual('Ж', loaded.GxtManager.DecodeCharacterMap[200]);
         Assert.AreEqual(
             "ЖЖ",
             loaded.GxtManager.ConvertBytesToText(loaded.GxtManager.GXTEntries.Single().Value));
@@ -383,10 +383,20 @@ public sealed class ByxProjectSerializerTests
             sourceName: "american.gxt",
             sourceTexts: ["ЖЖ"],
             language: GxtLanguage.Belarusian);
-        manager.CyrillicCharsDictionary = new Dictionary<int[], char>
+        var characterMap = new CharacterMapProfile
         {
-            [[200]] = 'Ж',
+            IsVerified = true,
+            Mappings =
+            [
+                new CharacterMapEntry
+                {
+                    Character = 'Ж',
+                    Codes = [200],
+                    PreferredCode = 200,
+                },
+            ],
         };
+        manager.CharacterMap = characterMap;
         manager.AddGXTEntry("HELLO", "Ж");
         manager.EditGXTEntry("HELLO", "ЖЖ");
 
@@ -399,9 +409,7 @@ public sealed class ByxProjectSerializerTests
             UsesCustomDictionary = true,
             IsDirty = true,
             AttachedTxd = CreateAttachment(),
-            CharacterMap = CharacterMapProfile.FromDictionary(
-                manager.CyrillicCharsDictionary,
-                isVerified: true),
+            CharacterMap = characterMap.Clone(),
             Metadata = CreateMetadata(),
         };
     }

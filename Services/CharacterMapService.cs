@@ -72,13 +72,12 @@ public static class CharacterMapService
             return new CharacterMapPreview(applyMode, 0, 0, issues);
         }
 
-        var dictionary = profile.ToCharacterDictionary();
         var changedEntries = 0;
         var changedBytes = 0;
         var changes = new List<string>();
         if (applyMode == CharacterMapApplyMode.Interpret)
         {
-            var decodeMap = CharacterMapCodec.CreateDecodeMap(dictionary);
+            var decodeMap = profile.ToDecodeMap();
             foreach (var entry in manager.GXTEntries)
             {
                 var missingCodes = CharacterMapCodec.FindUnmappedExtendedCodes(entry.Value, decodeMap);
@@ -88,7 +87,7 @@ public static class CharacterMapService
                 }
 
                 var current = manager.ConvertBytesToText(entry.Value);
-                var interpreted = CharacterMapCodec.Decode(entry.Value, dictionary);
+                var interpreted = CharacterMapCodec.Decode(entry.Value, profile);
                 if (!string.Equals(current, interpreted, StringComparison.Ordinal))
                 {
                     changedEntries++;
@@ -104,7 +103,7 @@ public static class CharacterMapService
                 var currentText = manager.ConvertBytesToText(entry.Value);
                 try
                 {
-                    var encoded = CharacterMapCodec.Encode(currentText, dictionary);
+                    var encoded = CharacterMapCodec.Encode(currentText, profile);
                     var difference = CountDifferences(entry.Value, encoded);
                     if (difference > 0)
                     {
@@ -146,19 +145,18 @@ public static class CharacterMapService
             throw new InvalidDataException(string.Join(Environment.NewLine, preview.Issues));
         }
 
-        var dictionary = profile.ToCharacterDictionary();
         List<byte[]>? encodedValues = null;
         if (applyMode == CharacterMapApplyMode.Reencode)
         {
             encodedValues = manager.GXTEntries
                 .Select(entry => CharacterMapCodec.Encode(
                     manager.ConvertBytesToText(entry.Value),
-                    dictionary))
+                    profile))
                 .ToList();
         }
 
-        manager.CyrillicCharsDictionaryPath = null;
-        manager.CyrillicCharsDictionary = dictionary;
+        manager.CharacterMapPath = null;
+        manager.CharacterMap = profile.Clone();
         if (encodedValues is null)
         {
             return;
@@ -182,10 +180,9 @@ public static class CharacterMapService
             return issues;
         }
 
-        var dictionary = profile.ToCharacterDictionary();
         var counts = CountCharacters(texts);
 
-        var encodable = CharacterMapCodec.CreateEncodeMap(dictionary);
+        var encodable = profile.ToEncodeMap();
         var missing = counts
             .Where(pair => pair.Key > byte.MaxValue && !encodable.ContainsKey(pair.Key) ||
                            char.IsLetter(pair.Key) && pair.Key > 0x7F && !encodable.ContainsKey(pair.Key))
@@ -237,12 +234,24 @@ public static class CharacterMapService
 
 internal static class CharacterMapCodec
 {
+    public static string Decode(byte[] inputBytes, CharacterMapProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return Decode(inputBytes, profile.ToDecodeMap());
+    }
+
     public static string Decode(
         byte[] inputBytes,
         IEnumerable<KeyValuePair<int[], char>> dictionary)
     {
+        return Decode(inputBytes, CreateDecodeMap(dictionary));
+    }
+
+    private static string Decode(
+        byte[] inputBytes,
+        IReadOnlyDictionary<byte, char> decodeMap)
+    {
         ArgumentNullException.ThrowIfNull(inputBytes);
-        var decodeMap = CreateDecodeMap(dictionary);
         var asciiAliases = decodeMap.Keys.Where(code => code < 0x80).ToHashSet();
         var values = inputBytes
             .Where((_, index) => index % 2 == 0)
@@ -301,12 +310,24 @@ internal static class CharacterMapCodec
         return result.ToString();
     }
 
+    public static byte[] Encode(string inputString, CharacterMapProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return Encode(inputString, profile.ToEncodeMap());
+    }
+
     public static byte[] Encode(
         string inputString,
         IEnumerable<KeyValuePair<int[], char>> dictionary)
     {
+        return Encode(inputString, CreateEncodeMap(dictionary));
+    }
+
+    private static byte[] Encode(
+        string inputString,
+        IReadOnlyDictionary<char, byte> encodeMap)
+    {
         ArgumentNullException.ThrowIfNull(inputString);
-        var encodeMap = CreateEncodeMap(dictionary);
         var result = new byte[(inputString.Length + 1) * 2];
         for (var index = 0; index < inputString.Length;)
         {
@@ -391,13 +412,15 @@ internal static class CharacterMapCodec
         }
     }
 
-    private static bool IsWordByte(byte value, Dictionary<byte, char> decodeMap) =>
+    private static bool IsWordByte(byte value, IReadOnlyDictionary<byte, char> decodeMap) =>
         IsAsciiLetter(value) || decodeMap.TryGetValue(value, out var character) && char.IsLetter(character);
 
     private static bool IsAsciiLetter(byte value) =>
         value is >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z';
 
-    private static byte EncodeCharacter(char character, Dictionary<char, byte> encodeMap)
+    private static byte EncodeCharacter(
+        char character,
+        IReadOnlyDictionary<char, byte> encodeMap)
     {
         if (encodeMap.TryGetValue(character, out var mapped))
         {

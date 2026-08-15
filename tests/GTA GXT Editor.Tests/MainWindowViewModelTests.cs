@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.ViewModels;
@@ -33,14 +34,14 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenFile_UsesAutomaticDictionaryWithoutConfirmation()
+    public async Task OpenFile_UsesAutomaticDictionaryWithoutConfirmation()
     {
         var gxtPath = CreateGxt("automatic.gxt", text: "Hello");
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(gxtPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.IsDocumentLoaded);
         Assert.AreEqual(gxtPath, viewModel.GxtPath);
@@ -64,7 +65,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenFileWithDictionary_UsesSelectedDictionaryAndReloadPreservesIt()
+    public async Task OpenFileWithDictionary_UsesSelectedDictionaryAndReloadPreservesIt()
     {
         WriteDictionary("200 Ў");
         var gxtPath = CreateGxt("custom.gxt", _dictionaryPath, "Ў");
@@ -73,11 +74,11 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(_dictionaryPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileWithDictionaryCommand.Execute(null);
+        await viewModel.OpenFileWithDictionaryCommand.ExecuteAsync(null);
         Assert.HasCount(1, viewModel.Entries);
         Assert.AreEqual("Ў", viewModel.Entries[0].Text);
 
-        viewModel.ReloadCommand.Execute(null);
+        await viewModel.ReloadCommand.ExecuteAsync(null);
 
         Assert.HasCount(1, viewModel.Entries);
         Assert.AreEqual("Ў", viewModel.Entries[0].Text);
@@ -86,18 +87,18 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenFileWithDictionary_WhenDictionarySelectionIsCancelled_KeepsCurrentDocument()
+    public async Task OpenFileWithDictionary_WhenDictionarySelectionIsCancelled_KeepsCurrentDocument()
     {
         var currentPath = CreateGxt("current.gxt", text: "Current");
         var nextPath = CreateGxt("next.gxt", text: "Next");
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(currentPath);
         var viewModel = CreateViewModel(dialogs);
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
 
         dialogs.OpenFileResults.Enqueue(nextPath);
         dialogs.OpenFileResults.Enqueue(null);
-        viewModel.OpenFileWithDictionaryCommand.Execute(null);
+        await viewModel.OpenFileWithDictionaryCommand.ExecuteAsync(null);
 
         Assert.AreEqual(currentPath, viewModel.GxtPath);
         Assert.HasCount(1, viewModel.Entries);
@@ -106,7 +107,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenComparisonFiles_AddColumnsAndMatchingValuesForEveryFile()
+    public async Task OpenComparisonFiles_AddColumnsAndMatchingValuesForEveryFile()
     {
         var primaryPath = CreateGxtWithEntries(
             "primary.gxt",
@@ -125,8 +126,8 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFilesResults.Enqueue([firstComparisonPath, secondComparisonPath]);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.HasCount(2, viewModel.ComparisonColumns);
@@ -149,7 +150,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenComparisonFiles_NormalizesAndDisambiguatesColumnNames()
+    public async Task OpenComparisonFiles_NormalizesAndDisambiguatesColumnNames()
     {
         var primaryPath = CreateGxt("primary.gxt", text: "Primary");
         var firstComparisonPath = CreateGxt("shared.gxt", text: "First");
@@ -162,8 +163,8 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFilesResults.Enqueue([firstComparisonPath, secondComparisonPath]);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
         CollectionAssert.AreEqual(
             new[] { "English source — shared", "shared (2)" },
@@ -171,7 +172,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenComparisonFile_ReloadPreservesComparisonAndNewDocumentClearsIt()
+    public async Task OpenComparisonFile_ReloadPreservesComparisonAndNewDocumentClearsIt()
     {
         var primaryPath = CreateGxt("primary.gxt", text: "Primary");
         var comparisonPath = CreateGxt("comparison.gxt", text: "Comparison");
@@ -180,16 +181,16 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(primaryPath);
         dialogs.OpenFilesResults.Enqueue([comparisonPath]);
         var viewModel = CreateViewModel(dialogs);
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
-        viewModel.ReloadCommand.Execute(null);
+        await viewModel.ReloadCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.AreEqual("Comparison", viewModel.Entries[0].ComparisonTexts[0]);
 
         dialogs.OpenFileResults.Enqueue(nextPath);
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
 
         Assert.IsFalse(viewModel.IsComparisonLoaded);
         Assert.IsEmpty(viewModel.ComparisonColumns);
@@ -197,7 +198,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void Search_CanFilterByComparisonText()
+    public async Task Search_CanFilterByComparisonText()
     {
         var primaryPath = CreateGxtWithEntries(
             "primary.gxt",
@@ -211,8 +212,8 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(primaryPath);
         dialogs.OpenFilesResults.Enqueue([comparisonPath]);
         var viewModel = CreateViewModel(dialogs);
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
         viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(
             option => option.Column == SearchColumn.Comparison);
@@ -222,7 +223,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ImportJson_UsesAutomaticDictionaryWithoutConfirmation()
+    public async Task ImportJson_UsesAutomaticDictionaryWithoutConfirmation()
     {
         var jsonPath = WriteJson("automatic.json", "Hello", "en");
         var targetPath = Path.Combine(_testDirectory, "automatic.gxt");
@@ -231,7 +232,7 @@ public sealed class MainWindowViewModelTests
         dialogs.SaveFileResults.Enqueue(targetPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.ImportJsonCommand.Execute(null);
+        await viewModel.ImportJsonCommand.ExecuteAsync(null);
 
         Assert.IsTrue(File.Exists(targetPath));
         Assert.AreEqual(targetPath, viewModel.GxtPath);
@@ -242,7 +243,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ImportJsonWithDictionary_UsesSelectedJsonMapping()
+    public async Task ImportJsonWithDictionary_UsesSelectedJsonMapping()
     {
         var mappingPath = Path.Combine(_testDirectory, "characters.gxtmap.json");
         File.WriteAllText(
@@ -257,7 +258,7 @@ public sealed class MainWindowViewModelTests
         dialogs.SaveFileResults.Enqueue(targetPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.ImportJsonWithDictionaryCommand.Execute(null);
+        await viewModel.ImportJsonWithDictionaryCommand.ExecuteAsync(null);
 
         Assert.IsTrue(File.Exists(targetPath));
         Assert.HasCount(1, viewModel.Entries);
@@ -269,7 +270,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ImportJsonWithDictionary_WhenDictionarySelectionIsCancelled_DoesNotCreateFile()
+    public async Task ImportJsonWithDictionary_WhenDictionarySelectionIsCancelled_DoesNotCreateFile()
     {
         var jsonPath = WriteJson("cancelled.json", "Hello", "en");
         var targetPath = Path.Combine(_testDirectory, "cancelled.gxt");
@@ -279,7 +280,7 @@ public sealed class MainWindowViewModelTests
         dialogs.SaveFileResults.Enqueue(targetPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.ImportJsonWithDictionaryCommand.Execute(null);
+        await viewModel.ImportJsonWithDictionaryCommand.ExecuteAsync(null);
 
         Assert.IsFalse(File.Exists(targetPath));
         Assert.IsFalse(viewModel.IsDocumentLoaded);
@@ -288,7 +289,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void TxdCommands_AreEnabledOnlyForViceCity()
+    public async Task TxdCommands_AreEnabledOnlyForViceCity()
     {
         var gtaIIIPath = CreateGxt("gta3.gxt");
         var viceCityPath = CreateViceCityGxt("vice.gxt");
@@ -296,16 +297,16 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(gtaIIIPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
         Assert.IsFalse(viewModel.AddTxdCommand.CanExecute(null));
 
         dialogs.OpenFileResults.Enqueue(viceCityPath);
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
         Assert.IsTrue(viewModel.AddTxdCommand.CanExecute(null));
     }
 
     [TestMethod]
-    public void AddTxd_ReplacesExistingAttachmentAndKeepsSingleId()
+    public async Task AddTxd_ReplacesExistingAttachmentAndKeepsSingleId()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var firstPath = WriteTxd(Path.Combine("one", "fonts.txd"), [1, 2, 3, 255]);
@@ -316,9 +317,9 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(secondPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(viewModel.AttachedTxd);
         Assert.AreEqual("fonts", viewModel.AttachedTxd.DisplayName);
@@ -329,7 +330,7 @@ public sealed class MainWindowViewModelTests
             TestTxdFactory.Bgra32("font1", 1, 1, [9, 8, 7, 128]));
         File.WriteAllBytes(firstPath, updatedData);
         dialogs.OpenFileResults.Enqueue(firstPath);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(viewModel.AttachedTxd);
         Assert.AreEqual(originalId, viewModel.AttachedTxd.Id);
@@ -338,7 +339,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void AddInvalidTxd_DoesNotChangeCurrentProject()
+    public async Task AddInvalidTxd_DoesNotChangeCurrentProject()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var invalidPath = Path.Combine(_testDirectory, "invalid.txd");
@@ -348,8 +349,8 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(invalidPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsNull(viewModel.AttachedTxd);
         Assert.IsFalse(viewModel.IsProjectDirty);
@@ -357,7 +358,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void Save_WithTxdCreatesByxAndSubsequentSaveUpdatesItWithoutDialog()
+    public async Task Save_WithTxdCreatesByxAndSubsequentSaveUpdatesItWithoutDialog()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
@@ -370,10 +371,10 @@ public sealed class MainWindowViewModelTests
         dialogs.SaveFileResults.Enqueue(byxPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
-        viewModel.SaveCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.IsTrue(File.Exists(byxPath));
         Assert.AreEqual(byxPath, viewModel.ProjectPath);
@@ -381,9 +382,9 @@ public sealed class MainWindowViewModelTests
         Assert.HasCount(1, dialogs.SaveFileCalls);
 
         dialogs.OpenFileResults.Enqueue(txdPath);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
         Assert.IsTrue(viewModel.IsProjectDirty);
-        viewModel.SaveCommand.Execute(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
         Assert.HasCount(1, dialogs.SaveFileCalls);
         Assert.IsFalse(viewModel.IsProjectDirty);
 
@@ -396,7 +397,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ViewAndExportTxd_UseCurrentCharacterMapAndExactBytes()
+    public async Task ViewAndExportTxd_UseCurrentCharacterMapAndExactBytes()
     {
         WriteDictionary("200 Ж");
         var viceCityPath = CreateViceCityGxt("vice.gxt");
@@ -409,10 +410,10 @@ public sealed class MainWindowViewModelTests
         dialogs.SaveFileResults.Enqueue(exportPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileWithDictionaryCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.OpenFileWithDictionaryCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
         viewModel.ViewTxdCommand.Execute(null);
-        viewModel.ExportTxdCommand.Execute(null);
+        await viewModel.ExportTxdCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(dialogs.CharacterMapRequest);
         Assert.AreEqual(viewModel.AttachedTxd, dialogs.CharacterMapRequest.Attachment);
@@ -422,7 +423,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void DirtyDocument_CancelPreventsCloseAndReplacement()
+    public async Task DirtyDocument_CancelPreventsCloseAndReplacement()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var nextPath = CreateViceCityGxt("next.gxt", "Next");
@@ -431,12 +432,12 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(viceCityPath);
         dialogs.OpenFileResults.Enqueue(txdPath);
         var viewModel = CreateViewModel(dialogs);
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsFalse(viewModel.CanClose());
         dialogs.OpenFileResults.Enqueue(nextPath);
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
 
         Assert.AreEqual(viceCityPath, viewModel.GxtPath);
         Assert.IsNotNull(viewModel.AttachedTxd);
@@ -444,7 +445,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void Reload_DiscardRemovesUnsavedTxdAndKeepsComparisonColumns()
+    public async Task Reload_DiscardRemovesUnsavedTxdAndKeepsComparisonColumns()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var comparisonPath = CreateViceCityGxt("comparison.gxt", "Comparison");
@@ -455,10 +456,10 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFilesResults.Enqueue([comparisonPath]);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenComparisonFileCommand.Execute(null);
-        viewModel.AddTxdCommand.Execute(null);
-        viewModel.ReloadCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.ReloadCommand.ExecuteAsync(null);
 
         Assert.IsNull(viewModel.AttachedTxd);
         Assert.IsFalse(viewModel.IsProjectDirty);
@@ -467,7 +468,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenCorruptByx_KeepsCurrentDocumentUntouched()
+    public async Task OpenCorruptByx_KeepsCurrentDocumentUntouched()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
         var corruptPath = Path.Combine(_testDirectory, "corrupt.byx");
@@ -477,11 +478,74 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(corruptPath);
         var viewModel = CreateViewModel(dialogs);
 
-        viewModel.OpenFileCommand.Execute(null);
-        viewModel.OpenFileCommand.Execute(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
+        await viewModel.OpenFileCommand.ExecuteAsync(null);
 
         Assert.AreEqual(viceCityPath, viewModel.GxtPath);
         Assert.AreEqual("Hello", viewModel.Entries.Single().Text);
+        Assert.HasCount(1, dialogs.Errors);
+    }
+
+    [TestMethod]
+    public async Task CancelledOpen_KeepsSessionAndDirtyStateUntouched()
+    {
+        var currentPath = CreateGxt("current.gxt", text: "Current");
+        var nextPath = CreateGxt("next.gxt", text: "Next");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(nextPath);
+        var factory = new GxtManagerFactory();
+        var workflow = new BlockingDocumentWorkflow(
+            new DocumentWorkflow(factory, new ByxProjectSerializer(factory, new TxdReader())));
+        var viewModel = new MainWindowViewModel(
+            factory,
+            dialogs,
+            documentWorkflow: workflow);
+        viewModel.OpenFromCommandLine(currentPath);
+        viewModel.SelectedEntry = viewModel.Entries.Single();
+        viewModel.CommentDraft = "Unsaved comment";
+        viewModel.SaveCommentCommand.Execute(null);
+        workflow.BlockNextOpen = true;
+
+        var operation = viewModel.OpenFileCommand.ExecuteAsync(null);
+        await workflow.OpenStarted.Task;
+        Assert.IsTrue(viewModel.IsBusy);
+        viewModel.CancelOperationCommand.Execute(null);
+        await operation;
+
+        Assert.IsFalse(viewModel.IsBusy);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.AreEqual(currentPath, viewModel.GxtPath);
+        Assert.AreEqual("Current", viewModel.Entries.Single().Text);
+        Assert.AreEqual("Unsaved comment", viewModel.Entries.Single().Comment);
+        Assert.IsEmpty(dialogs.Errors);
+    }
+
+    [TestMethod]
+    public async Task FailedSave_KeepsLiveDocumentAndDirtyStateUntouched()
+    {
+        var currentPath = CreateGxt("current.gxt", text: "Current");
+        var targetPath = Path.Combine(_testDirectory, "failed-save.gxt");
+        var dialogs = new FakeDialogService { AllowErrors = true };
+        dialogs.SaveFileResults.Enqueue(targetPath);
+        dialogs.EditEntryResults.Enqueue(new EntryEditorResult("HELLO", "Edited", null));
+        var factory = new GxtManagerFactory();
+        var workflow = new BlockingDocumentWorkflow(
+            new DocumentWorkflow(factory, new ByxProjectSerializer(factory, new TxdReader())));
+        var viewModel = new MainWindowViewModel(
+            factory,
+            dialogs,
+            documentWorkflow: workflow);
+        viewModel.OpenFromCommandLine(currentPath);
+        viewModel.SelectedEntry = viewModel.Entries.Single();
+        viewModel.EditEntryCommand.Execute(null);
+        workflow.FailNextGxtSave = true;
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.AreEqual(currentPath, viewModel.GxtPath);
+        Assert.AreEqual("Edited", viewModel.Entries.Single().Text);
+        Assert.IsFalse(File.Exists(targetPath));
         Assert.HasCount(1, dialogs.Errors);
     }
 
@@ -614,7 +678,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void FirstComparisonIsEnglishSourceAndIsPassedToEntryEditor()
+    public async Task FirstComparisonIsEnglishSourceAndIsPassedToEntryEditor()
     {
         var targetPath = CreateViceCityGxtWithEntries(
             "target.gxt",
@@ -630,7 +694,7 @@ public sealed class MainWindowViewModelTests
         });
         var viewModel = CreateViewModel(dialogs);
         viewModel.OpenFromCommandLine(targetPath);
-        viewModel.OpenComparisonFileCommand.Execute(null);
+        await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
         viewModel.SelectedEntry = viewModel.Entries.Single();
 
         viewModel.EditEntryCommand.Execute(null);
@@ -682,7 +746,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void CommentOnPlainGxtSavesAsSparseByxMetadata()
+    public async Task CommentOnPlainGxtSavesAsSparseByxMetadata()
     {
         var gxtPath = CreateViceCityGxtWithEntries(
             "comments.gxt",
@@ -696,7 +760,7 @@ public sealed class MainWindowViewModelTests
         viewModel.CommentDraft = "Review against gameplay";
 
         viewModel.SaveCommentCommand.Execute(null);
-        viewModel.SaveCommand.Execute(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.IsTrue(File.Exists(byxPath));
         StringAssert.Contains(dialogs.SaveFileCalls.Single().Filter, "*.byx");
@@ -708,7 +772,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void CommentImportAndExportCommandsRefreshRowsAndReportTextMismatch()
+    public async Task CommentImportAndExportCommandsRefreshRowsAndReportTextMismatch()
     {
         var gxtPath = CreateViceCityGxtWithEntries(
             "import-comments.gxt",
@@ -739,8 +803,8 @@ public sealed class MainWindowViewModelTests
         var viewModel = CreateViewModel(dialogs);
         viewModel.OpenFromCommandLine(gxtPath);
 
-        viewModel.ImportCommentsCommand.Execute(null);
-        viewModel.ExportCommentsCommand.Execute(null);
+        await viewModel.ImportCommentsCommand.ExecuteAsync(null);
+        await viewModel.ExportCommentsCommand.ExecuteAsync(null);
 
         Assert.AreEqual("Imported note", viewModel.Entries.Single().Comment);
         Assert.IsTrue(viewModel.IsProjectDirty);
@@ -955,6 +1019,95 @@ public sealed class MainWindowViewModelTests
         public void Save(string path, EditorProject value)
         {
         }
+    }
+
+    private sealed class BlockingDocumentWorkflow(IDocumentWorkflow inner) : IDocumentWorkflow
+    {
+        public bool BlockNextOpen { get; set; }
+
+        public bool FailNextGxtSave { get; set; }
+
+        public TaskCompletionSource<bool> OpenStarted { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public EditorProject CreateSnapshot(EditorProject project) =>
+            inner.CreateSnapshot(project);
+
+        public Task<EditorProject> CreateSnapshotAsync(
+            EditorProject project,
+            CancellationToken cancellationToken) =>
+            inner.CreateSnapshotAsync(project, cancellationToken);
+
+        public GXTType DetectType(string path) => inner.DetectType(path);
+
+        public EditorProject OpenGxt(
+            string path,
+            string? characterMapPath = null,
+            GxtLanguage language = GxtLanguage.Auto) =>
+            inner.OpenGxt(path, characterMapPath, language);
+
+        public EditorProject OpenProject(string path) => inner.OpenProject(path);
+
+        public async Task<EditorProject> OpenGxtAsync(
+            string path,
+            string? characterMapPath,
+            GxtLanguage language,
+            CancellationToken cancellationToken)
+        {
+            if (!BlockNextOpen)
+            {
+                return await inner.OpenGxtAsync(
+                    path,
+                    characterMapPath,
+                    language,
+                    cancellationToken);
+            }
+
+            BlockNextOpen = false;
+            OpenStarted.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable.");
+        }
+
+        public Task<EditorProject> OpenProjectAsync(
+            string path,
+            CancellationToken cancellationToken) =>
+            inner.OpenProjectAsync(path, cancellationToken);
+
+        public CommonGXTManager OpenRelatedGxt(string path, EditorSession session) =>
+            inner.OpenRelatedGxt(path, session);
+
+        public Task<CommonGXTManager> OpenRelatedGxtAsync(
+            string path,
+            EditorSession session,
+            CancellationToken cancellationToken) =>
+            inner.OpenRelatedGxtAsync(path, session, cancellationToken);
+
+        public void SaveGxt(string path, EditorProject project) =>
+            inner.SaveGxt(path, project);
+
+        public void SaveProject(string path, EditorProject project) =>
+            inner.SaveProject(path, project);
+
+        public Task SaveGxtAsync(
+            string path,
+            EditorProject project,
+            CancellationToken cancellationToken)
+        {
+            if (FailNextGxtSave)
+            {
+                FailNextGxtSave = false;
+                throw new IOException("Simulated save failure.");
+            }
+
+            return inner.SaveGxtAsync(path, project, cancellationToken);
+        }
+
+        public Task SaveProjectAsync(
+            string path,
+            EditorProject project,
+            CancellationToken cancellationToken) =>
+            inner.SaveProjectAsync(path, project, cancellationToken);
     }
 
     private sealed class ThrowingEncounterMetadataProvider : IEncounterMetadataProvider

@@ -2,6 +2,7 @@ using System.IO;
 using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
+using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
@@ -12,19 +13,20 @@ namespace GTA_GXT_Editor.GTAVC
         private readonly List<string> _emptyBlockKeySetsList = new List<string>();
 
         private List<GXTBase> _gxtEntries;
-        private Dictionary<int[], char> _cyrillicCharsDictionary;
+        private CharacterMapProfile _characterMap;
         private ViceCityTextEncodingProfile? _builtInTextEncoding;
         private GxtLanguage _language;
 
         public override GxtLanguage Language => _language;
-        public override string? CyrillicCharsDictionaryPath { get; set; }
+        public override string? CharacterMapPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
-        public override Dictionary<int[], char> CyrillicCharsDictionary
+        public override CharacterMapProfile CharacterMap
         {
-            get => _cyrillicCharsDictionary;
+            get => _characterMap.Clone();
             set
             {
-                _cyrillicCharsDictionary = value;
+                ArgumentNullException.ThrowIfNull(value);
+                _characterMap = value.Clone();
                 _builtInTextEncoding = null;
             }
         }
@@ -34,23 +36,23 @@ namespace GTA_GXT_Editor.GTAVC
             string? dictionaryPath = null,
             GxtLanguage language = GxtLanguage.Auto)
         {
-            CyrillicCharsDictionaryPath = dictionaryPath;
-            _cyrillicCharsDictionary = [];
+            CharacterMapPath = dictionaryPath;
+            _characterMap = new CharacterMapProfile();
             _gxtEntries = ReadGXTFile(gxtPath);
 
-            if (CyrillicCharsDictionaryPath == null)
+            if (CharacterMapPath == null)
             {
                 _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(
                     gxtPath,
                     _gxtEntries,
                     language);
-                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+                _characterMap = CharacterMapProfile.FromDictionary(
+                    _builtInTextEncoding.ToCharacterDictionary());
                 _language = _builtInTextEncoding.Language;
             }
             else
             {
-                _cyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
-                    CyrillicCharsDictionaryPath);
+                _characterMap = CharacterMapFileSerializer.Load(CharacterMapPath);
                 _language = language == GxtLanguage.Auto
                     ? GxtLanguageDetector.DetectFromName(gxtPath)
                     : language;
@@ -61,27 +63,26 @@ namespace GTA_GXT_Editor.GTAVC
             Stream stream,
             string sourceName,
             GxtLanguage language,
-            Dictionary<int[], char>? characterDictionary)
+            CharacterMapProfile? characterMap)
         {
-            CyrillicCharsDictionaryPath = null;
-            _cyrillicCharsDictionary = [];
+            CharacterMapPath = null;
+            _characterMap = new CharacterMapProfile();
             _gxtEntries = ReadGXT(stream, sourceName);
 
-            if (characterDictionary is null)
+            if (characterMap is null)
             {
                 _builtInTextEncoding = ViceCityTextEncodingProfile.Detect(
                     sourceName,
                     _gxtEntries,
                     language);
-                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+                _characterMap = CharacterMapProfile.FromDictionary(
+                    _builtInTextEncoding.ToCharacterDictionary());
                 _language = _builtInTextEncoding.Language;
             }
             else
             {
                 _builtInTextEncoding = null;
-                _cyrillicCharsDictionary = characterDictionary.ToDictionary(
-                    pair => pair.Key.ToArray(),
-                    pair => pair.Value);
+                _characterMap = characterMap.Clone();
                 _language = language == GxtLanguage.Auto
                     ? GxtLanguageDetector.DetectFromName(sourceName)
                     : language;
@@ -94,24 +95,24 @@ namespace GTA_GXT_Editor.GTAVC
             IEnumerable<string> sourceTexts,
             GxtLanguage language)
         {
-            CyrillicCharsDictionaryPath = dictionaryPath;
+            CharacterMapPath = dictionaryPath;
             _gxtEntries = [];
             _language = language == GxtLanguage.Auto
                 ? GxtLanguageDetector.DetectForText(sourceName, sourceTexts)
                 : language;
 
-            if (CyrillicCharsDictionaryPath is null)
+            if (CharacterMapPath is null)
             {
                 _builtInTextEncoding = ViceCityTextEncodingProfile.DetectForText(
                     sourceName,
                     sourceTexts,
                     _language);
-                _cyrillicCharsDictionary = _builtInTextEncoding.ToCharacterDictionary();
+                _characterMap = CharacterMapProfile.FromDictionary(
+                    _builtInTextEncoding.ToCharacterDictionary());
             }
             else
             {
-                _cyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
-                    CyrillicCharsDictionaryPath);
+                _characterMap = CharacterMapFileSerializer.Load(CharacterMapPath);
             }
         }
 

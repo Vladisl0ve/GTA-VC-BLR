@@ -36,7 +36,7 @@ public static class GxtJsonExporter
         var document = new GxtJsonDocument(
             game,
             Path.GetFileName(sourcePath),
-            GxtLanguageDetector.ToJsonCode(resolvedLanguage),
+            GxtDomainRules.ToOptionalLanguageCode(resolvedLanguage),
             entryList.Select(entry => new GxtJsonEntry(
                 entry.Name,
                 entry.Text,

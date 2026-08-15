@@ -18,253 +18,11 @@
     </Window.InputBindings>
 
     <Window.Resources>
-        <Geometry x:Key="ChevronDownGeometry">M 1,2 L 5,6 L 9,2</Geometry>
-
-        <Style x:Key="CommandButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Height" Value="40" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="ButtonSurface"
-                                Padding="{TemplateBinding Padding}"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              RecognizesAccessKey="True"
-                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SplitPrimaryButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource CommandButtonStyle}">
-            <Setter Property="BorderThickness" Value="1,1,0,1" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="ButtonSurface"
-                                Padding="{TemplateBinding Padding}"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7,0,0,7"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              RecognizesAccessKey="True"
-                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SplitChevronButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource CommandButtonStyle}">
-            <Setter Property="Width" Value="38" />
-            <Setter Property="MinWidth" Value="38" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="ButtonSurface"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="0,7,7,0"
-                                SnapsToDevicePixels="True">
-                            <Path Width="10"
-                                  Height="6"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Data="{StaticResource ChevronDownGeometry}"
-                                  SnapsToDevicePixels="True"
-                                  Stretch="Uniform"
-                                  Stroke="{TemplateBinding Foreground}"
-                                  StrokeEndLineCap="Round"
-                                  StrokeLineJoin="Round"
-                                  StrokeStartLineCap="Round"
-                                  StrokeThickness="1.5" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="DropDownButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource CommandButtonStyle}">
-            <Setter Property="Padding" Value="14,0,12,0" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="ButtonSurface"
-                                Padding="{TemplateBinding Padding}"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7"
-                                SnapsToDevicePixels="True">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                                  RecognizesAccessKey="True"
-                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                                <Path Grid.Column="1"
-                                      Width="10"
-                                      Height="6"
-                                      Margin="12,0,0,0"
-                                      VerticalAlignment="Center"
-                                      Data="{StaticResource ChevronDownGeometry}"
-                                      SnapsToDevicePixels="True"
-                                      Stretch="Uniform"
-                                      Stroke="{TemplateBinding Foreground}"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
-                                      StrokeStartLineCap="Round"
-                                      StrokeThickness="1.5" />
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorTertiaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{DynamicResource FocusStrokeColorOuterBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Background"
-                                        Value="{DynamicResource ControlFillColorDisabledBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="CompactCommandButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource CommandButtonStyle}">
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="12,0" />
-        </Style>
-
-        <Style x:Key="CompactDropDownButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource DropDownButtonStyle}">
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="12,0,10,0" />
-        </Style>
-
-        <Style x:Key="CommandContextMenuStyle"
-               TargetType="{x:Type ContextMenu}"
-               BasedOn="{StaticResource {x:Type ContextMenu}}">
-            <Setter Property="MinWidth" Value="220" />
-            <Setter Property="Padding" Value="4" />
-            <Setter Property="HasDropShadow" Value="True" />
-            <Setter Property="Placement" Value="Bottom" />
-            <Setter Property="VerticalOffset" Value="6" />
-        </Style>
-
-        <Style x:Key="CommandMenuItemStyle"
-               TargetType="{x:Type MenuItem}"
-               BasedOn="{StaticResource {x:Type MenuItem}}">
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Padding" Value="12,7" />
-        </Style>
-
-        <Style x:Key="DangerCommandMenuItemStyle"
-               TargetType="{x:Type MenuItem}"
-               BasedOn="{StaticResource CommandMenuItemStyle}">
-            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/MainWindowCommandStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid Margin="18">
@@ -789,6 +547,31 @@
         <StatusBar Grid.Row="6">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText}" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel.Style>
+                        <Style TargetType="{x:Type StackPanel}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <ProgressBar Width="72"
+                                 Height="4"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 IsIndeterminate="True" />
+                    <TextBlock Margin="0,0,8,0"
+                               VerticalAlignment="Center"
+                               Text="{Binding BusyText}" />
+                    <Button Padding="8,2"
+                            Content="Отмена"
+                            Command="{Binding CancelOperationCommand}" />
+                </StackPanel>
             </StatusBarItem>
         </StatusBar>
     </Grid>

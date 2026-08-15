@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
+using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
 
@@ -51,7 +52,7 @@ public sealed class GxtManagerFactory
         GXTType type,
         string sourceName,
         GxtLanguage language,
-        Dictionary<int[], char>? characterDictionary = null)
+        CharacterMapProfile? characterMap = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
         using var stream = new MemoryStream(data.ToArray(), writable: false);
@@ -61,12 +62,12 @@ public sealed class GxtManagerFactory
                 stream,
                 sourceName,
                 language,
-                characterDictionary),
+                characterMap),
             GXTType.GtaViceCity => new GTAVC.GXTManager(
                 stream,
                 sourceName,
                 language,
-                characterDictionary),
+                characterMap),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Неподдерживаемый тип GXT."),
         };
     }

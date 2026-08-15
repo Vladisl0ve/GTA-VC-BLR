@@ -46,7 +46,9 @@ public static class GxtCommentsImporter
         ProjectMetadataJsonSerializer.Validate(metadata, gameType);
 
         var document = Deserialize(data);
-        var documentGameType = ParseGame(document.Game);
+        var documentGameType = GxtDomainRules.ParseCanonicalGameName(
+            document.Game,
+            "файле комментариев");
         if (documentGameType != gameType)
         {
             throw new InvalidDataException(
@@ -229,23 +231,16 @@ public static class GxtCommentsImporter
         return result;
     }
 
-    private static GXTType ParseGame(string game) => game switch
-    {
-        "GTA III" => GXTType.GtaIII,
-        "GTA Vice City" => GXTType.GtaViceCity,
-        _ => throw new InvalidDataException(
-            $"Игра '{game}' в файле комментариев не поддерживается."),
-    };
-
     private static void ValidateAsciiName(string name, string fieldName, int entryIndex)
     {
-        if (name.Length > 8)
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.TooLong)
         {
             throw new InvalidDataException(
-                $"{fieldName} записи комментариев {entryIndex} может содержать не более 8 символов.");
+                $"{fieldName} записи комментариев {entryIndex} может содержать не более " +
+                $"{GxtDomainRules.MaximumNameLength} символов.");
         }
 
-        if (name.Any(character => character is '\0' or > '\u007f'))
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.NonAscii)
         {
             throw new InvalidDataException(
                 $"{fieldName} записи комментариев {entryIndex} должен содержать только ASCII-символы без NUL.");

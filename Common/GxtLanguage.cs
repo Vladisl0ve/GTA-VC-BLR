@@ -82,28 +82,11 @@ internal static class GxtLanguageDetector
         return GxtLanguage.Auto;
     }
 
-    public static GxtLanguage ParseJsonLanguage(string? language)
-    {
-        return language?.Trim().ToUpperInvariant() switch
-        {
-            null or "" or "AUTO" => GxtLanguage.Auto,
-            "EN" or "ENG" or "ENGLISH" => GxtLanguage.English,
-            "BE" or "BEL" or "BELARUSIAN" or "БЕЛАРУСКАЯ" => GxtLanguage.Belarusian,
-            "RU" or "RUS" or "RUSSIAN" or "РУССКИЙ" => GxtLanguage.Russian,
-            "UK" or "UKR" or "UKRAINIAN" or "УКРАЇНСЬКА" => GxtLanguage.Ukrainian,
-            _ => throw new InvalidDataException(
-                $"Язык '{language}' не поддерживается. Ожидается 'be', 'en', 'ru' или 'uk'."),
-        };
-    }
+    public static GxtLanguage ParseJsonLanguage(string? language) =>
+        GxtDomainRules.ParseFlexibleLanguageCode(language);
 
-    public static string? ToJsonCode(GxtLanguage language) => language switch
-    {
-        GxtLanguage.English => "en",
-        GxtLanguage.Belarusian => "be",
-        GxtLanguage.Russian => "ru",
-        GxtLanguage.Ukrainian => "uk",
-        _ => null,
-    };
+    public static string? ToJsonCode(GxtLanguage language) =>
+        GxtDomainRules.ToOptionalLanguageCode(language);
 
     private static bool IsCyrillic(char character) =>
         character is >= '\u0400' and <= '\u04ff';

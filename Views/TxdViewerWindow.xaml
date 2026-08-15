@@ -42,8 +42,10 @@
                 <TextBlock Margin="0,3,0,0" Opacity="0.7" Text="{Binding VerificationText}" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Margin="8,0,0,0" Padding="12,6" Content="Импорт…" Click="ImportButton_OnClick" />
-                <Button Margin="8,0,0,0" Padding="12,6" Content="Экспорт…" Click="ExportButton_OnClick" />
+                <Button Margin="8,0,0,0" Padding="12,6" Content="Импорт…"
+                        Command="{Binding ImportProfileCommand}" />
+                <Button Margin="8,0,0,0" Padding="12,6" Content="Экспорт…"
+                        Command="{Binding ExportProfileCommand}" />
                 <Button Margin="8,0,0,0" Padding="12,6" Content="Белорусский 0x80–0xBF"
                         Command="{Binding UseBelarusianPresetCommand}" />
                 <Button Margin="8,0,0,0" Padding="12,6" Content="Сбросить"
@@ -150,7 +152,7 @@
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button Width="100" Padding="12,6" Content="Отмена" IsCancel="True" />
                 <Button Width="120" Margin="8,0,0,0" Padding="12,6" Content="Проверить…"
-                        IsDefault="True" Click="ApplyButton_OnClick" />
+                        IsDefault="True" Command="{Binding ApplyCommand}" />
             </StackPanel>
         </DockPanel>
     </Grid>
