@@ -89,7 +89,7 @@ public partial class EntryListViewModel : ObservableObject
 
     partial void OnSelectedSearchColumnChanged(SearchColumnOption value)
     {
-        if (LiveSearch)
+        if (value is not null && LiveSearch)
         {
             ApplyFilter();
         }
@@ -113,6 +113,11 @@ public partial class EntryListViewModel : ObservableObject
 
     partial void OnSelectedMetadataTypeChanged(MetadataTypeFilterOption value)
     {
+        if (value is null)
+        {
+            return;
+        }
+
         RebuildMetadataBlockOptions();
         ApplySort();
         ApplyFilter();
@@ -120,11 +125,22 @@ public partial class EntryListViewModel : ObservableObject
 
     partial void OnSelectedMetadataBlockChanged(MetadataBlockFilterOption value)
     {
+        if (value is null)
+        {
+            return;
+        }
+
         ApplySort();
         ApplyFilter();
     }
 
-    partial void OnSelectedSortOptionChanged(EntrySortOption value) => ApplySort();
+    partial void OnSelectedSortOptionChanged(EntrySortOption value)
+    {
+        if (value is not null)
+        {
+            ApplySort();
+        }
+    }
 
     partial void OnSelectedEntryChanged(GxtEntryRow? value)
     {
@@ -333,9 +349,9 @@ public partial class EntryListViewModel : ObservableObject
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        var searchColumn = SelectedSearchColumn.Column;
-        var metadataType = SelectedMetadataType.Type;
-        var sortMode = SelectedSortOption.Mode;
+        var searchColumn = SelectedSearchColumn?.Column ?? SearchColumn.All;
+        var metadataType = SelectedMetadataType?.Type;
+        var sortMode = SelectedSortOption?.Mode ?? EntrySortMode.GxtOrder;
         var selectedName = SelectedEntry?.Name;
         var selectedTable = SelectedEntry?.RawTableName;
 
@@ -499,12 +515,15 @@ public partial class EntryListViewModel : ObservableObject
 
     private void ApplySort()
     {
-        if (EntriesView is ListCollectionView view)
+        if (EntriesView is ListCollectionView view &&
+            SelectedSortOption is { } sortOption &&
+            SelectedMetadataBlock is { } metadataBlock &&
+            SelectedMetadataType is { } metadataType)
         {
             view.CustomSort = new GxtEntryRowComparer(
-                SelectedSortOption.Mode,
-                SelectedMetadataBlock.Id,
-                SelectedMetadataType.Type);
+                sortOption.Mode,
+                metadataBlock.Id,
+                metadataType.Type);
         }
     }
 
@@ -515,14 +534,14 @@ public partial class EntryListViewModel : ObservableObject
             return false;
         }
 
-        if (SelectedMetadataType.Type is { } selectedType &&
+        if (SelectedMetadataType?.Type is { } selectedType &&
             !entry.Occurrences.Any(occurrence =>
                 string.Equals(occurrence.BlockType, selectedType, StringComparison.Ordinal)))
         {
             return false;
         }
 
-        if (SelectedMetadataBlock.Id is { } selectedBlockId &&
+        if (SelectedMetadataBlock?.Id is { } selectedBlockId &&
             !entry.Occurrences.Any(occurrence =>
                 string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal)))
         {
@@ -545,7 +564,7 @@ public partial class EntryListViewModel : ObservableObject
             Contains(occurrence.BlockDescription) ||
             Contains(occurrence.Context));
 
-        return SelectedSearchColumn.Column switch
+        return (SelectedSearchColumn?.Column ?? SearchColumn.All) switch
         {
             SearchColumn.Name => Contains(entry.Name),
             SearchColumn.Text => Contains(entry.Text),

@@ -149,6 +149,29 @@ public sealed class LocalizationServiceTests
         StringAssert.StartsWith(viewModel.SelectedSortOption.Name, "en-US:");
     }
 
+    [TestMethod]
+    public void EntryListTransientNullSelections_DoNotCrashAndLanguageChangeRestoresDefaults()
+    {
+        var localization = new LocalizationService(
+            new TestResourceManager(),
+            [
+                new UiLanguageOption("en-US", "English"),
+                new UiLanguageOption("be-BY", "Беларуская"),
+            ]);
+        var viewModel = new EntryListViewModel(new EditorSession(), localization);
+
+        viewModel.SelectedSearchColumn = null!;
+        viewModel.SelectedMetadataType = null!;
+        viewModel.SelectedMetadataBlock = null!;
+        viewModel.SelectedSortOption = null!;
+
+        Assert.IsTrue(localization.SetLanguage("be-BY"));
+        Assert.AreEqual(SearchColumn.All, viewModel.SelectedSearchColumn.Column);
+        Assert.IsNull(viewModel.SelectedMetadataType.Type);
+        Assert.IsNull(viewModel.SelectedMetadataBlock.Id);
+        Assert.AreEqual(EntrySortMode.GxtOrder, viewModel.SelectedSortOption.Mode);
+    }
+
     private sealed class TestResourceManager : ResourceManager
     {
         public override string? GetString(string name, CultureInfo? culture) =>
