@@ -62,7 +62,7 @@
   <data name="Main.InstallerNotConfigured" xml:space="preserve"><value>Не настроены</value></data>
   <data name="Main.InstallerConfigured" xml:space="preserve"><value>Далучаных файлаў: {0}</value></data>
   <data name="Main.InstallerAvailability" xml:space="preserve"><value>Даступны для праектаў GTA Vice City PC з далучаным TXD</value></data>
-  <data name="Main.InstallerConfigure" xml:space="preserve"><value>Настроіць…</value></data>
+  <data name="Main.InstallerConfigure" xml:space="preserve"><value>Наладзіць інсталятар</value></data>
   <data name="Main.Search.ToolTip" xml:space="preserve"><value>Пошук па ключах, тэксце і табліцах</value></data>
   <data name="Main.CaseSensitive" xml:space="preserve"><value>Улічваць рэгістр</value></data>
   <data name="Main.LiveSearch" xml:space="preserve"><value>Жывы пошук</value></data>

@@ -12,6 +12,7 @@ alwaysApply: true
 - Never edit `bin/`, `obj/`, or pinned third-party files under `Tools/InnoSetup/`. Do not hand-edit the large canonical encounter metadata; use `scripts/generate-vice-city-encounter-metadata.ps1` and verify its tests. Change bundled mappings/reference assets only when the task explicitly changes their contract.
 - Follow `.editorconfig`: UTF-8, CRLF, final newline, four spaces for C#/XAML, sorted `System` usings, and preferably file-scoped namespaces. Preserve intentional legacy namespace/API compatibility instead of performing drive-by renames.
 - Add or update automated tests for behavior changes. Keep English and Belarusian UI resources and paired documentation (`README*.md`, `docs/*.md` plus `*.be.md`) synchronized when user-visible behavior changes.
+- Always answer in belarusian language.
 
 # Verification
 
