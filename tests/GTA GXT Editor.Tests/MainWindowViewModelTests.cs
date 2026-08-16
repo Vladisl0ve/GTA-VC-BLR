@@ -217,9 +217,16 @@ public sealed class MainWindowViewModelTests
 
         viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(
             option => option.Column == SearchColumn.Comparison);
+        Assert.AreEqual(2, viewModel.FilteredEntryCount);
         viewModel.SearchText = "needle";
 
         Assert.AreEqual("FIRST", viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+        Assert.AreEqual(1, viewModel.FilteredEntryCount);
+        StringAssert.Contains(viewModel.FilteredEntriesText, "1");
+
+        viewModel.SearchText = string.Empty;
+
+        Assert.AreEqual(2, viewModel.FilteredEntryCount);
     }
 
     [TestMethod]
@@ -590,6 +597,7 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual(
             "LAW_1",
             viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+        Assert.AreEqual(1, viewModel.FilteredEntryCount);
 
         viewModel.SelectedMetadataBlock = viewModel.MetadataBlockOptions.Single(option =>
             option.Id == "mission.the-party");
@@ -598,6 +606,7 @@ public sealed class MainWindowViewModelTests
             viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
 
         viewModel.ClearSearchCommand.Execute(null);
+        Assert.AreEqual(3, viewModel.FilteredEntryCount);
         viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(option =>
             option.Column == SearchColumn.Metadata);
         viewModel.SearchText = "The Party";
@@ -743,6 +752,37 @@ public sealed class MainWindowViewModelTests
         Assert.IsNull(viewModel.Entries.Single().Comment);
         Assert.IsTrue(viewModel.IsProjectDirty);
         Assert.IsFalse(viewModel.ClearCommentCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ReviewedFlagCanBeToggledAndSavedAsSparseProjectMetadata()
+    {
+        var gxtPath = CreateViceCityGxtWithEntries(
+            "reviewed.gxt",
+            ("MAIN", "LAW_1", "Party"));
+        var byxPath = Path.Combine(_testDirectory, "reviewed.byx");
+        var dialogs = new FakeDialogService();
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+        var row = viewModel.Entries.Single();
+
+        viewModel.ToggleReviewedCommand.Execute(row);
+
+        Assert.IsTrue(viewModel.Entries.Single().IsReviewed);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        var serializer = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader());
+        var saved = serializer.Load(byxPath);
+        Assert.HasCount(1, saved.Metadata.Entries);
+        Assert.IsTrue(saved.Metadata.Entries[0].IsReviewed);
+
+        viewModel.ToggleReviewedCommand.Execute(viewModel.Entries.Single());
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        saved = serializer.Load(byxPath);
+        Assert.IsEmpty(saved.Metadata.Entries);
     }
 
     [TestMethod]

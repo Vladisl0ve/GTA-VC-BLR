@@ -52,6 +52,13 @@ public partial class EntryListViewModel : ObservableObject
 
     public bool HasEncounterMetadata => Entries.Any(entry => entry.Occurrences.Count > 0);
 
+    public int FilteredEntryCount => EntriesView.Cast<object>().Count();
+
+    public string FilteredEntriesText => _localization.Format(
+        "Status.FilteredEntries",
+        FilteredEntryCount,
+        Entries.Count);
+
     [ObservableProperty]
     private string searchText = string.Empty;
 
@@ -147,7 +154,12 @@ public partial class EntryListViewModel : ObservableObject
         CommentDraft = value?.Comment ?? string.Empty;
     }
 
-    public void ApplyFilter() => EntriesView.Refresh();
+    public void ApplyFilter()
+    {
+        EntriesView.Refresh();
+        OnPropertyChanged(nameof(FilteredEntryCount));
+        OnPropertyChanged(nameof(FilteredEntriesText));
+    }
 
     public void ClearSearch()
     {
@@ -164,6 +176,8 @@ public partial class EntryListViewModel : ObservableObject
         var manager = _session.Manager;
         if (manager is null)
         {
+            OnPropertyChanged(nameof(FilteredEntryCount));
+            OnPropertyChanged(nameof(FilteredEntriesText));
             return;
         }
 
@@ -196,6 +210,7 @@ public partial class EntryListViewModel : ObservableObject
                     .Select(document => document.Texts.GetValueOrDefault(identity))
                     .ToArray(),
                 Comment = projectEntry?.Comment,
+                IsReviewed = projectEntry?.IsReviewed == true,
                 Occurrences = occurrences,
                 PrimaryOccurrence = occurrences.Length > 0 ? occurrences[0] : null,
             });
@@ -203,7 +218,7 @@ public partial class EntryListViewModel : ObservableObject
 
         RebuildMetadataBlockOptions();
         ApplySort();
-        EntriesView.Refresh();
+        ApplyFilter();
         SelectedEntry = Entries.FirstOrDefault(entry =>
             string.Equals(entry.Name, selectedName, StringComparison.Ordinal) &&
             string.Equals(entry.RawTableName, selectedTable, StringComparison.Ordinal));
@@ -290,7 +305,40 @@ public partial class EntryListViewModel : ObservableObject
         }
 
         entry.Comment = normalizedComment;
-        if (entry.Comment is null && entry.Occurrences.Count == 0)
+        if (entry.Comment is null && !entry.IsReviewed && entry.Occurrences.Count == 0)
+        {
+            project.Metadata.Entries.Remove(entry);
+        }
+
+        return true;
+    }
+
+    public bool SetProjectReviewed(string key, string? rawTableName, bool isReviewed)
+    {
+        if (_session.Project is not { } project)
+        {
+            return false;
+        }
+
+        var table = _session.LoadedType == GXTType.GtaViceCity
+            ? rawTableName?.GetClearName()
+            : null;
+        var entry = project.Metadata.Entries.FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, key, StringComparison.Ordinal) &&
+            string.Equals(candidate.Table, table, StringComparison.Ordinal));
+        if ((entry?.IsReviewed ?? false) == isReviewed)
+        {
+            return false;
+        }
+
+        if (entry is null)
+        {
+            entry = new ProjectEntryMetadata { Key = key, Table = table };
+            project.Metadata.Entries.Add(entry);
+        }
+
+        entry.IsReviewed = isReviewed;
+        if (!entry.IsReviewed && entry.Comment is null && entry.Occurrences.Count == 0)
         {
             project.Metadata.Entries.Remove(entry);
         }
@@ -327,13 +375,17 @@ public partial class EntryListViewModel : ObservableObject
     public void RemoveEmptyProjectMetadataEntries()
     {
         _session.Project?.Metadata.Entries.RemoveAll(entry =>
-            string.IsNullOrWhiteSpace(entry.Comment) && entry.Occurrences.Count == 0);
+            !entry.IsReviewed &&
+            string.IsNullOrWhiteSpace(entry.Comment) &&
+            entry.Occurrences.Count == 0);
     }
 
     public bool HasPersistableProjectMetadata() =>
         _session.Project?.Metadata.Blocks.Count > 0 ||
         _session.Project?.Metadata.Entries.Any(entry =>
-            !string.IsNullOrWhiteSpace(entry.Comment) || entry.Occurrences.Count > 0) == true;
+            entry.IsReviewed ||
+            !string.IsNullOrWhiteSpace(entry.Comment) ||
+            entry.Occurrences.Count > 0) == true;
 
     public bool CanSaveComment() =>
         SelectedEntry is not null &&
@@ -370,6 +422,7 @@ public partial class EntryListViewModel : ObservableObject
         if (_session.Manager is null)
         {
             RebuildMetadataBlockOptions();
+            OnPropertyChanged(nameof(FilteredEntriesText));
             return;
         }
 

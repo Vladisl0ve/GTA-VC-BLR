@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace GTA_GXT_Editor.Models;
 
 public sealed class ByxManifestHeader
@@ -89,6 +91,9 @@ public sealed class ProjectEntryMetadata
     public string Key { get; set; } = string.Empty;
 
     public string? Comment { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsReviewed { get; set; }
 
     public List<ProjectEntryOccurrence> Occurrences { get; set; } = [];
 }

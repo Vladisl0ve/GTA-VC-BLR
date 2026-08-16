@@ -16,6 +16,8 @@ public sealed record GxtEntryRow(
 
     public string? Comment { get; init; }
 
+    public bool IsReviewed { get; init; }
+
     public IReadOnlyList<GxtEntryOccurrenceView> Occurrences { get; init; } = [];
 
     public GxtEntryOccurrenceView? PrimaryOccurrence { get; init; }

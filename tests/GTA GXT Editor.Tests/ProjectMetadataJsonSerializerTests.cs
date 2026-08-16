@@ -47,12 +47,14 @@ public sealed class ProjectMetadataJsonSerializerTests
         Assert.AreEqual("MAIN", loaded.Entries[0].Table);
         Assert.AreEqual("HELLO", loaded.Entries[0].Key);
         Assert.AreEqual("Праверыць інтанацыю.", loaded.Entries[0].Comment);
+        Assert.IsTrue(loaded.Entries[0].IsReviewed);
         Assert.HasCount(1, loaded.Entries[0].Occurrences);
         Assert.AreEqual("mission.party", loaded.Entries[0].Occurrences[0].BlockId);
         Assert.AreEqual("Ken's office", loaded.Entries[0].Occurrences[0].Context);
 
         var json = File.ReadAllText(path);
         StringAssert.Contains(json, "Праверыць інтанацыю.");
+        StringAssert.Contains(json, "\"isReviewed\": true");
         Assert.IsFalse(json.Contains("\\u041f", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -178,6 +180,7 @@ public sealed class ProjectMetadataJsonSerializerTests
                 Table = "MAIN",
                 Key = "HELLO",
                 Comment = "Праверыць інтанацыю.",
+                IsReviewed = true,
                 Occurrences =
                 [
                     new ProjectEntryOccurrence

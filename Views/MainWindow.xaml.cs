@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using GTA_GXT_Editor.ViewModels;
 using GTA_GXT_Editor.Models;
 
@@ -22,6 +23,12 @@ public partial class MainWindow : Window
 
     private void EntriesGrid_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (e.OriginalSource is DependencyObject source &&
+            FindVisualParent<CheckBox>(source) is not null)
+        {
+            return;
+        }
+
         if (DataContext is MainWindowViewModel viewModel && viewModel.EditEntryCommand.CanExecute(null))
         {
             viewModel.EditEntryCommand.Execute(null);
@@ -63,8 +70,8 @@ public partial class MainWindow : Window
         object? sender,
         NotifyCollectionChangedEventArgs e)
     {
-        const int fixedColumnCount = 5;
-        const int comparisonColumnStartIndex = 2;
+        const int fixedColumnCount = 6;
+        const int comparisonColumnStartIndex = 3;
 
         while (EntriesGrid.Columns.Count > fixedColumnCount)
         {
@@ -88,5 +95,19 @@ public partial class MainWindow : Window
                     Binding = new Binding($"ComparisonTexts[{index}]"),
                 });
         }
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject child)
+        where T : DependencyObject
+    {
+        for (var current = child; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T parent)
+            {
+                return parent;
+            }
+        }
+
+        return null;
     }
 }

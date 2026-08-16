@@ -353,6 +353,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock VerticalAlignment="Center" Text="{loc:Translate Main.BlockType}" />
@@ -376,6 +377,11 @@
                               ItemsSource="{Binding SortOptions}"
                               DisplayMemberPath="Name"
                               SelectedItem="{Binding SelectedSortOption}" />
+                    <TextBlock Grid.Column="6"
+                               Margin="18,0,0,0"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Text="{Binding FilteredEntriesText}" />
                 </Grid>
             </Grid>
         </Border>
@@ -406,6 +412,17 @@
                     <DataGridTextColumn Width="160"
                                         Header="{loc:Translate Main.Key}"
                                         Binding="{Binding Name}" />
+                    <DataGridTemplateColumn Width="90" Header="{loc:Translate Main.Reviewed}">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding IsReviewed, Mode=OneWay}"
+                                          Command="{Binding DataContext.ToggleReviewedCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                          CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Width="2*"
                                         Header="{loc:Translate Main.Translation}"
                                         Binding="{Binding Text}" />
@@ -459,7 +476,7 @@
                                  Padding="8"
                                  AcceptsReturn="True"
                                  IsReadOnly="True"
-                                 Text="{Binding SelectedEntry.SourceText}"
+                                 Text="{Binding SelectedEntry.SourceText, Mode=OneWay}"
                                  TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto" />
                     </Grid>

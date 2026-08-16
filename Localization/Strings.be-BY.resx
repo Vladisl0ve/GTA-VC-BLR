@@ -69,6 +69,7 @@
   <data name="Main.Translation" xml:space="preserve"><value>Пераклад</value></data>
   <data name="Main.Encounter" xml:space="preserve"><value>Уваходжанне</value></data>
   <data name="Main.Comment" xml:space="preserve"><value>Каментарый</value></data>
+  <data name="Main.Reviewed" xml:space="preserve"><value>Праверана</value></data>
   <data name="Main.Table" xml:space="preserve"><value>Табліца</value></data>
   <data name="Main.EnglishSource" xml:space="preserve"><value>Англійская крыніца</value></data>
   <data name="Main.Occurrences" xml:space="preserve"><value>Уваходжанні</value></data>

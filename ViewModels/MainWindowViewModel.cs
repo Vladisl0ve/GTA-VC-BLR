@@ -110,6 +110,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasEncounterMetadata => EntryList.HasEncounterMetadata;
 
+    public int FilteredEntryCount => EntryList.FilteredEntryCount;
+
+    public string FilteredEntriesText => EntryList.FilteredEntriesText;
+
     public bool HasTxdAttachment => AttachedTxd is not null;
 
     public bool CanAttachTxd => IsDocumentLoaded && _loadedType == GXTType.GtaViceCity;
@@ -192,6 +196,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ExportGxtCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleReviewedCommand))]
     private bool isDocumentLoaded;
 
     public GxtEntryRow? SelectedEntry
@@ -565,6 +570,19 @@ public partial class MainWindowViewModel : ObservableObject
         SetDirty(true);
         RefreshEntries(selected.Name, selected.RawTableName);
         SetStatus("Status.CommentCleared", selected.Name);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseDocument))]
+    private void ToggleReviewed(GxtEntryRow? entry)
+    {
+        if (entry is null ||
+            !EntryList.SetProjectReviewed(entry.Name, entry.RawTableName, !entry.IsReviewed))
+        {
+            return;
+        }
+
+        SetDirty(true);
+        RefreshEntries(entry.Name, entry.RawTableName);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelection))]
@@ -1678,6 +1696,7 @@ public partial class MainWindowViewModel : ObservableObject
         ExportJsonCommand.NotifyCanExecuteChanged();
         ImportCommentsCommand.NotifyCanExecuteChanged();
         ExportCommentsCommand.NotifyCanExecuteChanged();
+        ToggleReviewedCommand.NotifyCanExecuteChanged();
         ImportJsonCommand.NotifyCanExecuteChanged();
         ImportJsonWithDictionaryCommand.NotifyCanExecuteChanged();
         AddMissingEntriesCommand.NotifyCanExecuteChanged();
