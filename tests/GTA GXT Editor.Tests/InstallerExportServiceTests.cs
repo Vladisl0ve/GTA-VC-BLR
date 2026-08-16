@@ -45,7 +45,7 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "FONTB.TXD");
         StringAssert.Contains(script, "MODELS\\FONTS.TXD");
         StringAssert.Contains(script, "BelarusianLanguage.asi");
-        StringAssert.Contains(script, "dinput8.dll");
+        Assert.IsFalse(script.Contains("dinput8.dll", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "SilentPatchVC.asi");
         StringAssert.Contains(script, "plugins\\Tommy''s settings.ini");
         StringAssert.Contains(script, "AppName=Belarusian %7 {{VC}");
@@ -54,7 +54,6 @@ public sealed class InstallerExportServiceTests
             new[]
             {
                 "asset-00000001000000000000000000000000.bin",
-                "asset-00000002000000000000000000000000.bin",
                 "asset-00000003000000000000000000000000.bin",
                 "asset-00000004000000000000000000000000.bin",
                 "generated-font-models.bin",
@@ -156,7 +155,6 @@ public sealed class InstallerExportServiceTests
                 Assets =
                 [
                     CreateBinary(1, InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
-                    CreateBinary(2, InstallerAssetRole.AsiLoader, "dinput8.dll"),
                     CreateBinary(3, InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
                     new InstallerAsset
                     {

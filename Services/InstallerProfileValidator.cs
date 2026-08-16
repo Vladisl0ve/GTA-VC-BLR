@@ -89,7 +89,8 @@ public static class InstallerProfileValidator
         }
 
         var loaders = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.AsiLoader).ToList();
-        if (loaders.Count != 1 ||
+        if (loaders.Count > 1 ||
+            loaders.Count == 1 &&
             !string.Equals(loaders[0].DestinationPath, "dinput8.dll", StringComparison.OrdinalIgnoreCase))
         {
             Throw("Installer.Validation.AsiLoader");

@@ -88,9 +88,28 @@ public sealed class InstallerProfileValidatorTests
     public void Validate_NonX86Dll_IsRejected()
     {
         var profile = CreateValidProfile();
-        profile.Assets.Single(asset => asset.Role == InstallerAssetRole.AsiLoader).Data[0] = 0;
+        var loader = CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll");
+        loader.Data[0] = 0;
+        profile.Assets.Add(loader);
 
         Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_MissingAsiLoader_IsAccepted()
+    {
+        var profile = CreateValidProfile();
+
+        InstallerProfileValidator.Validate(profile);
+    }
+
+    [TestMethod]
+    public void Validate_OptionalAsiLoader_IsAccepted()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"));
+
+        InstallerProfileValidator.Validate(profile);
     }
 
     [TestMethod]
@@ -131,7 +150,6 @@ public sealed class InstallerProfileValidatorTests
         Assets =
         [
             CreateBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
-            CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"),
             CreateBinary(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
         ],
     };

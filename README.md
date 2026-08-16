@@ -101,9 +101,9 @@ versions are rejected before the open project is changed.
 ## Windows installer export
 
 For a GTA Vice City project with an attached TXD, choose **Export as → Windows
-installer…**. The profile editor requires `BelarusianLanguage.asi`, an x86
-`dinput8.dll`, and a SilentPatch set containing `SilentPatchVC.asi`; additional
-files and folders may retain editable paths relative to the game directory.
+installer…**. The profile editor requires `BelarusianLanguage.asi` and a
+SilentPatch set containing `SilentPatchVC.asi`; an x86 `dinput8.dll` is optional.
+Additional files and folders may retain editable paths relative to the game directory.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
 Inno Setup 7.0.2 x86 compiler. The installer writes `TEXT\BELARUS.GXT`, both TXD

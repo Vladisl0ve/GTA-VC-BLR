@@ -39,9 +39,10 @@ The generated installer always contains:
 - `TEXT\BELARUS.GXT`, generated from the current GXT snapshot;
 - `FONTB.TXD` and `MODELS\FONTS.TXD`, both copied from the attached TXD;
 - the main plugin as `BelarusianLanguage.asi`;
-- the x86 ASI Loader as `dinput8.dll`;
 - all selected SilentPatch files, including `SilentPatchVC.asi`;
 - explicitly selected additional files.
+
+An x86 ASI Loader may optionally be included as `dinput8.dll`.
 
 No source, archive, checksum, README, or apply/clean command file is copied into
 the game.

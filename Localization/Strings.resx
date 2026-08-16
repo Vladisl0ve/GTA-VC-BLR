@@ -425,7 +425,7 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>The main ASI, x86 ASI Loader and SilentPatchVC.asi are required. Folder contents retain their relative structure. Destination paths may be edited in the table.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>The main ASI and SilentPatchVC.asi are required. The x86 ASI Loader is optional. Folder contents retain their relative structure. Destination paths may be edited in the table.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
@@ -446,7 +446,7 @@
   <data name="Installer.Validation.X86" xml:space="preserve"><value>“{0}” must be a valid x86 PE .asi or .dll file.</value></data>
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 512 MB limit.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Select exactly one x86 main ASI targeting BelarusianLanguage.asi.</value></data>
-  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Select exactly one x86 ASI Loader targeting dinput8.dll.</value></data>
+  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>If selected, the x86 ASI Loader must target dinput8.dll.</value></data>
   <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>The SilentPatch set must contain x86 SilentPatchVC.asi.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>“{0}” is not a safe path relative to the game folder.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>“{0}” is a source, archive, checksum, README or command file and cannot be placed in the game folder.</value></data>

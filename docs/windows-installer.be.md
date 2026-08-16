@@ -39,9 +39,10 @@ SHA-256 кожнага файла. Гатовы EXE перамяшчаецца �
 - `TEXT\BELARUS.GXT` з бягучага здымка GXT;
 - `FONTB.TXD` і `MODELS\FONTS.TXD` з далучанага TXD;
 - асноўны плагін як `BelarusianLanguage.asi`;
-- x86 ASI Loader як `dinput8.dll`;
 - усе выбраныя файлы SilentPatch, у тым ліку `SilentPatchVC.asi`;
 - яўна выбраныя дадатковыя файлы.
+
+x86 ASI Loader можна неабавязкова дадаць як `dinput8.dll`.
 
 Зыходнікі, архівы, кантрольныя сумы, README і камандныя файлы прымянення/ачысткі ў
 папку гульні не трапляюць.

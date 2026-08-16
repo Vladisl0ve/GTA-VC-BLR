@@ -425,7 +425,7 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Патрэбныя асноўны ASI, x86 ASI Loader і SilentPatchVC.asi. Адносная структура папак захоўваецца. Шляхі прызначэння можна змяняць у табліцы.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Патрэбныя асноўны ASI і SilentPatchVC.asi. x86 ASI Loader неабавязковы. Адносная структура папак захоўваецца. Шляхі прызначэння можна змяняць у табліцы.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
@@ -446,7 +446,7 @@
   <data name="Installer.Validation.X86" xml:space="preserve"><value>«{0}» мусіць быць сапраўдным x86 PE-файлам .asi або .dll.</value></data>
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 512 МБ.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
-  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Выберыце роўна адзін x86 ASI Loader з прызначэннем dinput8.dll.</value></data>
+  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Калі выбраны x86 ASI Loader, яго прызначэннем павінен быць dinput8.dll.</value></data>
   <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Набор SilentPatch мусіць змяшчаць x86 SilentPatchVC.asi.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>
