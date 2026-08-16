@@ -1,22 +1,38 @@
 using System.Windows;
 using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Views;
 
 public partial class EntryEditorWindow : Window
 {
     private readonly EntryEditorRequest _request;
+    private readonly ILocalizationService _localization;
 
-    public EntryEditorWindow(EntryEditorRequest request)
+    public EntryEditorWindow(EntryEditorRequest request, ILocalizationService? localization = null)
     {
         _request = request;
+        _localization = localization ?? LocalizationProvider.Current;
         InitializeComponent();
 
-        Title = request.IsAdding ? "Добавление ключа" : "Редактирование ключа";
-        SaveButton.Content = request.IsAdding ? "Добавить" : "Сохранить";
+        UpdateLocalizedText();
+        _localization.LanguageChanged += Localization_OnLanguageChanged;
+        Closed += (_, _) => _localization.LanguageChanged -= Localization_OnLanguageChanged;
         NameTextBox.Text = request.Name;
         NameTextBox.IsReadOnly = !request.IsAdding;
         ValueTextBox.Text = request.Text;
+        SourceTextBox.Text = request.SourceText ?? string.Empty;
+        SourcePanel.Visibility = request.SourceText is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        OccurrencesGrid.ItemsSource = request.Occurrences;
+        OccurrencesPanel.Visibility = request.Occurrences.Count == 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        OccurrencesRow.Height = request.Occurrences.Count == 0
+            ? new GridLength(0)
+            : new GridLength(1.4, GridUnitType.Star);
+        CommentTextBox.Text = request.Comment ?? string.Empty;
 
         if (request.Tables.Count == 0)
         {
@@ -41,39 +57,46 @@ public partial class EntryEditorWindow : Window
 
     private void SaveButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var name = NameTextBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            ShowValidationError("Имя ключа не может быть пустым.", NameTextBox);
-            return;
-        }
-
-        if (name.Length > 8)
-        {
-            ShowValidationError("Имя ключа может содержать не более 8 символов.", NameTextBox);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(ValueTextBox.Text))
-        {
-            ShowValidationError("Текст ключа не может быть пустым.", ValueTextBox);
-            return;
-        }
-
         var table = (TableComboBox.SelectedItem as TableOption)?.RawName;
-        if (_request.Tables.Count > 0 && table is null)
+        var validation = EntryEditorValidator.Validate(
+            _request,
+            NameTextBox.Text,
+            ValueTextBox.Text,
+            table,
+            CommentTextBox.Text);
+        if (!validation.IsValid)
         {
-            ShowValidationError("Выберите таблицу.", TableComboBox);
+            System.Windows.Controls.Control control = validation.ErrorField switch
+            {
+                EntryEditorField.Text => ValueTextBox,
+                EntryEditorField.Table => TableComboBox,
+                _ => NameTextBox,
+            };
+            ShowValidationError(validation.ErrorMessage!, control);
             return;
         }
 
-        Result = new EntryEditorResult(name, ValueTextBox.Text, table);
+        Result = validation.Result;
         DialogResult = true;
     }
 
     private void ShowValidationError(string message, System.Windows.Controls.Control control)
     {
-        MessageBox.Show(this, message, "Проверка данных", MessageBoxButton.OK, MessageBoxImage.Warning);
+        MessageBox.Show(
+            this,
+            message,
+            _localization.Get("Entry.ValidationTitle"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
         control.Focus();
+    }
+
+    private void Localization_OnLanguageChanged(object? sender, EventArgs e) =>
+        UpdateLocalizedText();
+
+    private void UpdateLocalizedText()
+    {
+        Title = _localization.Get(_request.IsAdding ? "Entry.Title.Add" : "Entry.Title.Edit");
+        SaveButton.Content = _localization.Get(_request.IsAdding ? "Common.Add" : "Common.Save");
     }
 }

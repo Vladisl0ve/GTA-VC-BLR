@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Services;
 
@@ -21,8 +22,8 @@ public static class GxtJsonImporter
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
 
         var document = ReadDocument(sourcePath);
-        var type = ParseGame(document.Game);
-        var language = GxtLanguageDetector.ParseJsonLanguage(document.Language);
+        var type = GxtDomainRules.ParseJsonGameName(document.Game);
+        var language = GxtDomainRules.ParseFlexibleLanguageCode(document.Language);
         var entries = ValidateEntries(document.Entries, type);
         var manager = GxtManagerFactory.Create(
             type,
@@ -39,9 +40,11 @@ public static class GxtJsonImporter
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidDataException)
             {
-                throw new InvalidDataException(
-                    $"Не удалось преобразовать запись {entry.Index} с ключом '{entry.Key}': {exception.Message}",
-                    exception);
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Json.ConvertEntryFailed",
+                    entry.Index,
+                    entry.Key,
+                    exception.Message), exception);
             }
         }
 
@@ -58,26 +61,14 @@ public static class GxtJsonImporter
         {
             using var stream = File.OpenRead(sourcePath);
             return JsonSerializer.Deserialize<JsonGxtDocument>(stream, SerializerOptions) ??
-                   throw new InvalidDataException("JSON-файл не содержит документа GXT.");
+                   throw new InvalidDataException(LocalizationProvider.Current.Get("Json.NoGxtDocument"));
         }
         catch (JsonException exception)
         {
             throw new InvalidDataException(
-                $"Некорректный JSON: {exception.Message}",
+                LocalizationProvider.Current.Format("Json.Invalid", exception.Message),
                 exception);
         }
-    }
-
-    private static GXTType ParseGame(string? game)
-    {
-        return game?.Trim().ToUpperInvariant() switch
-        {
-            "GTA III" or "GTA 3" or "GTA3" => GXTType.GtaIII,
-            "GTA VICE CITY" or "VICE CITY" or "GTAVC" => GXTType.GtaViceCity,
-            null or "" => throw new InvalidDataException("В JSON отсутствует обязательное поле 'game'."),
-            _ => throw new InvalidDataException(
-                $"Игра '{game}' не поддерживается. Ожидается 'GTA III' или 'GTA Vice City'."),
-        };
     }
 
     private static List<ValidatedEntry> ValidateEntries(
@@ -86,11 +77,11 @@ public static class GxtJsonImporter
     {
         if (sourceEntries is null)
         {
-            throw new InvalidDataException("В JSON отсутствует обязательный массив 'entries'.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Json.EntriesMissing"));
         }
 
         var result = new List<ValidatedEntry>(sourceEntries.Count);
-        var identities = new HashSet<string>(StringComparer.Ordinal);
+        var identities = new HashSet<GxtEntryIdentity>();
 
         for (var index = 0; index < sourceEntries.Count; index++)
         {
@@ -98,36 +89,34 @@ public static class GxtJsonImporter
             var displayIndex = index + 1;
             if (sourceEntry is null)
             {
-                throw new InvalidDataException($"Запись {displayIndex} не может быть null.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format("Json.EntryNull", displayIndex));
             }
 
             var key = sourceEntry.Key;
             if (string.IsNullOrWhiteSpace(key))
             {
-                throw new InvalidDataException($"У записи {displayIndex} отсутствует непустое поле 'key'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format("Json.KeyMissing", displayIndex));
             }
 
-            ValidateAsciiName(key, "Ключ", displayIndex);
+            ValidateAsciiName(key, LocalizationProvider.Current.Get("Json.FieldKey"), displayIndex);
             if (sourceEntry.Text is null)
             {
-                throw new InvalidDataException($"У записи {displayIndex} отсутствует поле 'text'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format("Json.TextMissing", displayIndex));
             }
 
             string? table = null;
             if (type == GXTType.GtaViceCity)
             {
                 table = string.IsNullOrWhiteSpace(sourceEntry.Table) ? "MAIN" : sourceEntry.Table;
-                ValidateAsciiName(table, "Таблица", displayIndex);
+                ValidateAsciiName(table, LocalizationProvider.Current.Get("Json.FieldTable"), displayIndex);
             }
 
-            var identity = type == GXTType.GtaViceCity
-                ? $"{table}\u001f{key}"
-                : key;
+            var identity = GxtDomainRules.CreateIdentity(type, key, table);
             if (!identities.Add(identity))
             {
-                throw new InvalidDataException(
-                    $"Запись {displayIndex} дублирует ключ '{key}'" +
-                    (table is null ? "." : $" в таблице '{table}'."));
+                throw new InvalidDataException(table is null
+                    ? LocalizationProvider.Current.Format("Json.DuplicateKey", displayIndex, key)
+                    : LocalizationProvider.Current.Format("Json.DuplicateTableKey", displayIndex, key, table));
             }
 
             result.Add(new ValidatedEntry(displayIndex, key, sourceEntry.Text, table));
@@ -138,16 +127,21 @@ public static class GxtJsonImporter
 
     private static void ValidateAsciiName(string name, string fieldName, int entryIndex)
     {
-        if (name.Length > 8)
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.TooLong)
         {
-            throw new InvalidDataException(
-                $"{fieldName} записи {entryIndex} может содержать не более 8 символов.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Json.NameTooLong",
+                fieldName,
+                entryIndex,
+                GxtDomainRules.MaximumNameLength));
         }
 
-        if (name.Any(character => character is '\0' or > '\u007f'))
+        if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.NonAscii)
         {
-            throw new InvalidDataException(
-                $"{fieldName} записи {entryIndex} должен содержать только ASCII-символы без NUL.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Json.NameNonAscii",
+                fieldName,
+                entryIndex));
         }
     }
 

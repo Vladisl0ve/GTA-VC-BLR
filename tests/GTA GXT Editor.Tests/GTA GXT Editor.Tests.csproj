@@ -11,4 +11,13 @@
     <ProjectReference Include="..\..\GTA GXT Editor.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\Contracts\**\*.gxt"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\Contracts\**\*.txd"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\Contracts\**\*.byx"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

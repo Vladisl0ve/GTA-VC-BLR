@@ -2,80 +2,44 @@ using System.Windows;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.ViewModels;
-using Microsoft.Win32;
 
 namespace GTA_GXT_Editor.Views;
 
-public partial class TxdViewerWindow : Window
+public partial class TxdViewerWindow : Window, IDisposable
 {
     private readonly TxdViewerViewModel _viewModel;
+    private bool _disposed;
 
-    public TxdViewerWindow(CharacterMapEditorRequest request)
+    public TxdViewerWindow(
+        CharacterMapEditorRequest request,
+        IDialogService dialogs,
+        ILocalizationService? localization = null)
     {
         InitializeComponent();
-        _viewModel = new TxdViewerViewModel(request);
+        _viewModel = new TxdViewerViewModel(request, dialogs, localization);
+        _viewModel.ApplySucceeded += ViewModel_OnApplySucceeded;
         DataContext = _viewModel;
+        Closed += (_, _) => Dispose();
     }
 
     public CharacterMapEditorResult? Result { get; private set; }
 
-    private void ImportButton_OnClick(object sender, RoutedEventArgs e)
+    private void ViewModel_OnApplySucceeded(object? sender, EventArgs e)
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Импортировать маппинг символов",
-            Filter = "Маппинг (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Словарь (*.txt)|*.txt",
-            Multiselect = false,
-        };
-        if (dialog.ShowDialog(this) != true)
+        Result = _viewModel.Result;
+        DialogResult = true;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
         {
             return;
         }
 
-        try
-        {
-            _viewModel.ReplaceProfile(CharacterMapFileSerializer.Load(dialog.FileName));
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(this, exception.Message, "Ошибка импорта", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ExportButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        var dialog = new SaveFileDialog
-        {
-            Title = "Экспортировать маппинг символов",
-            Filter = "Маппинг JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json",
-            FileName = "characters.gxtmap.json",
-            AddExtension = true,
-        };
-        if (dialog.ShowDialog(this) != true)
-        {
-            return;
-        }
-
-        try
-        {
-            CharacterMapFileSerializer.Save(dialog.FileName, _viewModel.Profile);
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(this, exception.Message, "Ошибка экспорта", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ApplyButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Result = _viewModel.CreateResult();
-            DialogResult = true;
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(this, exception.Message, "Проверка профиля", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        _viewModel.ApplySucceeded -= ViewModel_OnApplySucceeded;
+        _viewModel.Dispose();
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

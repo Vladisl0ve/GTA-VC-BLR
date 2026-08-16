@@ -1,5 +1,6 @@
 using System.IO;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Contracts;
@@ -8,9 +9,13 @@ public abstract class CommonGXTManager
 {
     public abstract GxtLanguage Language { get; }
 
-    public abstract string? CyrillicCharsDictionaryPath { get; set; }
+    public abstract string? CharacterMapPath { get; set; }
 
-    public abstract Dictionary<int[], char> CyrillicCharsDictionary { get; set; }
+    public abstract CharacterMapProfile CharacterMap { get; set; }
+
+    public IReadOnlyDictionary<byte, char> DecodeCharacterMap => CharacterMap.ToDecodeMap();
+
+    public IReadOnlyDictionary<char, byte> EncodeCharacterMap => CharacterMap.ToEncodeMap();
 
     public abstract List<GXTBase> GXTEntries { get; }
 
@@ -47,43 +52,27 @@ public abstract class CommonGXTManager
 
     public abstract void WriteGXT(Stream stream);
 
-    public virtual IReadOnlyDictionary<byte, char> GetCharacterMap()
-    {
-        var result = new Dictionary<byte, char>();
-        foreach (var pair in CyrillicCharsDictionary)
-        {
-            foreach (var index in pair.Key)
-            {
-                if (index is >= byte.MinValue and <= byte.MaxValue)
-                {
-                    result.TryAdd((byte)index, pair.Value);
-                }
-            }
-        }
-
-        return result;
-    }
-
     public virtual string ConvertBytesToText(byte[] inputBytes)
     {
         ArgumentNullException.ThrowIfNull(inputBytes);
-        return Services.CharacterMapCodec.Decode(inputBytes, CyrillicCharsDictionary);
+        return Services.CharacterMapCodec.Decode(inputBytes, CharacterMap);
     }
 
     public virtual byte[] ConvertTextToBytes(string inputString)
     {
         ArgumentNullException.ThrowIfNull(inputString);
-        return Services.CharacterMapCodec.Encode(inputString, CyrillicCharsDictionary);
+        return Services.CharacterMapCodec.Encode(inputString, CharacterMap);
     }
 
-    public void ReloadCyrillicCharsDictionary()
+    public void ReloadCharacterMap()
     {
-        if (CyrillicCharsDictionaryPath is null)
+        if (CharacterMapPath is null)
         {
-            throw new InvalidOperationException("Путь к пользовательскому словарю не задан.");
+            throw new InvalidOperationException(
+                LocalizationProvider.Current.Get("Domain.CustomMappingPathMissing"));
         }
 
-        CyrillicCharsDictionary = CharacterMapFileSerializer.LoadDictionary(
-            CyrillicCharsDictionaryPath);
+        CharacterMap = CharacterMapFileSerializer.Load(CharacterMapPath);
     }
+
 }

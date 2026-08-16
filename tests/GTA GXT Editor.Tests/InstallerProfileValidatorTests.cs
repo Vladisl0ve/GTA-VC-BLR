@@ -1,0 +1,228 @@
+using System.Buffers.Binary;
+using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Services;
+
+namespace GTA_GXT_Editor.Tests;
+
+[TestClass]
+public sealed class InstallerProfileValidatorTests
+{
+    [TestMethod]
+    public void Validate_CompleteProfile_NormalizesRelativePaths()
+    {
+        var profile = CreateValidProfile();
+        var hotel = profile.Assets.Single(asset =>
+            asset.DestinationPath.Equals("data\\maps\\hotel\\hotel.IPL", StringComparison.OrdinalIgnoreCase));
+        hotel.DestinationPath = "data/maps/hotel/hotel.IPL";
+
+        InstallerProfileValidator.Validate(profile);
+
+        Assert.AreEqual("data\\maps\\hotel\\hotel.IPL", hotel.DestinationPath);
+    }
+
+    [TestMethod]
+    [DataRow("C:\\game\\file.ini")]
+    [DataRow("..\\file.ini")]
+    [DataRow("plugins\\..\\file.ini")]
+    [DataRow("CON.txt")]
+    [DataRow("folder\\LPT1.ini")]
+    [DataRow("folder\\bad?.ini")]
+    public void Validate_UnsafeDestination_IsRejected(string destination)
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(new InstallerAsset
+        {
+            Id = Guid.NewGuid(),
+            Role = InstallerAssetRole.Additional,
+            OriginalFileName = "file.ini",
+            DestinationPath = destination,
+            Data = [1],
+        });
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_CaseInsensitiveDestinationConflict_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateAdditional("plugins\\Settings.ini"));
+        profile.Assets.Add(CreateAdditional("PLUGINS\\settings.INI"));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    [DataRow("TEXT\\BELARUS.GXT")]
+    [DataRow("models\\fonts.txd")]
+    public void Validate_AutomaticPayloadDestinationConflict_IsRejected(string destination)
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateAdditional(destination));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    [DataRow("README.txt")]
+    [DataRow("APPLY_MOD.cmd")]
+    [DataRow("CLEAN_MOD.cmd")]
+    [DataRow("checksums.sha256")]
+    [DataRow("source.cpp")]
+    [DataRow("package.zip")]
+    public void Validate_ExcludedGamePayload_IsRejected(string destination)
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateAdditional(destination));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_NonX86Dll_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        var loader = CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll");
+        loader.Data[0] = 0;
+        profile.Assets.Add(loader);
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_CompleteProfileWithoutAsiLoader_IsAccepted()
+    {
+        var profile = CreateValidProfile();
+
+        InstallerProfileValidator.Validate(profile);
+    }
+
+    [TestMethod]
+    public void Validate_AsiLoader_IsRejectedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_MissingSilentPatchFile_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Remove(profile.Assets.Single(asset =>
+            asset.DestinationPath.Equals("SilentPatchVC.ini", StringComparison.OrdinalIgnoreCase)));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_AdditionalFile_IsRejectedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateAdditional("plugins\\settings.ini"));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_UnknownRole_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets[0] = new InstallerAsset
+        {
+            Id = Guid.NewGuid(),
+            Role = (InstallerAssetRole)999,
+            OriginalFileName = "unknown.bin",
+            DestinationPath = "unknown.bin",
+            Data = [1],
+        };
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_LegacyRolesRemainReadable()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.RemoveAll(asset =>
+            asset.Role == InstallerAssetRole.SilentPatch &&
+            !asset.DestinationPath.Equals("SilentPatchVC.asi", StringComparison.OrdinalIgnoreCase));
+        profile.Assets.Add(CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"));
+        profile.Assets.Add(CreateAdditional("plugins\\settings.ini"));
+
+        InstallerProfileValidator.ValidateForStorage(profile);
+    }
+
+    [TestMethod]
+    public void Validate_MoreThan512Attachments_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        for (var index = profile.Assets.Count; index <= InstallerProfileValidator.MaximumAssets; index++)
+        {
+            profile.Assets.Add(new InstallerAsset
+            {
+                Id = Guid.NewGuid(),
+                Role = InstallerAssetRole.Additional,
+                OriginalFileName = $"file-{index}.ini",
+                DestinationPath = $"extra\\file-{index}.ini",
+                Data = [1],
+            });
+        }
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    private static InstallerProfile CreateValidProfile() => new()
+    {
+        ProductId = Guid.NewGuid(),
+        Name = "Belarusian",
+        Version = "1.0.0",
+        Publisher = "Belarusian Games",
+        OutputFileName = "Setup.exe",
+        Assets =
+        [
+            CreateBinary(InstallerAssetRole.MainAsi, InstallerProfileValidator.MainAsiDestination),
+            .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
+                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                    ? CreateBinary(InstallerAssetRole.SilentPatch, destination)
+                    : new InstallerAsset
+                    {
+                        Id = Guid.NewGuid(),
+                        Role = InstallerAssetRole.SilentPatch,
+                        OriginalFileName = Path.GetFileName(destination),
+                        DestinationPath = destination,
+                        Data = [1, 2, 3],
+                    }),
+        ],
+    };
+
+    private static InstallerAsset CreateBinary(InstallerAssetRole role, string destination) => new()
+    {
+        Id = Guid.NewGuid(),
+        Role = role,
+        OriginalFileName = destination,
+        DestinationPath = destination,
+        Data = CreateX86PeImage(),
+    };
+
+    private static InstallerAsset CreateAdditional(string destination) => new()
+    {
+        Id = Guid.NewGuid(),
+        Role = InstallerAssetRole.Additional,
+        OriginalFileName = "file.ini",
+        DestinationPath = destination,
+        Data = [1],
+    };
+
+    private static byte[] CreateX86PeImage()
+    {
+        var data = new byte[128];
+        data[0] = (byte)'M';
+        data[1] = (byte)'Z';
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(0x3C, 4), 0x40);
+        "PE\0\0"u8.CopyTo(data.AsSpan(0x40));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(0x44, 2), 0x014C);
+        return data;
+    }
+}

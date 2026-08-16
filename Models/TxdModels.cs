@@ -115,5 +115,9 @@ public sealed class EditorProject
 
     public CharacterMapProfile? CharacterMap { get; set; }
 
+    public ProjectMetadata Metadata { get; set; } = new();
+
+    public InstallerProfile? InstallerProfile { get; set; }
+
     public bool IsDirty { get; set; }
 }

@@ -8,6 +8,13 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class WpfDialogService : IDialogService
 {
+    private readonly ILocalizationService _localization;
+
+    public WpfDialogService(ILocalizationService? localization = null)
+    {
+        _localization = localization ?? LocalizationProvider.Current;
+    }
+
     public string? OpenFile(string title, string filter)
     {
         var dialog = new OpenFileDialog
@@ -18,7 +25,7 @@ public sealed class WpfDialogService : IDialogService
             Multiselect = false,
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileName
             : null;
     }
@@ -33,7 +40,7 @@ public sealed class WpfDialogService : IDialogService
             Multiselect = true,
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileNames
             : [];
     }
@@ -50,7 +57,7 @@ public sealed class WpfDialogService : IDialogService
             InitialDirectory = Path.GetDirectoryName(suggestedPath),
         };
 
-        return dialog.ShowDialog(Application.Current.MainWindow) == true
+        return dialog.ShowDialog(GetOwner()) == true
             ? dialog.FileName
             : null;
     }
@@ -58,38 +65,38 @@ public sealed class WpfDialogService : IDialogService
     public bool Confirm(string message, string title)
     {
         return MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
             title,
             MessageBoxButton.YesNo,
             MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
-    public void ShowInfo(string message, string title = "GTA GXT Editor")
+    public void ShowInfo(string message, string? title = null)
     {
         MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
-            title,
+            title ?? _localization.Get("App.Name"),
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
 
-    public void ShowError(string message, string title = "Ошибка")
+    public void ShowError(string message, string? title = null)
     {
         MessageBox.Show(
-            Application.Current.MainWindow,
+            GetOwner(),
             message,
-            title,
+            title ?? _localization.Get("Common.Error"),
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }
 
     public EntryEditorResult? EditEntry(EntryEditorRequest request)
     {
-        var dialog = new EntryEditorWindow(request)
+        var dialog = new EntryEditorWindow(request, _localization)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = GetOwner(),
         };
 
         return dialog.ShowDialog() == true ? dialog.Result : null;
@@ -98,9 +105,9 @@ public sealed class WpfDialogService : IDialogService
     public UnsavedChangesChoice ConfirmUnsavedChanges()
     {
         var result = MessageBox.Show(
-            Application.Current.MainWindow,
-            "В проекте есть несохранённые изменения. Сохранить их?",
-            "Несохранённые изменения",
+            GetOwner(),
+            _localization.Get("Message.UnsavedChanges"),
+            _localization.Get("Message.UnsavedChangesTitle"),
             MessageBoxButton.YesNoCancel,
             MessageBoxImage.Warning);
         return result switch
@@ -113,10 +120,24 @@ public sealed class WpfDialogService : IDialogService
 
     public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
     {
-        var dialog = new TxdViewerWindow(request)
+        var dialog = new TxdViewerWindow(request, this, _localization)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = GetOwner(),
         };
         return dialog.ShowDialog() == true ? dialog.Result : null;
     }
+
+    public InstallerProfileEditorResult? EditInstallerProfile(InstallerProfileEditorRequest request)
+    {
+        var dialog = new InstallerProfileWindow(request, _localization)
+        {
+            Owner = GetOwner(),
+        };
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
+    private static Window? GetOwner() => Application.Current.Windows
+        .OfType<Window>()
+        .FirstOrDefault(window => window.IsActive) ??
+        Application.Current.MainWindow;
 }

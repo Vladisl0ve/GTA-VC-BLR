@@ -2,6 +2,7 @@ using System.IO;
 using GTA_3_GXT_Editor.Utils;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
+using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
@@ -12,20 +13,28 @@ namespace GTA_GXT_Editor.GTAIII
         private const string RUSSIAN_CHARS_FILENAME = "russian_chars.txt";
 
         private List<GXTBase> _gxtEntries;
-        private Dictionary<int[], char> _cyrillicCharsDictionary;
+        private CharacterMapProfile _characterMap;
         private GxtLanguage _language;
 
         public override GxtLanguage Language => _language;
-        public override string? CyrillicCharsDictionaryPath { get; set; }
+        public override string? CharacterMapPath { get; set; }
         public override List<GXTBase> GXTEntries { get => _gxtEntries; }
-        public override Dictionary<int[], char> CyrillicCharsDictionary { get => _cyrillicCharsDictionary; set => _cyrillicCharsDictionary = value; }
+        public override CharacterMapProfile CharacterMap
+        {
+            get => _characterMap.Clone();
+            set
+            {
+                ArgumentNullException.ThrowIfNull(value);
+                _characterMap = value.Clone();
+            }
+        }
 
         public GXTManager(
             string gxtPath,
             string? dictionaryPath = null,
             GxtLanguage language = GxtLanguage.Auto)
         {
-            CyrillicCharsDictionaryPath = dictionaryPath;
+            CharacterMapPath = dictionaryPath;
             _gxtEntries = ReadGXTFile(gxtPath);
             var resolvedLanguage = language == GxtLanguage.Auto
                 ? GxtLanguageDetector.DetectFromName(gxtPath)
@@ -39,7 +48,7 @@ namespace GTA_GXT_Editor.GTAIII
                     : GxtLanguage.English;
             }
 
-            _cyrillicCharsDictionary = LoadCharacterDictionary(dictionaryPath, resolvedLanguage);
+            _characterMap = LoadCharacterMap(dictionaryPath, resolvedLanguage);
             _language = resolvedLanguage;
         }
 
@@ -47,9 +56,9 @@ namespace GTA_GXT_Editor.GTAIII
             Stream stream,
             string sourceName,
             GxtLanguage language,
-            Dictionary<int[], char>? characterDictionary)
+            CharacterMapProfile? characterMap)
         {
-            CyrillicCharsDictionaryPath = null;
+            CharacterMapPath = null;
             _gxtEntries = ReadGXT(stream, sourceName);
             var resolvedLanguage = language == GxtLanguage.Auto
                 ? GxtLanguageDetector.DetectFromName(sourceName)
@@ -63,9 +72,7 @@ namespace GTA_GXT_Editor.GTAIII
                     : GxtLanguage.English;
             }
 
-            _cyrillicCharsDictionary = characterDictionary is null
-                ? LoadCharacterDictionary(null, resolvedLanguage)
-                : CloneDictionary(characterDictionary);
+            _characterMap = characterMap?.Clone() ?? LoadCharacterMap(null, resolvedLanguage);
             _language = resolvedLanguage;
         }
 
@@ -75,12 +82,12 @@ namespace GTA_GXT_Editor.GTAIII
             IEnumerable<string> sourceTexts,
             GxtLanguage language)
         {
-            CyrillicCharsDictionaryPath = dictionaryPath;
+            CharacterMapPath = dictionaryPath;
             _gxtEntries = [];
             _language = language == GxtLanguage.Auto
                 ? GxtLanguageDetector.DetectForText(sourceName, sourceTexts)
                 : language;
-            _cyrillicCharsDictionary = LoadCharacterDictionary(dictionaryPath, _language);
+            _characterMap = LoadCharacterMap(dictionaryPath, _language);
         }
 
         internal static GXTManager Create(
@@ -90,22 +97,22 @@ namespace GTA_GXT_Editor.GTAIII
             GxtLanguage language) =>
             new(dictionaryPath, sourceName, sourceTexts, language);
 
-        private static Dictionary<int[], char> LoadCharacterDictionary(
+        private static CharacterMapProfile LoadCharacterMap(
             string? dictionaryPath,
             GxtLanguage language)
         {
             if (dictionaryPath is not null)
             {
-                return CharacterMapFileSerializer.LoadDictionary(dictionaryPath);
+                return CharacterMapFileSerializer.Load(dictionaryPath);
             }
 
             if (language == GxtLanguage.Belarusian)
             {
-                return BundledCharacterMapProvider.BelarusianViceCity.ToCharacterDictionary();
+                return BundledCharacterMapProvider.BelarusianViceCity;
             }
 
             var path = Path.Combine(AppContext.BaseDirectory, RUSSIAN_CHARS_FILENAME);
-            return CharacterMapFileSerializer.LoadDictionary(path);
+            return CharacterMapFileSerializer.Load(path);
         }
 
 
@@ -123,7 +130,7 @@ namespace GTA_GXT_Editor.GTAIII
             var editIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
             if (editIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries[editIndex].Value = ConvertTextToBytes(newDatValue);
@@ -134,7 +141,7 @@ namespace GTA_GXT_Editor.GTAIII
             var removeIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
             if (removeIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries.RemoveAt(removeIndex);
@@ -142,84 +149,131 @@ namespace GTA_GXT_Editor.GTAIII
 
         public override List<GXTBase> ReadGXT(Stream stream, string sourceName)
         {
-            var fsStream = stream;
-            List<GXTEntry> localGXTEntries = new List<GXTEntry>();
-
-            ArgumentNullException.ThrowIfNull(fsStream);
-            if (!fsStream.CanRead || !fsStream.CanSeek)
+            ArgumentNullException.ThrowIfNull(stream);
+            if (!stream.CanRead || !stream.CanSeek)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать чтение и позиционирование.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.ReadSeekRequired"), nameof(stream));
             }
 
-            var startPosition = fsStream.Position;
-                //TKEY
-                string tKeyString = fsStream.ReadString(4);
-                if (!string.Equals(tKeyString, "TKEY", StringComparison.Ordinal))
+            try
+            {
+                return ReadGxtCore(stream);
+            }
+            catch (InvalidDataException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is EndOfStreamException or OverflowException or ArgumentOutOfRangeException)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"), exception);
+            }
+        }
+
+        private static List<GXTBase> ReadGxtCore(Stream stream)
+        {
+            var startPosition = stream.Position;
+            var endPosition = stream.Length;
+            EnsureAvailable(startPosition, endPosition, 8);
+
+            if (!string.Equals(stream.ReadString(4), "TKEY", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeyMissing"));
+            }
+
+            var tKeyBlockSize = stream.ReadInt();
+            if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeySize"));
+            }
+
+            var tKeyEnd = startPosition + 8L + tKeyBlockSize;
+            EnsureAvailable(tKeyEnd, endPosition, 8);
+            var valueOffsets = new List<(int Offset, string Name)>(tKeyBlockSize / 12);
+            while (stream.Position < tKeyEnd)
+            {
+                valueOffsets.Add((stream.ReadInt(), stream.ReadString(8)));
+            }
+
+            if (stream.Position != tKeyEnd ||
+                !string.Equals(stream.ReadString(4), "TDAT", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatMissing"));
+            }
+
+            var tDatBlockSize = stream.ReadInt();
+            if (tDatBlockSize < 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
+            }
+
+            var tDatStart = stream.Position;
+            if (tDatStart + (long)tDatBlockSize != endPosition)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+            }
+
+            var orderedValues = ValidateOffsets(valueOffsets, tDatBlockSize);
+            var entries = new List<GXTEntry>(orderedValues.Count);
+            for (var index = 0; index < orderedValues.Count; index++)
+            {
+                var current = orderedValues[index];
+                var nextOffset = index + 1 < orderedValues.Count
+                    ? orderedValues[index + 1].Offset
+                    : tDatBlockSize;
+                var readLength = nextOffset - current.Offset;
+                stream.Position = tDatStart + current.Offset;
+                var value = stream.ReadBytes(readLength);
+                if (!value.GXTValueIsValid())
                 {
-                    throw new InvalidDataException("Отсутствует блок TKEY.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
 
-                //Size of TKEY
-                int tKeyBlockSize = fsStream.ReadInt();
-                if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+                entries.Add(new GXTEntry { DatName = current.Name, Value = value });
+            }
+
+            stream.Position = endPosition;
+            return entries.Cast<GXTBase>().ToList();
+        }
+
+        private static List<(int Offset, string Name)> ValidateOffsets(
+            List<(int Offset, string Name)> values,
+            int dataLength)
+        {
+            if (values.Count == 0)
+            {
+                if (dataLength != 0)
                 {
-                    throw new InvalidDataException("Некорректный размер блока TKEY.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
 
-                //TKEY Entries
-                List<KeyValuePair<int, string>> valueOffsets = new List<KeyValuePair<int, string>>();
-                int readedBytes = 0;
-                while (readedBytes < tKeyBlockSize)
+                return values;
+            }
+
+            var ordered = values.OrderBy(value => value.Offset).ToList();
+            if (ordered[0].Offset != 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
+            }
+
+            for (var index = 0; index < ordered.Count; index++)
+            {
+                var offset = ordered[index].Offset;
+                if (offset < 0 || offset >= dataLength ||
+                    index > 0 && offset == ordered[index - 1].Offset)
                 {
-                    int tDatOffset = fsStream.ReadInt();
-                    string tDatName = fsStream.ReadString(8);
-
-                    valueOffsets.Add(new KeyValuePair<int, string>(tDatOffset, tDatName));
-
-                    readedBytes += 12;
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
+            }
 
-                //TDAT
-                tKeyString = fsStream.ReadString(4);
-                if (!string.Equals(tKeyString, "TDAT", StringComparison.Ordinal))
-                {
-                    throw new InvalidDataException("Отсутствует блок TDAT.");
-                }
+            return ordered;
+        }
 
-                //Size of TDAT
-                int tDatBlockSize = fsStream.ReadInt();
-
-                //TDAT Entries                                
-                var orderedOffsets = valueOffsets.Select(x => x.Key).OrderBy(x => x).ToList();
-                for (var orderedOffsetsIndex = 0; orderedOffsetsIndex < orderedOffsets.Count; orderedOffsetsIndex++)
-                {
-                    int readLength = 0;
-
-                    if (orderedOffsetsIndex != orderedOffsets.Count - 1)
-                    {
-                        readLength = orderedOffsets[orderedOffsetsIndex + 1] - orderedOffsets[orderedOffsetsIndex];
-                    }
-                    else
-                    {
-                        readLength = (int)fsStream.Length - 16 - tKeyBlockSize - orderedOffsets[orderedOffsetsIndex];
-                    }
-
-                    fsStream.Seek(startPosition + 16 + tKeyBlockSize + orderedOffsets[orderedOffsetsIndex], SeekOrigin.Begin);
-
-                    var valueName = valueOffsets.First(x => x.Key == orderedOffsets[orderedOffsetsIndex]).Value;
-                    var valueBlock = fsStream.ReadBytes(readLength);
-
-                    localGXTEntries.Add(new GXTEntry { DatName = valueName, Value = valueBlock });
-                    if (!valueBlock.GXTValueIsValid())
-                    {
-                        throw new InvalidDataException("Обнаружено некорректное значение TDAT.");
-                    }
-                }
-                if (startPosition + tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
-                {
-                    return localGXTEntries.Cast<GXTBase>().ToList();
-                }
-            throw new InvalidDataException("Ошибка при чтении GXT-файла.");
+        private static void EnsureAvailable(long position, long end, long count)
+        {
+            if (position < 0 || position > end || count < 0 || position > end - count)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+            }
         }
 
         public override void WriteGXT(Stream stream)
@@ -228,32 +282,31 @@ namespace GTA_GXT_Editor.GTAIII
             ArgumentNullException.ThrowIfNull(fsStream);
             if (!fsStream.CanWrite)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать запись.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.WriteRequired"), nameof(stream));
             }
 
-            _gxtEntries = _gxtEntries.OrderBy(x => x.DatName, new ASCIIStringComparer()).ToList();
+            var orderedEntries = _gxtEntries
+                .OrderBy(entry => entry.DatName, new ASCIIStringComparer())
+                .ToList();
                 fsStream.WriteString("TKEY");
-                fsStream.WriteInt(12 * _gxtEntries.Count);
+                fsStream.WriteInt(12 * orderedEntries.Count);
 
                 var nextOffset = 0;
-                for (int gtxEntryIndex = 0; gtxEntryIndex < _gxtEntries.Count; gtxEntryIndex++)
+                for (int gtxEntryIndex = 0; gtxEntryIndex < orderedEntries.Count; gtxEntryIndex++)
                 {
                     fsStream.WriteInt(nextOffset);
-                    fsStream.WriteString(_gxtEntries[gtxEntryIndex].DatName.FillWithZeros(8));
+                    fsStream.WriteString(orderedEntries[gtxEntryIndex].DatName.FillWithZeros(8));
 
-                    nextOffset += _gxtEntries[gtxEntryIndex].Value.Length;
+                    nextOffset += orderedEntries[gtxEntryIndex].Value.Length;
                 }
 
                 fsStream.WriteString("TDAT");
-                fsStream.WriteInt(_gxtEntries.Sum(x => x.Value.Length));
+                fsStream.WriteInt(orderedEntries.Sum(entry => entry.Value.Length));
 
-                for (int gtxEntryIndex = 0; gtxEntryIndex < _gxtEntries.Count; gtxEntryIndex++)
+                for (int gtxEntryIndex = 0; gtxEntryIndex < orderedEntries.Count; gtxEntryIndex++)
                 {
-                    fsStream.WriteBytes(_gxtEntries[gtxEntryIndex].Value);
+                    fsStream.WriteBytes(orderedEntries[gtxEntryIndex].Value);
                 }
         }
-
-        private static Dictionary<int[], char> CloneDictionary(Dictionary<int[], char> source) =>
-            source.ToDictionary(pair => pair.Key.ToArray(), pair => pair.Value);
     }
 }

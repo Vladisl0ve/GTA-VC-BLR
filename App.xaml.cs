@@ -10,15 +10,25 @@ namespace GTA_GXT_Editor;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
-        var dialogs = new WpfDialogService();
-        var viewModel = new MainWindowViewModel(new GxtManagerFactory(), dialogs);
+        var localization = new LocalizationService();
+        var settings = new JsonAppSettingsStore();
+        var storedLanguage = settings.LoadUiLanguage();
+        localization.SetLanguage(storedLanguage);
+        LocalizationProvider.Initialize(localization);
+
+        var dialogs = new WpfDialogService(localization);
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            localization: localization,
+            appSettings: settings);
         var window = new MainWindow(viewModel);
 
         MainWindow = window;
@@ -26,7 +36,7 @@ public partial class App : Application
 
         if (e.Args.FirstOrDefault(File.Exists) is { } startupFile)
         {
-            viewModel.OpenFromCommandLine(startupFile);
+            await viewModel.OpenFromCommandLineAsync(startupFile);
         }
     }
 
@@ -47,9 +57,10 @@ public partial class App : Application
             // Logging must never hide the original application error.
         }
 
+        var localization = LocalizationProvider.Current;
         MessageBox.Show(
-            $"Произошла непредвиденная ошибка.\n\n{e.Exception.Message}",
-            "GTA GXT Editor",
+            localization.Format("App.UnexpectedError", e.Exception.Message),
+            localization.Get("App.Name"),
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;

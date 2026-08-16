@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="App.Name" xml:space="preserve"><value>GTA GXT Editor</value></data>
+  <data name="App.Tagline" xml:space="preserve"><value>Рэдактар тэкставых рэсурсаў GTA III і Vice City</value></data>
+  <data name="App.UnexpectedError" xml:space="preserve"><value>Адбылася непрадбачаная памылка.&#xA;&#xA;{0}</value></data>
+  <data name="Common.Error" xml:space="preserve"><value>Памылка</value></data>
+  <data name="Common.Cancel" xml:space="preserve"><value>Скасаваць</value></data>
+  <data name="Common.Save" xml:space="preserve"><value>Захаваць</value></data>
+  <data name="Common.Clear" xml:space="preserve"><value>Ачысціць</value></data>
+  <data name="Common.Add" xml:space="preserve"><value>Дадаць</value></data>
+  <data name="Common.Edit" xml:space="preserve"><value>Змяніць</value></data>
+  <data name="Common.Delete" xml:space="preserve"><value>Выдаліць</value></data>
+  <data name="Common.Reset" xml:space="preserve"><value>Скінуць</value></data>
+  <data name="Common.Source.Canonical" xml:space="preserve"><value>Эталон</value></data>
+  <data name="Common.Source.Project" xml:space="preserve"><value>Праект</value></data>
+  <data name="Metadata.ToolTip" xml:space="preserve"><value>{0}&#xA;Тып: {1}&#xA;Парадак: {2}&#xA;Крыніца: {3}</value></data>
+  <data name="Metadata.None" xml:space="preserve"><value>Няма метаданых праходжання</value></data>
+
+  <data name="Settings.Button" xml:space="preserve"><value>Налады</value></data>
+  <data name="Settings.ToolTip" xml:space="preserve"><value>Налады праграмы</value></data>
+  <data name="Settings.InterfaceLanguage" xml:space="preserve"><value>Мова інтэрфейсу</value></data>
+  <data name="Settings.SaveError" xml:space="preserve"><value>Мова змененая, але захаваць наладу не ўдалося.&#xA;&#xA;{0}</value></data>
+
+  <data name="Main.Open" xml:space="preserve"><value>Адкрыць…</value></data>
+  <data name="Main.Open.ToolTip" xml:space="preserve"><value>Адкрыць GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+O)</value></data>
+  <data name="Main.Open.More" xml:space="preserve"><value>Дадатковыя варыянты адкрыцця</value></data>
+  <data name="Main.Open.WithMapping" xml:space="preserve"><value>Адкрыць з мапінгам…</value></data>
+  <data name="Main.ImportJson" xml:space="preserve"><value>JSON → GXT…</value></data>
+  <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Пераўтварыць JSON у GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+Shift+I)</value></data>
+  <data name="Main.ImportJson.More" xml:space="preserve"><value>Дадатковыя варыянты пераўтварэння</value></data>
+  <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON → GXT з мапінгам…</value></data>
+  <data name="Main.ImportComments" xml:space="preserve"><value>Імпартаваць каментарыі…</value></data>
+  <data name="Main.SaveAs" xml:space="preserve"><value>Захаваць як</value></data>
+  <data name="Main.SaveAs.ToolTip" xml:space="preserve"><value>Захаваць бягучы дакумент або стварыць новы файл праекта BYX</value></data>
+  <data name="Main.SaveCurrent" xml:space="preserve"><value>Захаваць бягучы</value></data>
+  <data name="Main.SaveProjectAs" xml:space="preserve"><value>Праект BYX як…</value></data>
+  <data name="Main.ExportAs" xml:space="preserve"><value>Экспартаваць як</value></data>
+  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя або стварыць інсталятар Windows</value></data>
+  <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
+  <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
+  <data name="Main.ExportComments" xml:space="preserve"><value>Каментарыі…</value></data>
+  <data name="Main.ExportTxd" xml:space="preserve"><value>TXD…</value></data>
+  <data name="Main.GxtFile" xml:space="preserve"><value>Файл GXT</value></data>
+  <data name="Main.Reload" xml:space="preserve"><value>Перазагрузіць</value></data>
+  <data name="Main.ByxProject" xml:space="preserve"><value>Праект BYX</value></data>
+  <data name="Main.ByxProject.Empty.ToolTip" xml:space="preserve"><value>Пуста, пакуль праект не захаваны ў BYX</value></data>
+  <data name="Main.TxdFonts" xml:space="preserve"><value>Шрыфты TXD</value></data>
+  <data name="Main.TxdNotAttached" xml:space="preserve"><value>Не далучаны</value></data>
+  <data name="Main.TxdAttached" xml:space="preserve"><value>Далучаны: {0}</value></data>
+  <data name="Main.TxdAvailability" xml:space="preserve"><value>Файлы TXD даступныя толькі для GTA Vice City PC</value></data>
+  <data name="Main.TxdAttach" xml:space="preserve"><value>Далучыць/замяніць…</value></data>
+  <data name="Main.Actions" xml:space="preserve"><value>Дзеянні</value></data>
+  <data name="Main.TxdActions.ToolTip" xml:space="preserve"><value>Мапінг і кіраванне далучаным TXD</value></data>
+  <data name="Main.Mapping" xml:space="preserve"><value>Мапінг…</value></data>
+  <data name="Main.TxdRemove" xml:space="preserve"><value>Выдаліць TXD з праекта</value></data>
+  <data name="Main.InstallerWindows" xml:space="preserve"><value>Інсталятар Windows</value></data>
+  <data name="Main.InstallerNotConfigured" xml:space="preserve"><value>Не настроены</value></data>
+  <data name="Main.InstallerConfigured" xml:space="preserve"><value>Далучаных файлаў: {0}</value></data>
+  <data name="Main.InstallerAvailability" xml:space="preserve"><value>Даступны для праектаў GTA Vice City PC з далучаным TXD</value></data>
+  <data name="Main.InstallerConfigure" xml:space="preserve"><value>Настроіць…</value></data>
+  <data name="Main.Search.ToolTip" xml:space="preserve"><value>Пошук па ключах, тэксце і табліцах</value></data>
+  <data name="Main.CaseSensitive" xml:space="preserve"><value>Улічваць рэгістр</value></data>
+  <data name="Main.LiveSearch" xml:space="preserve"><value>Жывы пошук</value></data>
+  <data name="Main.Find" xml:space="preserve"><value>Знайсці</value></data>
+  <data name="Main.BlockType" xml:space="preserve"><value>Тып блока</value></data>
+  <data name="Main.Block" xml:space="preserve"><value>Блок</value></data>
+  <data name="Main.Order" xml:space="preserve"><value>Парадак</value></data>
+  <data name="Main.Key" xml:space="preserve"><value>Ключ</value></data>
+  <data name="Main.Translation" xml:space="preserve"><value>Пераклад</value></data>
+  <data name="Main.Encounter" xml:space="preserve"><value>Уваходжанне</value></data>
+  <data name="Main.Comment" xml:space="preserve"><value>Каментарый</value></data>
+  <data name="Main.Reviewed" xml:space="preserve"><value>Праверана</value></data>
+  <data name="Main.Table" xml:space="preserve"><value>Табліца</value></data>
+  <data name="Main.EnglishSource" xml:space="preserve"><value>Англійская крыніца</value></data>
+  <data name="Main.Occurrences" xml:space="preserve"><value>Уваходжанні</value></data>
+  <data name="Main.Context" xml:space="preserve"><value>Кантэкст</value></data>
+  <data name="Main.Source" xml:space="preserve"><value>Крыніца</value></data>
+  <data name="Main.TranslatorComment" xml:space="preserve"><value>Каментарый перакладчыка</value></data>
+  <data name="Main.Comparison" xml:space="preserve"><value>Крыніца/параўнанне…</value></data>
+  <data name="Main.AddFromGxt" xml:space="preserve"><value>Дадаць з іншага GXT…</value></data>
+  <data name="Main.ConvertMapping" xml:space="preserve"><value>Пераўтварыць мапінг…</value></data>
+
+  <data name="Entry.Title.Add" xml:space="preserve"><value>Дадаванне ключа</value></data>
+  <data name="Entry.Title.Edit" xml:space="preserve"><value>Рэдагаванне ключа</value></data>
+  <data name="Entry.ValidationTitle" xml:space="preserve"><value>Праверка даных</value></data>
+
+  <data name="Txd.Title" xml:space="preserve"><value>Мапінг GXT + TXD</value></data>
+  <data name="Txd.Import" xml:space="preserve"><value>Імпарт…</value></data>
+  <data name="Txd.Export" xml:space="preserve"><value>Экспарт…</value></data>
+  <data name="Txd.BelarusianPreset" xml:space="preserve"><value>Беларускі 0x80–0xBF</value></data>
+  <data name="Txd.Textures" xml:space="preserve"><value>Тэкстуры</value></data>
+  <data name="Txd.FullTexture" xml:space="preserve"><value>Уся тэкстура</value></data>
+  <data name="Txd.SelectedCell" xml:space="preserve"><value>Прызначэнне выбранай ячэйкі</value></data>
+  <data name="Txd.Assign" xml:space="preserve"><value>Прызначыць</value></data>
+  <data name="Txd.MakePreferred" xml:space="preserve"><value>Зрабіць код пераважным</value></data>
+  <data name="Txd.PreferredCode" xml:space="preserve"><value>Пераважны код сімвала</value></data>
+  <data name="Txd.Validation" xml:space="preserve"><value>Праверка GXT</value></data>
+  <data name="Txd.Check" xml:space="preserve"><value>Праверыць…</value></data>
+  <data name="Txd.GlyphHeading.ViceCity" xml:space="preserve"><value>Ячэйкі font1 / font2</value></data>
+  <data name="Txd.GlyphHeading.Other" xml:space="preserve"><value>Ячэйкі font1 / font2 / pager</value></data>
+  <data name="Txd.Profile.Verified" xml:space="preserve"><value>Профіль правераны для бягучай пары</value></data>
+  <data name="Txd.Profile.Draft" xml:space="preserve"><value>Чарнавік: праверце прызначэнні па гліфах TXD</value></data>
+  <data name="Txd.ChooseTexture" xml:space="preserve"><value>Выберыце тэкстуру</value></data>
+  <data name="Txd.ImportMapping" xml:space="preserve"><value>Імпартаваць мапінг сімвалаў</value></data>
+  <data name="Txd.ExportMapping" xml:space="preserve"><value>Экспартаваць мапінг сімвалаў</value></data>
+  <data name="Txd.ImportError" xml:space="preserve"><value>Памылка імпарту</value></data>
+  <data name="Txd.ExportError" xml:space="preserve"><value>Памылка экспарту</value></data>
+  <data name="Txd.ProfileValidation" xml:space="preserve"><value>Праверка профілю</value></data>
+  <data name="Txd.TextureMetadata" xml:space="preserve"><value>{0} — {1}×{2}, {3}, {4} біт, mipmap: {5}, {6}</value></data>
+  <data name="Txd.UnmappedCode" xml:space="preserve"><value>Код 0x{0:X2} выкарыстоўваецца ў GXT, але не прызначаны.</value></data>
+  <data name="Txd.Analysis.Valid" xml:space="preserve"><value>Профіль не мае канфліктаў; усе выкарыстаныя сімвалы і байты прызначаныя.</value></data>
+  <data name="Txd.Analysis.Usage" xml:space="preserve"><value>Выкарыстанне лакалізаваных сімвалаў:</value></data>
+  <data name="Txd.OutOfRange" xml:space="preserve"><value>Па-за дыяпазонам</value></data>
+
+  <data name="Filter.CharacterMapImport" xml:space="preserve"><value>Мапінг (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Слоўнік (*.txt)|*.txt</value></data>
+  <data name="Filter.CharacterMapExport" xml:space="preserve"><value>Мапінг JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json</value></data>
+  <data name="Filter.Document" xml:space="preserve"><value>GXT або праект BYX (*.gxt;*.byx)|*.gxt;*.byx|GXT (*.gxt)|*.gxt|Праект BYX (*.byx)|*.byx|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Gxt" xml:space="preserve"><value>GTA III/Vice City GXT (*.gxt)|*.gxt|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Txd" xml:space="preserve"><value>Vice City TXD (*.txd)|*.txd|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Byx" xml:space="preserve"><value>Праект BYX (*.byx)|*.byx|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Json" xml:space="preserve"><value>JSON (*.json)|*.json|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.CharacterMap" xml:space="preserve"><value>Мапінг сімвалаў (*.gxtmap.json;*.json;*.txt)|*.gxtmap.json;*.json;*.txt|Мапінг JSON (*.gxtmap.json;*.json)|*.gxtmap.json;*.json|Стары слоўнік (*.txt)|*.txt|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Comments" xml:space="preserve"><value>Каментарыі GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.GameGxt" xml:space="preserve"><value>{0} GXT (*.gxt)|*.gxt|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.GxtTxdMapping" xml:space="preserve"><value>Мапінг GXT/TXD (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json</value></data>
+
+  <data name="Busy.OpenDocument" xml:space="preserve"><value>Адкрыццё дакумента…</value></data>
+  <data name="Busy.OpenGxt" xml:space="preserve"><value>Адкрыццё GXT…</value></data>
+  <data name="Busy.OpenComparisons" xml:space="preserve"><value>Адкрыццё файлаў параўнання…</value></data>
+  <data name="Busy.ReloadProject" xml:space="preserve"><value>Перазагрузка праекта…</value></data>
+  <data name="Busy.ReloadGxt" xml:space="preserve"><value>Перазагрузка GXT…</value></data>
+  <data name="Busy.SaveDocument" xml:space="preserve"><value>Захаванне дакумента…</value></data>
+  <data name="Busy.ExportGxt" xml:space="preserve"><value>Экспарт GXT…</value></data>
+  <data name="Busy.SaveProject" xml:space="preserve"><value>Захаванне праекта…</value></data>
+  <data name="Busy.ReadTxd" xml:space="preserve"><value>Чытанне TXD…</value></data>
+  <data name="Busy.ExportTxd" xml:space="preserve"><value>Экспарт TXD…</value></data>
+  <data name="Busy.ExportJson" xml:space="preserve"><value>Экспарт JSON…</value></data>
+  <data name="Busy.ImportComments" xml:space="preserve"><value>Імпарт каментарыяў…</value></data>
+  <data name="Busy.ExportComments" xml:space="preserve"><value>Экспарт каментарыяў…</value></data>
+  <data name="Busy.ConvertJson" xml:space="preserve"><value>Пераўтварэнне JSON у GXT…</value></data>
+  <data name="Busy.ReadSourceGxt" xml:space="preserve"><value>Чытанне зыходнага GXT…</value></data>
+  <data name="Busy.ConvertMapping" xml:space="preserve"><value>Пераўтварэнне мапінга…</value></data>
+
+  <data name="Dialog.OpenDocument" xml:space="preserve"><value>Адкрыць GXT або праект BYX</value></data>
+  <data name="Dialog.OpenWithMapping" xml:space="preserve"><value>Адкрыць файл GXT з мапінгам</value></data>
+  <data name="Dialog.SelectMapping" xml:space="preserve"><value>Выбраць мапінг сімвалаў</value></data>
+  <data name="Dialog.AddComparison" xml:space="preserve"><value>Дадаць англійскую крыніцу або GXT для параўнання</value></data>
+  <data name="Dialog.OpenErrorTitle" xml:space="preserve"><value>Памылка адкрыцця</value></data>
+  <data name="Dialog.SaveGxt" xml:space="preserve"><value>Захаваць файл GXT</value></data>
+  <data name="Dialog.SaveProject" xml:space="preserve"><value>Захаваць праект BYX</value></data>
+  <data name="Dialog.AttachTxd" xml:space="preserve"><value>Далучыць або замяніць TXD GTA Vice City</value></data>
+  <data name="Dialog.ExportTxd" xml:space="preserve"><value>Экспартаваць TXD</value></data>
+  <data name="Dialog.ExportJson" xml:space="preserve"><value>Экспартаваць GXT у JSON</value></data>
+  <data name="Dialog.ImportComments" xml:space="preserve"><value>Імпартаваць каментарыі</value></data>
+  <data name="Dialog.ExportComments" xml:space="preserve"><value>Экспартаваць каментарыі</value></data>
+  <data name="Dialog.ConvertJson" xml:space="preserve"><value>Пераўтварыць JSON у GXT</value></data>
+  <data name="Dialog.SaveConvertedGxt" xml:space="preserve"><value>Захаваць пераўтвораны GXT</value></data>
+  <data name="Dialog.AddMissing" xml:space="preserve"><value>Дадаць адсутныя ключы з {0}</value></data>
+  <data name="Dialog.SelectTargetMapping" xml:space="preserve"><value>Выбраць мэтавы мапінг сімвалаў</value></data>
+  <data name="Dialog.ExportMapping" xml:space="preserve"><value>Экспартаваць мапінг GXT + TXD</value></data>
+
+  <data name="Status.ComparisonsLoaded" xml:space="preserve"><value>Загружана файлаў параўнання: {0}; усяго: {1}</value></data>
+  <data name="Status.EntryAdded" xml:space="preserve"><value>Дададзены ключ {0}</value></data>
+  <data name="Status.EntryChanged" xml:space="preserve"><value>Зменены ключ {0}</value></data>
+  <data name="Status.CommentSaved" xml:space="preserve"><value>Каментарый для {0} захаваны</value></data>
+  <data name="Status.CommentCleared" xml:space="preserve"><value>Каментарый для {0} выдалены</value></data>
+  <data name="Status.EntryDeleted" xml:space="preserve"><value>Выдалены ключ {0}</value></data>
+  <data name="Status.Saved" xml:space="preserve"><value>Захавана: {0}</value></data>
+  <data name="Status.ProjectSaved" xml:space="preserve"><value>Праект захаваны: {0}</value></data>
+  <data name="Status.TxdAttached" xml:space="preserve"><value>Далучаны TXD: {0} — тэкстур: {1}</value></data>
+  <data name="Status.TxdRemoved" xml:space="preserve"><value>TXD выдалены з праекта: {0}</value></data>
+  <data name="Status.TxdExported" xml:space="preserve"><value>TXD экспартаваны: {0}</value></data>
+  <data name="Status.MappingApplied" xml:space="preserve"><value>Мапінг ужыты без змянення байтаў GXT</value></data>
+  <data name="Status.GxtReencoded" xml:space="preserve"><value>GXT перакадзіраваны для TXD: зменена байтаў: {0}</value></data>
+  <data name="Status.JsonExported" xml:space="preserve"><value>Экспартавана ў JSON: {0}</value></data>
+  <data name="Status.CommentsImported" xml:space="preserve"><value>Імпарт каментарыяў завершаны — {0}</value></data>
+  <data name="Status.CommentsExported" xml:space="preserve"><value>Каментарыі экспартаваныя: {0}</value></data>
+  <data name="Status.JsonConverted" xml:space="preserve"><value>JSON пераўтвораны ў GXT {0}: ключоў: {1}</value></data>
+  <data name="Status.Opened" xml:space="preserve"><value>Адкрыты {0} — ключоў: {1}</value></data>
+  <data name="Status.ProjectOpened" xml:space="preserve"><value>Адкрыты праект {0} — ключоў: {1}, {2}</value></data>
+  <data name="Status.TxdCount" xml:space="preserve"><value>TXD: {0}</value></data>
+  <data name="Status.Reloaded" xml:space="preserve"><value>Перазагружаны {0}</value></data>
+  <data name="Status.AllEntries" xml:space="preserve"><value>{0} — ключоў: {1}</value></data>
+  <data name="Status.FilteredEntries" xml:space="preserve"><value>Паказана ключоў: {0} з {1}</value></data>
+  <data name="Status.FileAndMappingExported" xml:space="preserve"><value>Файл і мапінг экспартаваныя: {0}</value></data>
+
+  <data name="Message.FileTypeMismatch" xml:space="preserve"><value>Тып файла '{0}' не адпавядае адкрытаму GXT.</value></data>
+  <data name="Message.OpenComparisonFailed" xml:space="preserve"><value>Не ўдалося адкрыць '{0}' для параўнання.&#xA;&#xA;{1}</value></data>
+  <data name="Message.SourceUnavailable" xml:space="preserve"><value>Зыходны GXT недаступны для перазагрузкі.</value></data>
+  <data name="Message.DuplicateKey" xml:space="preserve"><value>Ключ '{0}' ужо існуе ў выбранай табліцы.</value></data>
+  <data name="Message.DeleteEntry" xml:space="preserve"><value>Выдаліць ключ '{0}'? Гэтая змена будзе запісаная ў файл толькі пасля захавання.</value></data>
+  <data name="Message.DeleteEntryTitle" xml:space="preserve"><value>Выдаленне ключа</value></data>
+  <data name="Message.SaveFailed" xml:space="preserve"><value>Не ўдалося захаваць файл.&#xA;&#xA;{0}</value></data>
+  <data name="Message.SaveProjectFailed" xml:space="preserve"><value>Не ўдалося захаваць праект BYX.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ReplaceTxd" xml:space="preserve"><value>Замяніць далучаны TXD '{0}' на '{1}'? Бягучы мапінг будзе захаваны як неправераны чарнавік.</value></data>
+  <data name="Message.ReplaceTxdTitle" xml:space="preserve"><value>Замена TXD</value></data>
+  <data name="Message.AttachTxdFailed" xml:space="preserve"><value>Не ўдалося далучыць TXD.&#xA;&#xA;{0}</value></data>
+  <data name="Message.RemoveTxd" xml:space="preserve"><value>Выдаліць '{0}' з праекта?</value></data>
+  <data name="Message.RemoveTxdTitle" xml:space="preserve"><value>Выдаленне TXD</value></data>
+  <data name="Message.ExportTxdFailed" xml:space="preserve"><value>Не ўдалося экспартаваць TXD.&#xA;&#xA;{0}</value></data>
+  <data name="Message.MappingCannotApply" xml:space="preserve"><value>Профіль немагчыма ўжыць:&#xA;&#xA;{0}</value></data>
+  <data name="Message.MappingValidationTitle" xml:space="preserve"><value>Праверка мапінга</value></data>
+  <data name="Message.MappingOperationInterpret" xml:space="preserve"><value>зноў інтэрпрэтаваць зыходныя байты</value></data>
+  <data name="Message.MappingOperationReencode" xml:space="preserve"><value>перакадзіраваць бягучы Unicode-тэкст</value></data>
+  <data name="Message.NoDifferences" xml:space="preserve"><value>У бягучых даных няма адрозненняў.</value></data>
+  <data name="Message.MoreChanges" xml:space="preserve"><value>&#xA;…і яшчэ {0}</value></data>
+  <data name="Message.ApplyMapping" xml:space="preserve"><value>Будзе выканана дзеянне: {0}.&#xA;Закранута радкоў: {1}; зменена байтаў: {2}.&#xA;&#xA;{3}</value></data>
+  <data name="Message.ApplyMappingQuestion" xml:space="preserve"><value>Ужыць профіль?</value></data>
+  <data name="Message.ApplyMappingTitle" xml:space="preserve"><value>Ужыванне мапінга</value></data>
+  <data name="Message.ApplyMappingFailed" xml:space="preserve"><value>Не ўдалося ўжыць мапінг.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ExportJsonFailed" xml:space="preserve"><value>Не ўдалося экспартаваць JSON.&#xA;&#xA;{0}</value></data>
+  <data name="Message.CommentsSummary" xml:space="preserve"><value>Абноўлена: {0}; выдалена: {1}; без змен: {2}; няма ў GXT: {3}; тэкст адрозніваецца: {4}.</value></data>
+  <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Не ўдалося імпартаваць каментарыі.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ExportCommentsFailed" xml:space="preserve"><value>Не ўдалося экспартаваць каментарыі.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ConvertJsonFailed" xml:space="preserve"><value>Не ўдалося пераўтварыць JSON у GXT.&#xA;&#xA;{0}</value></data>
+  <data name="Message.SelectedGxtTypeMismatch" xml:space="preserve"><value>Тып выбранага файла GXT не адпавядае адкрытаму файлу.</value></data>
+  <data name="Message.MissingEntriesAdded" xml:space="preserve"><value>Дададзена адсутных ключоў: {0}.</value></data>
+  <data name="Message.AddEntriesFailed" xml:space="preserve"><value>Не ўдалося дадаць ключы.&#xA;&#xA;{0}</value></data>
+  <data name="Message.MappingConverted" xml:space="preserve"><value>Мапінг сімвалаў паспяхова пераўтвораны.</value></data>
+  <data name="Message.ConvertMappingFailed" xml:space="preserve"><value>Не ўдалося пераўтварыць мапінг.&#xA;&#xA;{0}</value></data>
+  <data name="Message.OpenFailed" xml:space="preserve"><value>Не ўдалося адкрыць '{0}'.&#xA;&#xA;{1}</value></data>
+  <data name="Message.UnsupportedDocument" xml:space="preserve"><value>Падтрымліваюцца толькі файлы GXT і праекты BYX.</value></data>
+  <data name="Message.OpenProjectFailed" xml:space="preserve"><value>Не ўдалося адкрыць праект '{0}'.&#xA;&#xA;{1}</value></data>
+  <data name="Message.OpenProjectErrorTitle" xml:space="preserve"><value>Памылка адкрыцця BYX</value></data>
+  <data name="Message.ReloadFailed" xml:space="preserve"><value>Не ўдалося перазагрузіць GXT.&#xA;&#xA;{0}</value></data>
+  <data name="Message.CanonicalMetadataUnavailable" xml:space="preserve"><value>Убудаваныя даныя парадку праходжання недаступныя. Дакумент адкрыты без кананічнай навігацыі.&#xA;&#xA;{0}</value></data>
+  <data name="Message.MetadataTitle" xml:space="preserve"><value>Метаданыя праходжання</value></data>
+  <data name="Message.ExportMappingOffer" xml:space="preserve"><value>Мапінгі не захоўваюцца ўнутры асобных файлаў GXT/TXD. Экспартаваць побач файл .gxtmap.json?</value></data>
+  <data name="Message.ExportMappingTitle" xml:space="preserve"><value>Экспарт мапінга</value></data>
+  <data name="Message.ExportMappingFailed" xml:space="preserve"><value>Не ўдалося экспартаваць мапінг.&#xA;&#xA;{0}</value></data>
+  <data name="Message.UnsavedChanges" xml:space="preserve"><value>У праекце ёсць незахаваныя змены. Захаваць іх?</value></data>
+  <data name="Message.UnsavedChangesTitle" xml:space="preserve"><value>Незахаваныя змены</value></data>
+
+  <data name="Validation.Name.Empty" xml:space="preserve"><value>Імя ключа не можа быць пустым.</value></data>
+  <data name="Validation.Name.TooLong" xml:space="preserve"><value>Імя ключа можа змяшчаць не больш за {0} сімвалаў.</value></data>
+  <data name="Validation.Name.Invalid" xml:space="preserve"><value>Імя ключа павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
+  <data name="Validation.Text.Empty" xml:space="preserve"><value>Тэкст ключа не можа быць пустым.</value></data>
+  <data name="Validation.Table.Required" xml:space="preserve"><value>Выберыце табліцу.</value></data>
+  <data name="Validation.Table.Invalid" xml:space="preserve"><value>Імя табліцы павінна змяшчаць ад 1 да 8 ASCII-сімвалаў без NUL.</value></data>
+
+  <data name="CharacterMap.VersionUnsupported" xml:space="preserve"><value>Версія профілю {0} не падтрымліваецца.</value></data>
+  <data name="CharacterMap.ControlCharacter" xml:space="preserve"><value>Сімвал U+{0:X4} нельга прызначыць ячэйцы шрыфту.</value></data>
+  <data name="CharacterMap.DuplicateCharacter" xml:space="preserve"><value>Сімвал '{0}' апісаны больш за адзін раз.</value></data>
+  <data name="CharacterMap.NoCodes" xml:space="preserve"><value>Для сімвала '{0}' не зададзеныя коды.</value></data>
+  <data name="CharacterMap.CodeRange" xml:space="preserve"><value>Коды сімвала '{0}' павінны быць у дыяпазоне 0x20–0xFF.</value></data>
+  <data name="CharacterMap.DuplicateCode" xml:space="preserve"><value>Код 0x{0:X2} прызначаны некалькім сімвалам.</value></data>
+  <data name="CharacterMap.PreferredMissing" xml:space="preserve"><value>Пераважнага кода сімвала '{0}' няма ў спісе яго кодаў.</value></data>
+  <data name="CharacterMap.UnmappedProfileCode" xml:space="preserve"><value>Код 0x{0:X2} выкарыстоўваецца ў GXT, але не прызначаны ў профілі.</value></data>
+  <data name="CharacterMap.BytesChanged" xml:space="preserve"><value>{0}: зменена байтаў: {1}; {2} → {3}</value></data>
+  <data name="CharacterMap.MissingCharacterUsage" xml:space="preserve"><value>Няма сімвала '{0}' — выкарыстанняў: {1}.</value></data>
+  <data name="CharacterMap.CharacterMissing" xml:space="preserve"><value>Сімвала '{0}' няма ў профілі мапінга.</value></data>
+  <data name="CharacterMap.DifferentSets" xml:space="preserve"><value>Мапінгі павінны мець аднолькавую колькасць і аднолькавы набор сімвалаў.</value></data>
+  <data name="Resource.CharacterMapMissing" xml:space="preserve"><value>Убудаваны мапінг '{0}' не знойдзены.</value></data>
+  <data name="Resource.MetadataMissing" xml:space="preserve"><value>Убудаваныя метаданыя праходжання '{0}' не знойдзеныя.</value></data>
+  <data name="Document.FileUnavailable" xml:space="preserve"><value>Файл '{0}' не існуе або недаступны.</value></data>
+  <data name="Document.DuplicateEntry" xml:space="preserve"><value>GXT змяшчае паўторны запіс '{0}'.</value></data>
+  <data name="Mapping.JsonMustBeObject" xml:space="preserve"><value>JSON мапінга павінен быць аб'ектам.</value></data>
+  <data name="Mapping.JsonCorrupt" xml:space="preserve"><value>JSON мапінга пашкоджаны.</value></data>
+  <data name="Mapping.ShortJsonFormat" xml:space="preserve"><value>Скарочаны JSON павінен мець фармат { "сімвал": "0x80" }.</value></data>
+  <data name="Mapping.JsonEntryCorrupt" xml:space="preserve"><value>Запіс JSON мапінга пашкоджаны.</value></data>
+  <data name="Mapping.CodeMissing" xml:space="preserve"><value>У JSON не зададзены код сімвала.</value></data>
+  <data name="Mapping.CodeRange" xml:space="preserve"><value>Код '{0}' павінен быць у дыяпазоне 0x20–0xFF.</value></data>
+  <data name="Gxt.InvalidFile" xml:space="preserve"><value>Файл '{0}' пашкоджаны або не з'яўляецца файлам GXT GTA III/Vice City.</value></data>
+  <data name="Gxt.UnsupportedType" xml:space="preserve"><value>Тып GXT не падтрымліваецца.</value></data>
+  <data name="Gxt.CreateSupportedOnly" xml:space="preserve"><value>Можна ствараць толькі файлы GXT GTA III або Vice City.</value></data>
+  <data name="Json.ConvertEntryFailed" xml:space="preserve"><value>Не ўдалося пераўтварыць запіс {0} з ключом '{1}': {2}</value></data>
+  <data name="Json.NoGxtDocument" xml:space="preserve"><value>Файл JSON не змяшчае дакумента GXT.</value></data>
+  <data name="Json.Invalid" xml:space="preserve"><value>Некарэктны JSON: {0}</value></data>
+  <data name="Json.EntriesMissing" xml:space="preserve"><value>У JSON няма абавязковага масіва 'entries'.</value></data>
+  <data name="Json.EntryNull" xml:space="preserve"><value>Запіс {0} не можа быць null.</value></data>
+  <data name="Json.KeyMissing" xml:space="preserve"><value>Запіс {0} не мае непустога поля 'key'.</value></data>
+  <data name="Json.TextMissing" xml:space="preserve"><value>Запіс {0} не мае поля 'text'.</value></data>
+  <data name="Json.DuplicateKey" xml:space="preserve"><value>Запіс {0} паўтарае ключ '{1}'.</value></data>
+  <data name="Json.DuplicateTableKey" xml:space="preserve"><value>Запіс {0} паўтарае ключ '{1}' у табліцы '{2}'.</value></data>
+  <data name="Json.FieldKey" xml:space="preserve"><value>Ключ</value></data>
+  <data name="Json.FieldTable" xml:space="preserve"><value>Табліца</value></data>
+  <data name="Json.NameTooLong" xml:space="preserve"><value>{0} запісу {1} можа змяшчаць не больш за {2} сімвалаў.</value></data>
+  <data name="Json.NameNonAscii" xml:space="preserve"><value>{0} запісу {1} павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
+
+  <data name="TxdError.TooSmall" xml:space="preserve"><value>файл занадта малы</value></data>
+  <data name="TxdError.RootMissing" xml:space="preserve"><value>няма каранёвага слоўніка тэкстур</value></data>
+  <data name="TxdError.HeaderCorrupt" xml:space="preserve"><value>загаловак слоўніка пашкоджаны</value></data>
+  <data name="TxdError.TooManyTextures" xml:space="preserve"><value>занадта шмат тэкстур</value></data>
+  <data name="TxdError.DecodedTooLarge" xml:space="preserve"><value>дэкадаваныя пікселі тэкстур перавышаюць ліміт 256 МіБ</value></data>
+  <data name="TxdError.DictionaryOrder" xml:space="preserve"><value>структура слоўніка павінна быць перад тэкстурамі</value></data>
+  <data name="TxdError.TextureCount" xml:space="preserve"><value>колькасць тэкстур не адпавядае загалоўку</value></data>
+  <data name="TxdError.TextureCorrupt" xml:space="preserve"><value>структура тэкстуры пашкоджаная</value></data>
+  <data name="TxdError.Platform" xml:space="preserve"><value>платформа TXD {0} не падтрымліваецца</value></data>
+  <data name="TxdError.Parameters" xml:space="preserve"><value>некарэктныя параметры тэкстуры '{0}'</value></data>
+  <data name="TxdError.MipmapTooLarge" xml:space="preserve"><value>mipmap тэкстуры '{0}' занадта вялікі</value></data>
+  <data name="TxdError.NoImage" xml:space="preserve"><value>тэкстура '{0}' не мае выявы</value></data>
+  <data name="TxdError.Compression" xml:space="preserve"><value>сцісканне {0} тэкстуры '{1}' не падтрымліваецца</value></data>
+  <data name="TxdError.FourCc" xml:space="preserve"><value>FourCC тэкстуры '{0}' не падтрымліваецца</value></data>
+  <data name="TxdError.PaletteIncomplete" xml:space="preserve"><value>даныя палітры тэкстуры '{0}' няпоўныя</value></data>
+  <data name="TxdError.Depth" xml:space="preserve"><value>глыбіня {0} тэкстуры '{1}' не падтрымліваецца</value></data>
+  <data name="TxdError.DataIncomplete" xml:space="preserve"><value>даныя тэкстуры '{0}' няпоўныя</value></data>
+  <data name="TxdError.DecodeFailed" xml:space="preserve"><value>не ўдалося дэкадаваць тэкстуру '{0}'</value></data>
+  <data name="TxdError.Format" xml:space="preserve"><value>фармат 0x{0:X4}/{1} тэкстуры '{2}' не падтрымліваецца</value></data>
+  <data name="TxdError.UnexpectedEnd" xml:space="preserve"><value>файл нечакана скончыўся</value></data>
+  <data name="TxdError.ChunkBounds" xml:space="preserve"><value>памер чанка выходзіць за межы файла</value></data>
+  <data name="TxdError.ParentBounds" xml:space="preserve"><value>памер чанка выходзіць за межы бацькоўскага чанка</value></data>
+  <data name="TxdError.Invalid" xml:space="preserve"><value>TXD '{0}' пашкоджаны або не падтрымліваецца: {1}.</value></data>
+
+  <data name="Metadata.NoDocument" xml:space="preserve"><value>JSON метаданых праекта не змяшчае дакумента.</value></data>
+  <data name="Metadata.InvalidJson" xml:space="preserve"><value>Некарэктны JSON метаданых праекта: {0}</value></data>
+  <data name="Metadata.InvalidFile" xml:space="preserve"><value>Файл метаданых праекта некарэктны.</value></data>
+  <data name="Metadata.BlocksCorrupt" xml:space="preserve"><value>Спіс блокаў у метаданых праекта пашкоджаны.</value></data>
+  <data name="Metadata.EntriesCorrupt" xml:space="preserve"><value>Спіс запісаў у метаданых праекта пашкоджаны.</value></data>
+  <data name="Metadata.Duplicate" xml:space="preserve"><value>Метаданыя запісу '{0}' паўтараюцца.</value></data>
+  <data name="Metadata.UnknownBlock" xml:space="preserve"><value>Метаданыя запісу '{0}' спасылаюцца на невядомы блок.</value></data>
+  <data name="Metadata.ViceCityTableMissing" xml:space="preserve"><value>Для запісу Vice City '{0}' не зададзеная табліца.</value></data>
+  <data name="Metadata.GtaThirdTableInvalid" xml:space="preserve"><value>Запіс GTA III '{0}' не павінен змяшчаць табліцу.</value></data>
+
+  <data name="Comments.Context" xml:space="preserve"><value>файле каментарыяў</value></data>
+  <data name="Comments.GameMismatch" xml:space="preserve"><value>Файл каментарыяў прызначаны для {0}, а адкрыты праект {1}.</value></data>
+  <data name="Comments.NoDocument" xml:space="preserve"><value>JSON каментарыяў не змяшчае дакумента.</value></data>
+  <data name="Comments.InvalidFormat" xml:space="preserve"><value>Некарэктны фармат каментарыяў: чакаецца '{0}'.</value></data>
+  <data name="Comments.UnsupportedVersion" xml:space="preserve"><value>Версія файла каментарыяў {0} не падтрымліваецца.</value></data>
+  <data name="Comments.EntriesMissing" xml:space="preserve"><value>У JSON каментарыяў няма абавязковага масіва 'entries'.</value></data>
+  <data name="Comments.InvalidJson" xml:space="preserve"><value>Некарэктны JSON каментарыяў: {0}</value></data>
+  <data name="Comments.KeyMissing" xml:space="preserve"><value>Запіс каментарыяў {0} не мае непустога поля 'key'.</value></data>
+  <data name="Comments.TableMissing" xml:space="preserve"><value>Запіс каментарыяў {0} не мае непустога поля 'table'.</value></data>
+  <data name="Comments.Duplicate" xml:space="preserve"><value>Запіс каментарыяў {0} паўтарае '{1}'.</value></data>
+  <data name="Comments.NameTooLong" xml:space="preserve"><value>{0} запісу каментарыяў {1} можа змяшчаць не больш за {2} сімвалаў.</value></data>
+  <data name="Comments.NameNonAscii" xml:space="preserve"><value>{0} запісу каментарыяў {1} павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
+
+  <data name="Byx.NotFound" xml:space="preserve"><value>Файл праекта не знойдзены.</value></data>
+  <data name="Byx.TooLarge" xml:space="preserve"><value>Праект BYX перавышае ліміт памеру 512 МБ.</value></data>
+  <data name="Byx.InvalidFormat" xml:space="preserve"><value>Некарэктны фармат праекта BYX.</value></data>
+  <data name="Byx.VersionNew" xml:space="preserve"><value>Версія BYX {0} пакуль не падтрымліваецца.</value></data>
+  <data name="Byx.VersionOld" xml:space="preserve"><value>Версія BYX {0} больш не падтрымліваецца.</value></data>
+  <data name="Byx.DirectoryUnknown" xml:space="preserve"><value>Не ўдалося вызначыць каталог праекта.</value></data>
+  <data name="Byx.UnsupportedGxt" xml:space="preserve"><value>Праект змяшчае тып GXT, які не падтрымліваецца.</value></data>
+  <data name="Byx.TxdViceCityOnly" xml:space="preserve"><value>TXD можна далучыць толькі да праекта GTA Vice City.</value></data>
+  <data name="Byx.Limits" xml:space="preserve"><value>Праект перавышае ліміты фармату BYX.</value></data>
+  <data name="Byx.MappingCorrupt" xml:space="preserve"><value>Убудаваны мапінг BYX пашкоджаны.</value></data>
+  <data name="Byx.ManifestIncomplete" xml:space="preserve"><value>Маніфест праекта BYX v3 запоўнены не цалкам.</value></data>
+  <data name="Byx.AttachmentMetadata" xml:space="preserve"><value>метаданых</value></data>
+  <data name="Byx.AttachmentMapping" xml:space="preserve"><value>мапінга</value></data>
+  <data name="Byx.InvalidGxtName" xml:space="preserve"><value>Маніфест BYX змяшчае некарэктнае імя GXT.</value></data>
+  <data name="Byx.InvalidTxdName" xml:space="preserve"><value>Маніфест BYX змяшчае некарэктнае імя TXD.</value></data>
+  <data name="Byx.InvalidAttachment" xml:space="preserve"><value>Маніфест BYX змяшчае некарэктнае ўкладанне {0}.</value></data>
+  <data name="Byx.DuplicatePaths" xml:space="preserve"><value>Маніфест BYX змяшчае паўторныя шляхі ўкладанняў.</value></data>
+  <data name="Byx.EntrySetMismatch" xml:space="preserve"><value>Набор запісаў BYX не адпавядае manifest.json.</value></data>
+  <data name="Byx.TooManyEntries" xml:space="preserve"><value>Праект BYX змяшчае занадта шмат запісаў.</value></data>
+  <data name="Byx.DuplicateEntry" xml:space="preserve"><value>Запіс '{0}' паўтараецца ў праекце BYX.</value></data>
+  <data name="Byx.UnpackedTooLarge" xml:space="preserve"><value>Распакованыя даныя BYX перавышаюць 512 МБ.</value></data>
+  <data name="Byx.JsonCorrupt" xml:space="preserve"><value>JSON унутры праекта BYX пашкоджаны.</value></data>
+  <data name="Byx.EntryMissing" xml:space="preserve"><value>У праекце BYX няма запісу '{0}'.</value></data>
+  <data name="Byx.EntryTooLarge" xml:space="preserve"><value>Запіс '{0}' занадта вялікі.</value></data>
+  <data name="Byx.UnsafeEntryName" xml:space="preserve"><value>Небяспечнае імя запісу BYX: '{0}'.</value></data>
+  <data name="Byx.ChecksumMismatch" xml:space="preserve"><value>Кантрольная сума запісу '{0}' не супадае.</value></data>
+
+  <data name="Domain.CustomMappingPathMissing" xml:space="preserve"><value>Шлях да карыстальніцкага мапінга не зададзены.</value></data>
+  <data name="Domain.GameUnsupportedInDocument" xml:space="preserve"><value>Гульня '{0}' у {1} не падтрымліваецца.</value></data>
+  <data name="Domain.JsonGameMissing" xml:space="preserve"><value>У JSON няма абавязковага поля 'game'.</value></data>
+  <data name="Domain.GameUnsupported" xml:space="preserve"><value>Гульня '{0}' не падтрымліваецца. Чакаецца 'GTA III' або 'GTA Vice City'.</value></data>
+  <data name="Domain.LanguageUnsupported" xml:space="preserve"><value>Мова '{0}' не падтрымліваецца.</value></data>
+  <data name="Domain.LanguageCodeUnsupported" xml:space="preserve"><value>Мова '{0}' не падтрымліваецца. Чакаецца 'be', 'en', 'ru' або 'uk'.</value></data>
+  <data name="Domain.EntryTypeMismatch" xml:space="preserve"><value>Тып запісу '{0}' не адпавядае тыпу праекта {1}.</value></data>
+  <data name="Domain.UnknownEntryType" xml:space="preserve"><value>Невядомы тып запісу GXT.</value></data>
+  <data name="GtaThird.KeyMissing" xml:space="preserve"><value>Ключ '{0}' не знойдзены.</value></data>
+  <data name="GtaThird.ReadSeekRequired" xml:space="preserve"><value>Паток GXT павінен падтрымліваць чытанне і пазіцыянаванне.</value></data>
+  <data name="GtaThird.TkeyMissing" xml:space="preserve"><value>Няма блока TKEY.</value></data>
+  <data name="GtaThird.TkeySize" xml:space="preserve"><value>Некарэктны памер блока TKEY.</value></data>
+  <data name="GtaThird.TdatMissing" xml:space="preserve"><value>Няма блока TDAT.</value></data>
+  <data name="GtaThird.TdatInvalid" xml:space="preserve"><value>Знойдзена некарэктнае значэнне TDAT.</value></data>
+  <data name="GtaThird.ReadError" xml:space="preserve"><value>Памылка чытання файла GXT.</value></data>
+  <data name="GtaThird.WriteRequired" xml:space="preserve"><value>Паток GXT павінен падтрымліваць запіс.</value></data>
+  <data name="ViceCity.InvalidFile" xml:space="preserve"><value>Файл '{0}' пашкоджаны або не з'яўляецца файлам GXT Grand Theft Auto: Vice City.</value></data>
+  <data name="ViceCity.TablSize" xml:space="preserve"><value>Некарэктны памер блока TABL.</value></data>
+  <data name="ViceCity.TkeySize" xml:space="preserve"><value>Некарэктны памер блока TKEY.</value></data>
+  <data name="ViceCity.Sequence" xml:space="preserve"><value>У файле '{0}' знойдзеная некарэктная паслядоўнасць даных.</value></data>
+  <data name="ViceCity.EncodingCharacterMissing" xml:space="preserve"><value>Сімвала '{0}' няма ў выбранай кадзіроўцы.</value></data>
+
+  <data name="Options.Search.All" xml:space="preserve"><value>Усе слупкі</value></data>
+  <data name="Options.Search.Name" xml:space="preserve"><value>Ключ</value></data>
+  <data name="Options.Search.Text" xml:space="preserve"><value>Пераклад</value></data>
+  <data name="Options.Search.Source" xml:space="preserve"><value>Англійская крыніца</value></data>
+  <data name="Options.Search.Comparison" xml:space="preserve"><value>Файлы параўнання</value></data>
+  <data name="Options.Search.Table" xml:space="preserve"><value>Табліца</value></data>
+  <data name="Options.Search.Metadata" xml:space="preserve"><value>Блок і кантэкст</value></data>
+  <data name="Options.Search.Comment" xml:space="preserve"><value>Каментарый</value></data>
+  <data name="Options.Metadata.AllTypes" xml:space="preserve"><value>Усе тыпы</value></data>
+  <data name="Options.Metadata.AllBlocks" xml:space="preserve"><value>Усе блокі</value></data>
+  <data name="Options.Metadata.Story" xml:space="preserve"><value>Сюжэт</value></data>
+  <data name="Options.Metadata.Missions" xml:space="preserve"><value>Місіі</value></data>
+  <data name="Options.Metadata.Assets" xml:space="preserve"><value>Актывы</value></data>
+  <data name="Options.Metadata.Phone" xml:space="preserve"><value>Тэлефон</value></data>
+  <data name="Options.Metadata.Interface" xml:space="preserve"><value>Інтэрфейс</value></data>
+  <data name="Options.Metadata.World" xml:space="preserve"><value>Свет</value></data>
+  <data name="Options.Metadata.Credits" xml:space="preserve"><value>Тытры</value></data>
+  <data name="Options.Metadata.Misc" xml:space="preserve"><value>Іншае</value></data>
+  <data name="Options.Sort.Encounter" xml:space="preserve"><value>Парадак праходжання</value></data>
+  <data name="Options.Sort.Gxt" xml:space="preserve"><value>Парадак GXT</value></data>
+  <data name="Options.Apply.Interpret" xml:space="preserve"><value>Інтэрпрэтаваць зыходныя байты</value></data>
+  <data name="Options.Apply.Reencode" xml:space="preserve"><value>Перакадзіраваць бягучы тэкст</value></data>
+  <data name="Comparison.EnglishPrefix" xml:space="preserve"><value>Англійская крыніца — </value></data>
+
+  <data name="Status.NoFile" xml:space="preserve"><value>Файл не адкрыты</value></data>
+  <data name="Status.OpenPrompt" xml:space="preserve"><value>Адкрыйце файл GXT GTA III або Vice City</value></data>
+  <data name="Status.Cancelled" xml:space="preserve"><value>Аперацыя скасаваная</value></data>
+
+  <data name="Common.OK" xml:space="preserve"><value>Добра</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Выдаліць</value></data>
+  <data name="Main.ExportInstaller" xml:space="preserve"><value>Інсталятар Windows…</value></data>
+  <data name="Filter.Installer" xml:space="preserve"><value>Інсталятар Windows (*.exe)|*.exe</value></data>
+  <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Экспартаваць інсталятар Windows</value></data>
+  <data name="Busy.ExportInstaller" xml:space="preserve"><value>Стварэнне інсталятара Windows…</value></data>
+  <data name="Status.InstallerExported" xml:space="preserve"><value>Інсталятар экспартаваны: {0}</value></data>
+  <data name="Status.InstallerProfileUpdated" xml:space="preserve"><value>Профіль інсталятара абноўлены ({0} далучаных файлаў). Захавайце праект BYX, каб пакінуць змены.</value></data>
+  <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Не ўдалося стварыць інсталятар: {0}</value></data>
+
+  <data name="Installer.Editor.Title" xml:space="preserve"><value>Профіль інсталятара Windows</value></data>
+  <data name="Installer.Editor.Name" xml:space="preserve"><value>Назва прадукту</value></data>
+  <data name="Installer.Editor.Version" xml:space="preserve"><value>Версія</value></data>
+  <data name="Installer.Editor.Publisher" xml:space="preserve"><value>Выдавец</value></data>
+  <data name="Installer.Editor.OutputName" xml:space="preserve"><value>Назва выніковага EXE</value></data>
+  <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Выбраць BelarusianLanguage.asi…</value></data>
+  <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Выбраць x86 dinput8.dll…</value></data>
+  <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Дадаць файлы SilentPatch…</value></data>
+  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Выбраць папку SilentPatch…</value></data>
+  <data name="Installer.Editor.AddFiles" xml:space="preserve"><value>Дадаць файлы…</value></data>
+  <data name="Installer.Editor.AddFolder" xml:space="preserve"><value>Дадаць папку…</value></data>
+  <data name="Installer.Editor.Column.Role" xml:space="preserve"><value>Роля</value></data>
+  <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
+  <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
+  <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI і каранёвую папку дыстрыбутыва SilentPatch. Поўны набор SilentPatch дадаецца разам і застаецца неабавязковым у створаным інсталятары.</value></data>
+  <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
+  <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
+  <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
+  <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Асноўны ASI</value></data>
+  <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
+  <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
+  <data name="Installer.Role.Additional" xml:space="preserve"><value>Дадатковы</value></data>
+
+  <data name="Installer.Validation.ProductId" xml:space="preserve"><value>ProductId інсталятара няправільны.</value></data>
+  <data name="Installer.Validation.Name" xml:space="preserve"><value>Увядзіце назву прадукту.</value></data>
+  <data name="Installer.Validation.Version" xml:space="preserve"><value>Увядзіце версію.</value></data>
+  <data name="Installer.Validation.Publisher" xml:space="preserve"><value>Увядзіце выдаўца.</value></data>
+  <data name="Installer.Validation.OutputName" xml:space="preserve"><value>Увядзіце простую назву выніковага файла з канчаткам .exe.</value></data>
+  <data name="Installer.Validation.AssetCount" xml:space="preserve"><value>Інсталятар можа змяшчаць не больш за 512 далучаных файлаў.</value></data>
+  <data name="Installer.Validation.AssetId" xml:space="preserve"><value>Далучаны файл інсталятара мае няправільны або паўторны ідэнтыфікатар.</value></data>
+  <data name="Installer.Validation.AssetRole" xml:space="preserve"><value>Далучаны файл інсталятара мае ролю, якая не падтрымліваецца.</value></data>
+  <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Далучаны файл «{0}» мае няправільную зыходную назву.</value></data>
+  <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>Некалькі файлаў прызначаныя ў «{0}». Рэгістр у шляхах не адрозніваецца.</value></data>
+  <data name="Installer.Validation.X86" xml:space="preserve"><value>«{0}» мусіць быць сапраўдным x86 PE-файлам .asi або .dll.</value></data>
+  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 512 МБ.</value></data>
+  <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
+  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Калі выбраны x86 ASI Loader, яго прызначэннем павінен быць dinput8.dll.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Выберыце поўны набор SilentPatch: SilentPatchVC.asi, SilentPatchVC.ini і ўсе восем патрэбных файлаў IPL.</value></data>
+  <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>У выбранай папцы SilentPatch няма наступных файлаў:&#xA;{0}</value></data>
+  <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader і дадатковыя файлы больш не падтрымліваюцца. Выдаліце іх з профілю інсталятара.</value></data>
+  <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
+  <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>
+
+  <data name="Installer.CompilerMissing" xml:space="preserve"><value>Убудаваны кампілятар Inno Setup не знойдзены: {0}</value></data>
+  <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Не ўдалося запусціць убудаваны кампілятар Inno Setup.</value></data>
+  <data name="Installer.CompilerFailed" xml:space="preserve"><value>Кампіляцыя Inno Setup скончылася памылкай (код {0}): {1}</value></data>
+  <data name="Installer.CompilerNoOutput" xml:space="preserve"><value>Inno Setup не стварыў чаканы выніковы файл.</value></data>
+  <data name="Installer.ViceCityProjectRequired" xml:space="preserve"><value>Экспарт інсталятара Windows даступны толькі для праектаў GTA Vice City з далучаным TXD.</value></data>
+  <data name="Installer.TargetDirectoryUnknown" xml:space="preserve"><value>Выбраная выніковая папка недаступная.</value></data>
+  <data name="Installer.AssetMissing" xml:space="preserve"><value>Адсутнічае патрэбны ўбудаваны рэсурс інсталятара: {0}</value></data>
+
+  <data name="Byx.InstallerViceCityOnly" xml:space="preserve"><value>Профілі інсталятара падтрымліваюцца толькі для праектаў GTA Vice City.</value></data>
+  <data name="Byx.InstallerProfileInvalid" xml:space="preserve"><value>Профіль інсталятара ў BYX пашкоджаны.</value></data>
+  <data name="Byx.InstallerAssetsMismatch" xml:space="preserve"><value>Профіль інсталятара BYX не адпавядае далучаным файлам.</value></data>
+  <data name="Byx.AttachmentInstaller" xml:space="preserve"><value>профіль інсталятара</value></data>
+  <data name="Byx.InstallerAssetInvalid" xml:space="preserve"><value>Далучаны файл інсталятара BYX пашкоджаны.</value></data>
+  <data name="Byx.AttachmentInstallerAsset" xml:space="preserve"><value>файл інсталятара</value></data>
+</root>

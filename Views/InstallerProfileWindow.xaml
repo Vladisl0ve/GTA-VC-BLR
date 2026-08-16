@@ -1,0 +1,79 @@
+<Window x:Class="GTA_GXT_Editor.Views.InstallerProfileWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:GTA_GXT_Editor.Localization"
+        Title="{loc:Translate Installer.Editor.Title}"
+        Width="940"
+        Height="700"
+        MinWidth="760"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="{loc:Translate Installer.Editor.Name}" />
+            <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="{loc:Translate Installer.Editor.Version}" />
+            <TextBlock Grid.Column="2" Margin="12,0,0,0" Text="{loc:Translate Installer.Editor.Publisher}" />
+            <TextBox x:Name="NameTextBox" Grid.Row="1" Margin="0,4,0,10" Padding="8,5" />
+            <TextBox x:Name="VersionTextBox" Grid.Row="1" Grid.Column="1" Margin="12,4,0,10" Padding="8,5" />
+            <TextBox x:Name="PublisherTextBox" Grid.Row="1" Grid.Column="2" Margin="12,4,0,10" Padding="8,5" />
+            <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{loc:Translate Installer.Editor.OutputName}" />
+            <TextBox x:Name="OutputNameTextBox" Grid.Row="3" Grid.ColumnSpan="3" Margin="0,4,0,0" Padding="8,5" />
+        </Grid>
+
+        <WrapPanel Grid.Row="1" Margin="0,16,0,12">
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.MainAsi}" Click="SelectMainAsi_OnClick" />
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.SilentPatchFolder}" Click="SelectSilentPatchFolder_OnClick" />
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Common.Remove}" Click="RemoveAsset_OnClick" />
+        </WrapPanel>
+
+        <DataGrid x:Name="AssetsGrid"
+                  Grid.Row="2"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  SelectionMode="Extended"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridTextColumn Width="150" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Role}" Binding="{Binding RoleText}" />
+                <DataGridTextColumn Width="220" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Source}" Binding="{Binding OriginalFileName}" />
+                <DataGridTextColumn Width="*" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Destination}" Binding="{Binding DestinationPath}" />
+                <DataGridTextColumn Width="100" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Size}" Binding="{Binding SizeText}" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="3" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Margin="0,0,16,0"
+                       VerticalAlignment="Center"
+                       Opacity="0.7"
+                       TextWrapping="Wrap"
+                       Text="{loc:Translate Installer.Editor.Hint}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button MinWidth="100" Margin="0,0,8,0" Padding="12,6" Content="{loc:Translate Common.Cancel}" IsCancel="True" />
+                <Button MinWidth="100" Padding="12,6" Content="{loc:Translate Common.OK}" IsDefault="True" Click="Save_OnClick" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

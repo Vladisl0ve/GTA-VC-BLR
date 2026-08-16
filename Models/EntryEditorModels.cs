@@ -7,6 +7,16 @@ public sealed record EntryEditorRequest(
     string Name,
     string Text,
     string? RawTableName,
-    IReadOnlyList<TableOption> Tables);
+    IReadOnlyList<TableOption> Tables)
+{
+    public string? SourceText { get; init; }
 
-public sealed record EntryEditorResult(string Name, string Text, string? RawTableName);
+    public string? Comment { get; init; }
+
+    public IReadOnlyList<GxtEntryOccurrenceView> Occurrences { get; init; } = [];
+}
+
+public sealed record EntryEditorResult(string Name, string Text, string? RawTableName)
+{
+    public string? Comment { get; init; }
+}

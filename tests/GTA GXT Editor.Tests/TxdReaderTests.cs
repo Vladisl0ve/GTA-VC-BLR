@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
@@ -161,7 +162,7 @@ public sealed class TxdReaderTests
         var exception = Assert.Throws<InvalidDataException>(() =>
             _reader.Read(TestTxdFactory.Create(texture), "ps2.txd"));
 
-        StringAssert.Contains(exception.Message, "платформа");
+        StringAssert.Contains(exception.Message, "platform");
     }
 
     [TestMethod]
@@ -170,6 +171,82 @@ public sealed class TxdReaderTests
         var data = TestTxdFactory.Create(TestTxdFactory.Bgra32("font1", 1, 1, [0, 0, 0, 255]));
 
         Assert.Throws<InvalidDataException>(() => _reader.Read(data[..^2], "broken.txd"));
+    }
+
+    [TestMethod]
+    public void Read_TruncationAtEveryByte_ThrowsInvalidData()
+    {
+        var data = TestTxdFactory.Create(TestTxdFactory.Bgra32("font1", 1, 1, [0, 0, 0, 255]));
+
+        for (var length = 0; length < data.Length; length++)
+        {
+            Assert.Throws<InvalidDataException>(() => _reader.Read(data[..length], "truncated.txd"),
+                $"A TXD document truncated to {length} bytes was accepted or leaked another exception.");
+        }
+    }
+
+    [TestMethod]
+    public void Read_OversizedChunkAndMipmapLengths_ThrowInvalidData()
+    {
+        var seed = TestTxdFactory.Create(TestTxdFactory.Bgra32("font1", 1, 1, [0, 0, 0, 255]));
+        var rootLength = seed.ToArray();
+        BinaryPrimitives.WriteUInt32LittleEndian(rootLength.AsSpan(4), uint.MaxValue);
+        var mipmapLength = seed.ToArray();
+        BinaryPrimitives.WriteUInt32LittleEndian(mipmapLength.AsSpan(140), uint.MaxValue);
+
+        Assert.Throws<InvalidDataException>(() => _reader.Read(rootLength, "root-length.txd"));
+        Assert.Throws<InvalidDataException>(() => _reader.Read(mipmapLength, "mipmap-length.txd"));
+    }
+
+    [TestMethod]
+    public void Read_TextureCountExceededBeforeDecode_ThrowsInvalidData()
+    {
+        var data = TestTxdFactory.Create(
+            TestTxdFactory.Bgra32("font1", 1, 1, [0, 0, 0, 255]),
+            TestTxdFactory.Bgra32("font2", 1, 1, [0, 0, 0, 255]));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(24), 1);
+
+        Assert.Throws<InvalidDataException>(() => _reader.Read(data, "count.txd"));
+    }
+
+    [TestMethod]
+    public void Read_IncompleteDxtBlock_ThrowsInvalidDataBeforeDecoder()
+    {
+        var data = TestTxdFactory.Create(TestTxdFactory.Dxt("font1", 1, new byte[7]));
+
+        Assert.Throws<InvalidDataException>(() => _reader.Read(data, "dxt-incomplete.txd"));
+    }
+
+    [TestMethod]
+    public void Read_DecodedPixelsAbove256MiB_ThrowsInvalidDataBeforeDecoder()
+    {
+        var first = TestTxdFactory.Dxt("font1", 1, new byte[8]) with
+        {
+            Width = 8192,
+            Height = 8192,
+        };
+        var second = TestTxdFactory.Dxt("font2", 1, new byte[8]) with
+        {
+            Width = 8192,
+            Height = 8192,
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            _reader.Read(TestTxdFactory.Create(first, second), "too-large.txd"));
+
+        StringAssert.Contains(exception.Message, "256 MiB");
+    }
+
+    [TestMethod]
+    public void Read_MemorySlice_ReadsOnlySelectedTxdBytes()
+    {
+        var seed = TestTxdFactory.Create(
+            TestTxdFactory.Bgra32("font1", 1, 1, [0, 0, 0, 255]));
+        byte[] padded = [255, .. seed, 255];
+
+        var document = _reader.Read(padded.AsMemory(1, seed.Length), "slice.txd");
+
+        Assert.HasCount(1, document.Textures);
     }
 
     [TestMethod]

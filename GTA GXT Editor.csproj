@@ -25,7 +25,21 @@
     <Resource Include="icon.ico" />
     <EmbeddedResource Include="Assets\ViceCity\belarusian.gxtmap.json"
                       LogicalName="GTA_GXT_Editor.Assets.ViceCity.belarusian.gxtmap.json" />
+    <EmbeddedResource Include="Assets\ViceCity\encounter-order.metadata.json"
+                      LogicalName="GTA_GXT_Editor.Assets.ViceCity.encounter-order.metadata.json" />
     <Content Include="Assets\ViceCity\belarusian.gxtmap.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\ViceCity\encounter-order.metadata.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\ViceCity\vice-city-pc.reference-entries.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Installer\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Tools\InnoSetup\7.0.2-x86\**\*"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="russian_chars.txt" CopyToOutputDirectory="PreserveNewest" />
