@@ -24,7 +24,7 @@ public sealed class TxdReader : ITxdReader
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
         if (data.Length < 16)
         {
-            throw Invalid(sourceName, "файл слишком мал");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TooSmall"));
         }
 
         using var stream = new MemoryStream(data.ToArray(), writable: false);
@@ -32,7 +32,7 @@ public sealed class TxdReader : ITxdReader
         var dictionary = ReadChunk(reader, stream.Length, sourceName);
         if (dictionary.Type != TextureDictionaryChunk || dictionary.End != stream.Length)
         {
-            throw Invalid(sourceName, "отсутствует корневой словарь текстур");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.RootMissing"));
         }
 
         var textureCount = -1;
@@ -45,21 +45,21 @@ public sealed class TxdReader : ITxdReader
                 case StructChunk:
                     if (textureCount >= 0 || child.Length < 4)
                     {
-                        throw Invalid(sourceName, "повреждён заголовок словаря");
+                        throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.HeaderCorrupt"));
                     }
 
                     textureCount = reader.ReadUInt16();
                     _ = reader.ReadUInt16();
                     if (textureCount > MaxTextureCount)
                     {
-                        throw Invalid(sourceName, "слишком много текстур");
+                        throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TooManyTextures"));
                     }
 
                     break;
                 case TextureNativeChunk:
                     if (textureCount < 0)
                     {
-                        throw Invalid(sourceName, "структура словаря должна предшествовать текстурам");
+                        throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.DictionaryOrder"));
                     }
 
                     textures.Add(ReadTexture(reader, child, sourceName));
@@ -73,7 +73,7 @@ public sealed class TxdReader : ITxdReader
 
         if (textureCount < 0 || textureCount != textures.Count)
         {
-            throw Invalid(sourceName, "число текстур не совпадает с заголовком");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TextureCount"));
         }
 
         ApplyMasks(textures);
@@ -90,13 +90,13 @@ public sealed class TxdReader : ITxdReader
         var structure = ReadChunk(reader, textureChunk.End, sourceName);
         if (structure.Type != StructChunk || structure.Length < 88)
         {
-            throw Invalid(sourceName, "повреждена структура текстуры");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TextureCorrupt"));
         }
 
         var platformValue = reader.ReadUInt32();
         if (platformValue is not ((uint)TxdPlatform.D3D8) and not ((uint)TxdPlatform.D3D9))
         {
-            throw Invalid(sourceName, $"платформа TXD {platformValue} не поддерживается");
+            throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.Platform", platformValue));
         }
 
         var platform = (TxdPlatform)platformValue;
@@ -115,7 +115,7 @@ public sealed class TxdReader : ITxdReader
         if (string.IsNullOrWhiteSpace(name) || width == 0 || height == 0 ||
             width > MaxTextureDimension || height > MaxTextureDimension || mipmapCount == 0)
         {
-            throw Invalid(sourceName, $"некорректные параметры текстуры '{name}'");
+            throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.Parameters", name));
         }
 
         _ = checked(width * height * 4);
@@ -140,7 +140,7 @@ public sealed class TxdReader : ITxdReader
             var size = reader.ReadUInt32();
             if (size > int.MaxValue)
             {
-                throw Invalid(sourceName, $"слишком большой mipmap текстуры '{name}'");
+                throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.MipmapTooLarge", name));
             }
 
             var mipmap = ReadBytes(reader, (int)size, structure.End, sourceName);
@@ -149,7 +149,7 @@ public sealed class TxdReader : ITxdReader
 
         if (firstMipmap is null)
         {
-            throw Invalid(sourceName, $"у текстуры '{name}' нет изображения");
+            throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.NoImage", name));
         }
 
         var pixels = DecodePixels(
@@ -193,7 +193,7 @@ public sealed class TxdReader : ITxdReader
                 0 => TxdCompression.None,
                 1 => TxdCompression.Dxt1,
                 3 => TxdCompression.Dxt3,
-                _ => throw Invalid(sourceName, $"сжатие {flags} текстуры '{textureName}' не поддерживается"),
+                _ => throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.Compression", flags, textureName)),
             };
         }
 
@@ -206,7 +206,7 @@ public sealed class TxdReader : ITxdReader
         {
             0x31545844 => TxdCompression.Dxt1, // DXT1
             0x33545844 => TxdCompression.Dxt3, // DXT3
-            _ => throw Invalid(sourceName, $"FourCC текстуры '{textureName}' не поддерживается"),
+            _ => throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.FourCc", textureName)),
         };
     }
 
@@ -260,7 +260,7 @@ public sealed class TxdReader : ITxdReader
         var required = fourBit ? (pixelCount + 1) / 2 : pixelCount;
         if (data.Length < required)
         {
-            throw Invalid(sourceName, $"неполные данные палитровой текстуры '{textureName}'");
+            throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.PaletteIncomplete", textureName));
         }
 
         var result = new byte[checked(pixelCount * 4)];
@@ -292,11 +292,11 @@ public sealed class TxdReader : ITxdReader
             24 => 3,
             16 => 2,
             8 => 1,
-            _ => throw Invalid(sourceName, $"глубина {depth} текстуры '{textureName}' не поддерживается"),
+            _ => throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.Depth", depth, textureName)),
         };
         if (data.Length < checked(pixelCount * bytesPerPixel))
         {
-            throw Invalid(sourceName, $"неполные данные текстуры '{textureName}'");
+            throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.DataIncomplete", textureName));
         }
 
         var result = new byte[checked(pixelCount * 4)];
@@ -334,7 +334,7 @@ public sealed class TxdReader : ITxdReader
                     WriteR5G5B5(ReadUInt16(data, sourceOffset), result, targetOffset);
                     break;
                 default:
-                    throw Invalid(sourceName, $"формат 0x{baseFormat:X4}/{depth} текстуры '{textureName}' не поддерживается");
+                    throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.Format", baseFormat, depth, textureName));
             }
         }
 
@@ -447,7 +447,7 @@ public sealed class TxdReader : ITxdReader
         var result = reader.ReadBytes(count);
         if (result.Length != count)
         {
-            throw Invalid(sourceName, "файл неожиданно закончился");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.UnexpectedEnd"));
         }
 
         return result;
@@ -457,7 +457,7 @@ public sealed class TxdReader : ITxdReader
     {
         if (count < 0 || stream.Position > end - count)
         {
-            throw Invalid(sourceName, "размер чанка выходит за границы файла");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.ChunkBounds"));
         }
     }
 
@@ -470,14 +470,17 @@ public sealed class TxdReader : ITxdReader
         var end = checked(reader.BaseStream.Position + length);
         if (end > parentEnd)
         {
-            throw Invalid(sourceName, "размер чанка выходит за границы родителя");
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.ParentBounds"));
         }
 
         return new Chunk(type, length, version, end);
     }
 
     private static InvalidDataException Invalid(string sourceName, string reason) =>
-        new($"TXD '{Path.GetFileName(sourceName)}' повреждён или не поддерживается: {reason}.");
+        new(LocalizationProvider.Current.Format(
+            "TxdError.Invalid",
+            Path.GetFileName(sourceName),
+            reason));
 
     private readonly record struct Chunk(uint Type, uint Length, uint Version, long End);
 }

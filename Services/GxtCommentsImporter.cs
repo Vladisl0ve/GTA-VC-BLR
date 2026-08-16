@@ -48,12 +48,13 @@ public static class GxtCommentsImporter
         var document = Deserialize(data);
         var documentGameType = GxtDomainRules.ParseCanonicalGameName(
             document.Game,
-            "файле комментариев");
+            LocalizationProvider.Current.Get("Comments.Context"));
         if (documentGameType != gameType)
         {
-            throw new InvalidDataException(
-                $"Файл комментариев предназначен для {document.Game}, а открыт проект " +
-                $"{GxtCommentsExporter.ToGameName(gameType)}.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Comments.GameMismatch",
+                document.Game,
+                GxtCommentsExporter.ToGameName(gameType)));
         }
 
         var imports = ValidateEntries(document.Entries, gameType);
@@ -127,27 +128,27 @@ public static class GxtCommentsImporter
         try
         {
             var document = JsonSerializer.Deserialize<CommentsImportDocument>(data, JsonOptions)
-                ?? throw new InvalidDataException("JSON комментариев не содержит документа.");
+                ?? throw new InvalidDataException(LocalizationProvider.Current.Get("Comments.NoDocument"));
             if (!string.Equals(
                     document.Format,
                     GxtCommentsExporter.FormatName,
                     StringComparison.Ordinal))
             {
-                throw new InvalidDataException(
-                    $"Некорректный формат комментариев: ожидается " +
-                    $"'{GxtCommentsExporter.FormatName}'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Comments.InvalidFormat",
+                    GxtCommentsExporter.FormatName));
             }
 
             if (document.Version != GxtCommentsExporter.CurrentVersion)
             {
-                throw new InvalidDataException(
-                    $"Версия файла комментариев {document.Version} не поддерживается.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Comments.UnsupportedVersion",
+                    document.Version));
             }
 
             if (document.Entries is null)
             {
-                throw new InvalidDataException(
-                    "В JSON комментариев отсутствует обязательный массив 'entries'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Comments.EntriesMissing"));
             }
 
             return document;
@@ -155,7 +156,7 @@ public static class GxtCommentsImporter
         catch (JsonException exception)
         {
             throw new InvalidDataException(
-                $"Некорректный JSON комментариев: {exception.Message}",
+                LocalizationProvider.Current.Format("Comments.InvalidJson", exception.Message),
                 exception);
         }
     }
@@ -173,29 +174,33 @@ public static class GxtCommentsImporter
             var displayIndex = index + 1;
             if (entry is null || string.IsNullOrWhiteSpace(entry.Key))
             {
-                throw new InvalidDataException(
-                    $"У записи комментариев {displayIndex} отсутствует непустое поле 'key'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Comments.KeyMissing",
+                    displayIndex));
             }
 
-            ValidateAsciiName(entry.Key, "Ключ", displayIndex);
+            ValidateAsciiName(entry.Key, LocalizationProvider.Current.Get("Json.FieldKey"), displayIndex);
             string? table = null;
             if (gameType == GXTType.GtaViceCity)
             {
                 if (string.IsNullOrWhiteSpace(entry.Table))
                 {
-                    throw new InvalidDataException(
-                        $"У записи комментариев {displayIndex} отсутствует непустое поле 'table'.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Format(
+                        "Comments.TableMissing",
+                        displayIndex));
                 }
 
-                ValidateAsciiName(entry.Table, "Таблица", displayIndex);
+                ValidateAsciiName(entry.Table, LocalizationProvider.Current.Get("Json.FieldTable"), displayIndex);
                 table = entry.Table;
             }
 
             var identity = GxtCommentsExporter.CreateIdentity(gameType, entry.Key, table);
             if (!identities.Add(identity))
             {
-                throw new InvalidDataException(
-                    $"Запись комментариев {displayIndex} дублирует '{identity}'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Comments.Duplicate",
+                    displayIndex,
+                    identity));
             }
 
             result.Add(new ValidatedCommentEntry(
@@ -223,8 +228,9 @@ public static class GxtCommentsImporter
                     identity,
                     manager.ConvertBytesToText(entry.Value).GetClearName()))
             {
-                throw new InvalidDataException(
-                    $"GXT содержит повторяющуюся запись '{identity}'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Document.DuplicateEntry",
+                    identity));
             }
         }
 
@@ -235,15 +241,19 @@ public static class GxtCommentsImporter
     {
         if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.TooLong)
         {
-            throw new InvalidDataException(
-                $"{fieldName} записи комментариев {entryIndex} может содержать не более " +
-                $"{GxtDomainRules.MaximumNameLength} символов.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Comments.NameTooLong",
+                fieldName,
+                entryIndex,
+                GxtDomainRules.MaximumNameLength));
         }
 
         if (GxtDomainRules.GetNameValidationError(name) == GxtNameValidationError.NonAscii)
         {
-            throw new InvalidDataException(
-                $"{fieldName} записи комментариев {entryIndex} должен содержать только ASCII-символы без NUL.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Comments.NameNonAscii",
+                fieldName,
+                entryIndex));
         }
     }
 

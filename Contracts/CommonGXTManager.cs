@@ -68,7 +68,8 @@ public abstract class CommonGXTManager
     {
         if (CharacterMapPath is null)
         {
-            throw new InvalidOperationException("Путь к пользовательскому маппингу не задан.");
+            throw new InvalidOperationException(
+                LocalizationProvider.Current.Get("Domain.CustomMappingPathMissing"));
         }
 
         CharacterMap = CharacterMapFileSerializer.Load(CharacterMapPath);

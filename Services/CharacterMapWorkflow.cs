@@ -100,7 +100,7 @@ public sealed class CharacterMapWorkflow(ITxdReader txdReader) : ICharacterMapWo
             !sourceCharacters.SetEquals(targetCharacters))
         {
             throw new InvalidDataException(
-                "Маппинги должны содержать одинаковое количество и одинаковый набор символов.");
+                LocalizationProvider.Current.Get("CharacterMap.DifferentSets"));
         }
 
         var targetBytesByCharacter = targetProfile.ToEncodeMap();

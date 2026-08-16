@@ -1,3 +1,5 @@
+using GTA_GXT_Editor.Services;
+
 namespace GTA_GXT_Editor.Models;
 
 public sealed record GxtEntryRow(
@@ -25,7 +27,7 @@ public sealed record GxtEntryRow(
             : PrimaryOccurrence.Summary;
 
     public string EncounterToolTip => Occurrences.Count == 0
-        ? "Нет encounter metadata"
+        ? LocalizationProvider.Current.Get("Metadata.None")
         : string.Join("\n\n", Occurrences.Select(occurrence => occurrence.ToolTip));
 
     public string CommentPreview => string.IsNullOrWhiteSpace(Comment) ? string.Empty : Comment;

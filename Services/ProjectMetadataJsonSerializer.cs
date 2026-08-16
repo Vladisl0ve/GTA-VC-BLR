@@ -71,14 +71,14 @@ public static class ProjectMetadataJsonSerializer
         try
         {
             var metadata = JsonSerializer.Deserialize<ProjectMetadata>(data, JsonOptions)
-                ?? throw new InvalidDataException("JSON метаданных проекта не содержит документа.");
+                ?? throw new InvalidDataException(LocalizationProvider.Current.Get("Metadata.NoDocument"));
             Validate(metadata, gameType);
             return metadata;
         }
         catch (JsonException exception)
         {
             throw new InvalidDataException(
-                $"Некорректный JSON метаданных проекта: {exception.Message}",
+                LocalizationProvider.Current.Format("Metadata.InvalidJson", exception.Message),
                 exception);
         }
     }
@@ -88,14 +88,16 @@ public static class ProjectMetadataJsonSerializer
         ArgumentNullException.ThrowIfNull(metadata);
         if (gameType is not null and not (GXTType.GtaIII or GXTType.GtaViceCity))
         {
-            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "Неподдерживаемый тип GXT.");
+            throw new ArgumentOutOfRangeException(
+                nameof(gameType), gameType,
+                LocalizationProvider.Current.Get("Gxt.UnsupportedType"));
         }
 
         if (!string.Equals(metadata.Format, "GXT_ENTRY_METADATA", StringComparison.Ordinal) ||
             metadata.Version != ProjectMetadata.CurrentVersion ||
             metadata.Blocks is null || metadata.Entries is null)
         {
-            throw new InvalidDataException("Файл метаданных проекта заполнен некорректно.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Metadata.InvalidFile"));
         }
 
         var blockIds = new HashSet<string>(StringComparer.Ordinal);
@@ -105,7 +107,7 @@ public static class ProjectMetadataJsonSerializer
                 string.IsNullOrWhiteSpace(block.Type) || string.IsNullOrWhiteSpace(block.Name) ||
                 !blockIds.Add(block.Id))
             {
-                throw new InvalidDataException("Список блоков в метаданных проекта повреждён.");
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Metadata.BlocksCorrupt"));
             }
         }
 
@@ -116,7 +118,7 @@ public static class ProjectMetadataJsonSerializer
                 entry.Table is not null && string.IsNullOrWhiteSpace(entry.Table) ||
                 entry.Occurrences is null)
             {
-                throw new InvalidDataException("Список записей в метаданных проекта повреждён.");
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Metadata.EntriesCorrupt"));
             }
 
             ValidateTable(entry, gameType);
@@ -125,8 +127,9 @@ public static class ProjectMetadataJsonSerializer
                 : new MetadataIdentity(entry.Table, entry.Key);
             if (!identities.Add(identity))
             {
-                throw new InvalidDataException(
-                    $"Метаданные записи '{FormatIdentity(entry.Table, entry.Key)}' повторяются.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Metadata.Duplicate",
+                    FormatIdentity(entry.Table, entry.Key)));
             }
 
             foreach (var occurrence in entry.Occurrences)
@@ -134,9 +137,9 @@ public static class ProjectMetadataJsonSerializer
                 if (occurrence is null || string.IsNullOrWhiteSpace(occurrence.BlockId) ||
                     !blockIds.Contains(occurrence.BlockId))
                 {
-                    throw new InvalidDataException(
-                        $"Метаданные записи '{FormatIdentity(entry.Table, entry.Key)}' " +
-                        "ссылаются на неизвестный блок.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Format(
+                        "Metadata.UnknownBlock",
+                        FormatIdentity(entry.Table, entry.Key)));
                 }
             }
         }
@@ -146,14 +149,16 @@ public static class ProjectMetadataJsonSerializer
     {
         if (gameType == GXTType.GtaViceCity && string.IsNullOrWhiteSpace(entry.Table))
         {
-            throw new InvalidDataException(
-                $"Для записи Vice City '{entry.Key}' не указана таблица.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Metadata.ViceCityTableMissing",
+                entry.Key));
         }
 
         if (gameType == GXTType.GtaIII && entry.Table is not null)
         {
-            throw new InvalidDataException(
-                $"Запись GTA III '{entry.Key}' не должна содержать таблицу.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Metadata.GtaThirdTableInvalid",
+                entry.Key));
         }
     }
 

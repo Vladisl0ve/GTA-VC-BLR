@@ -26,8 +26,9 @@ public sealed class BundledEncounterMetadataProvider : IEncounterMetadataProvide
     {
         using var stream = typeof(BundledEncounterMetadataProvider).Assembly
             .GetManifestResourceStream(ViceCityResourceName)
-            ?? throw new InvalidDataException(
-                $"Встроенные encounter metadata '{ViceCityResourceName}' не найдены.");
+            ?? throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Resource.MetadataMissing",
+                ViceCityResourceName));
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
         var metadata = ProjectMetadataJsonSerializer.Deserialize(

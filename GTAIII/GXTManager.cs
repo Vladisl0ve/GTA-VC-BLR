@@ -130,7 +130,7 @@ namespace GTA_GXT_Editor.GTAIII
             var editIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
             if (editIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries[editIndex].Value = ConvertTextToBytes(newDatValue);
@@ -141,7 +141,7 @@ namespace GTA_GXT_Editor.GTAIII
             var removeIndex = _gxtEntries.FindIndex(x => x.DatName.GetClearName() == datName);
             if (removeIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries.RemoveAt(removeIndex);
@@ -155,7 +155,7 @@ namespace GTA_GXT_Editor.GTAIII
             ArgumentNullException.ThrowIfNull(fsStream);
             if (!fsStream.CanRead || !fsStream.CanSeek)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать чтение и позиционирование.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.ReadSeekRequired"), nameof(stream));
             }
 
             var startPosition = fsStream.Position;
@@ -163,14 +163,14 @@ namespace GTA_GXT_Editor.GTAIII
                 string tKeyString = fsStream.ReadString(4);
                 if (!string.Equals(tKeyString, "TKEY", StringComparison.Ordinal))
                 {
-                    throw new InvalidDataException("Отсутствует блок TKEY.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeyMissing"));
                 }
 
                 //Size of TKEY
                 int tKeyBlockSize = fsStream.ReadInt();
                 if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
                 {
-                    throw new InvalidDataException("Некорректный размер блока TKEY.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeySize"));
                 }
 
                 //TKEY Entries
@@ -190,7 +190,7 @@ namespace GTA_GXT_Editor.GTAIII
                 tKeyString = fsStream.ReadString(4);
                 if (!string.Equals(tKeyString, "TDAT", StringComparison.Ordinal))
                 {
-                    throw new InvalidDataException("Отсутствует блок TDAT.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatMissing"));
                 }
 
                 //Size of TDAT
@@ -219,14 +219,14 @@ namespace GTA_GXT_Editor.GTAIII
                     localGXTEntries.Add(new GXTEntry { DatName = valueName, Value = valueBlock });
                     if (!valueBlock.GXTValueIsValid())
                     {
-                        throw new InvalidDataException("Обнаружено некорректное значение TDAT.");
+                        throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                     }
                 }
                 if (startPosition + tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
                 {
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
-            throw new InvalidDataException("Ошибка при чтении GXT-файла.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
         }
 
         public override void WriteGXT(Stream stream)
@@ -235,7 +235,7 @@ namespace GTA_GXT_Editor.GTAIII
             ArgumentNullException.ThrowIfNull(fsStream);
             if (!fsStream.CanWrite)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать запись.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.WriteRequired"), nameof(stream));
             }
 
             var orderedEntries = _gxtEntries

@@ -140,11 +140,11 @@ public sealed class TxdViewerViewModelTests
 
         public bool Confirm(string message, string title) => true;
 
-        public void ShowInfo(string message, string title = "GTA GXT Editor")
+        public void ShowInfo(string message, string? title = null)
         {
         }
 
-        public void ShowError(string message, string title = "Ошибка") => Errors.Add(message);
+        public void ShowError(string message, string? title = null) => Errors.Add(message);
 
         public EntryEditorResult? EditEntry(EntryEditorRequest request) => null;
     }

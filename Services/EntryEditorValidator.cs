@@ -32,13 +32,14 @@ public static class EntryEditorValidator
         var nameError = GxtDomainRules.GetNameValidationError(name);
         if (nameError != GxtNameValidationError.None)
         {
+            var localization = LocalizationProvider.Current;
             var message = nameError switch
             {
-                GxtNameValidationError.Empty => "Имя ключа не может быть пустым.",
-                GxtNameValidationError.TooLong =>
-                    $"Имя ключа может содержать не более " +
-                    $"{GxtDomainRules.MaximumNameLength} символов.",
-                _ => "Имя ключа должно содержать только ASCII-символы без NUL.",
+                GxtNameValidationError.Empty => localization.Get("Validation.Name.Empty"),
+                GxtNameValidationError.TooLong => localization.Format(
+                    "Validation.Name.TooLong",
+                    GxtDomainRules.MaximumNameLength),
+                _ => localization.Get("Validation.Name.Invalid"),
             };
             return new EntryEditorValidationResult(null, message, EntryEditorField.Name);
         }
@@ -47,7 +48,7 @@ public static class EntryEditorValidator
         {
             return new EntryEditorValidationResult(
                 null,
-                "Текст ключа не может быть пустым.",
+                LocalizationProvider.Current.Get("Validation.Text.Empty"),
                 EntryEditorField.Text);
         }
 
@@ -55,7 +56,7 @@ public static class EntryEditorValidator
         {
             return new EntryEditorValidationResult(
                 null,
-                "Выберите таблицу.",
+                LocalizationProvider.Current.Get("Validation.Table.Required"),
                 EntryEditorField.Table);
         }
 
@@ -64,7 +65,7 @@ public static class EntryEditorValidator
         {
             return new EntryEditorValidationResult(
                 null,
-                "Имя таблицы должно содержать от 1 до 8 ASCII-символов без NUL.",
+                LocalizationProvider.Current.Get("Validation.Table.Invalid"),
                 EntryEditorField.Table);
         }
 

@@ -65,8 +65,9 @@ public static class GxtCommentsExporter
             var identity = CreateIdentity(gameType, key, table);
             if (!identities.Add(identity))
             {
-                throw new InvalidDataException(
-                    $"GXT содержит повторяющуюся запись '{identity}'.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format(
+                    "Document.DuplicateEntry",
+                    identity));
             }
 
             comments.TryGetValue(identity, out var comment);

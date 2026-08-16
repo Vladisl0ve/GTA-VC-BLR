@@ -13,6 +13,4 @@ public enum SearchColumn
 }
 
 public sealed record SearchColumnOption(SearchColumn Column, string Title)
-{
-    public static SearchColumnOption All { get; } = new(SearchColumn.All, "Все колонки");
-}
+;

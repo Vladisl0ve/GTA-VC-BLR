@@ -1,4 +1,5 @@
 using GTA_GXT_Editor.Utils;
+using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.Common;
 
@@ -25,7 +26,9 @@ public sealed class GXTEntryEqualityComparer : IEqualityComparer<GXTBase>
             GTAIII.GXTEntry => entry.DatName.GetClearName(),
             GTAVC.GXTEntry viceCityEntry =>
                 $"{entry.DatName.GetClearName()}\u001f{viceCityEntry.TableName.GetClearName()}",
-            _ => throw new ArgumentOutOfRangeException(nameof(entry), "Неизвестный тип GXT-записи."),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(entry),
+                LocalizationProvider.Current.Get("Domain.UnknownEntryType")),
         };
     }
 }

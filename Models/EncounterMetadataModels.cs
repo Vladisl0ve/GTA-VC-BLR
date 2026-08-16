@@ -1,3 +1,5 @@
+using GTA_GXT_Editor.Services;
+
 namespace GTA_GXT_Editor.Models;
 
 public enum EncounterMetadataSource
@@ -14,15 +16,9 @@ public enum EntrySortMode
 
 public sealed record EntrySortOption(EntrySortMode Mode, string Name);
 
-public sealed record MetadataTypeFilterOption(string? Type, string Name)
-{
-    public static MetadataTypeFilterOption All { get; } = new(null, "Все типы");
-}
+public sealed record MetadataTypeFilterOption(string? Type, string Name);
 
-public sealed record MetadataBlockFilterOption(string? Id, string Name, string? Type)
-{
-    public static MetadataBlockFilterOption All { get; } = new(null, "Все блоки", null);
-}
+public sealed record MetadataBlockFilterOption(string? Id, string Name, string? Type);
 
 public sealed record GxtEntryOccurrenceView(
     string BlockId,
@@ -36,8 +32,8 @@ public sealed record GxtEntryOccurrenceView(
     EncounterMetadataSource Source)
 {
     public string SourceName => Source == EncounterMetadataSource.Canonical
-        ? "Canonical"
-        : "Project";
+        ? LocalizationProvider.Current.Get("Common.Source.Canonical")
+        : LocalizationProvider.Current.Get("Common.Source.Project");
 
     public string OrderText => $"{BlockOrder} / {OccurrenceOrder}";
 
@@ -45,6 +41,10 @@ public sealed record GxtEntryOccurrenceView(
         ? BlockName
         : $"{BlockName} — {Context}";
 
-    public string ToolTip =>
-        $"{BlockId}\nТип: {BlockType}\nПорядок: {OrderText}\nИсточник: {SourceName}";
+    public string ToolTip => LocalizationProvider.Current.Format(
+        "Metadata.ToolTip",
+        BlockId,
+        BlockType,
+        OrderText,
+        SourceName);
 }

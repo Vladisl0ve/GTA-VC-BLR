@@ -319,7 +319,9 @@ internal sealed class ViceCityTextEncodingProfile
 
         if (character > byte.MaxValue)
         {
-            throw new InvalidDataException($"Символ '{character}' отсутствует в выбранной кодировке символов.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "ViceCity.EncodingCharacterMissing",
+                character));
         }
 
         return (byte)character;

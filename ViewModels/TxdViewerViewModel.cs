@@ -10,34 +10,28 @@ using GTA_GXT_Editor.Services;
 
 namespace GTA_GXT_Editor.ViewModels;
 
-public partial class TxdViewerViewModel : ObservableObject
+public partial class TxdViewerViewModel : ObservableObject, IDisposable
 {
-    private const string CharacterMapImportFilter =
-        "Маппинг (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Словарь (*.txt)|*.txt";
-    private const string CharacterMapExportFilter =
-        "Маппинг JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json";
-
     private readonly CharacterMapEditorRequest _request;
     private readonly IDialogService? _dialogs;
+    private readonly ILocalizationService _localization;
     private CharacterMapProfile _profile;
 
-    public TxdViewerViewModel(CharacterMapEditorRequest request, IDialogService? dialogs = null)
+    public TxdViewerViewModel(
+        CharacterMapEditorRequest request,
+        IDialogService? dialogs = null,
+        ILocalizationService? localization = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         _request = request;
         _dialogs = dialogs;
+        _localization = localization ?? LocalizationProvider.Current;
         _profile = request.Profile.Clone();
         Attachment = request.Attachment;
-        ApplyModes =
-        [
-            new CharacterMapApplyModeOption(
-                CharacterMapApplyMode.Interpret,
-                "Интерпретировать исходные байты"),
-            new CharacterMapApplyModeOption(
-                CharacterMapApplyMode.Reencode,
-                "Перекодировать текущий текст"),
-        ];
+        ApplyModes = CreateApplyModes();
         selectedApplyMode = ApplyModes[0];
+        textureMetadata = _localization.Get("Txd.ChooseTexture");
+        _localization.LanguageChanged += OnLanguageChanged;
 
         foreach (var texture in Attachment.Document.Textures.Where(IsVisibleFontAtlas))
         {
@@ -55,7 +49,7 @@ public partial class TxdViewerViewModel : ObservableObject
 
     public ObservableCollection<GlyphPreviewItem> Glyphs { get; } = [];
 
-    public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; }
+    public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; private set; }
 
     public CharacterMapProfile Profile => _profile;
 
@@ -64,12 +58,12 @@ public partial class TxdViewerViewModel : ObservableObject
     public event EventHandler? ApplySucceeded;
 
     public string GlyphAtlasHeading => _request.GameType == GXTType.GtaViceCity
-        ? "Ячейки font1 / font2"
-        : "Ячейки font1 / font2 / pager";
+        ? _localization.Get("Txd.GlyphHeading.ViceCity")
+        : _localization.Get("Txd.GlyphHeading.Other");
 
     public string VerificationText => _profile.IsVerified
-        ? "Профиль проверен для текущей пары"
-        : "Черновик: проверьте назначения по глифам TXD";
+        ? _localization.Get("Txd.Profile.Verified")
+        : _localization.Get("Txd.Profile.Draft");
 
     [ObservableProperty]
     private TxdTexture? selectedTexture;
@@ -94,7 +88,7 @@ public partial class TxdViewerViewModel : ObservableObject
     private ImageSource? glyphImage;
 
     [ObservableProperty]
-    private string textureMetadata = "Выберите текстуру";
+    private string textureMetadata = string.Empty;
 
     [ObservableProperty]
     private string analysisText = string.Empty;
@@ -254,8 +248,8 @@ public partial class TxdViewerViewModel : ObservableObject
     private void ImportProfile()
     {
         var path = _dialogs?.OpenFile(
-            "Импортировать маппинг символов",
-            CharacterMapImportFilter);
+            _localization.Get("Txd.ImportMapping"),
+            _localization.Get("Filter.CharacterMapImport"));
         if (path is null)
         {
             return;
@@ -267,7 +261,7 @@ public partial class TxdViewerViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs!.ShowError(exception.Message, "Ошибка импорта");
+            _dialogs!.ShowError(exception.Message, _localization.Get("Txd.ImportError"));
         }
     }
 
@@ -277,8 +271,8 @@ public partial class TxdViewerViewModel : ObservableObject
         var source = Attachment.SourcePath ?? Environment.CurrentDirectory;
         var directory = Path.GetDirectoryName(source) ?? Environment.CurrentDirectory;
         var path = _dialogs?.SaveFile(
-            "Экспортировать маппинг символов",
-            CharacterMapExportFilter,
+            _localization.Get("Txd.ExportMapping"),
+            _localization.Get("Filter.CharacterMapExport"),
             Path.Combine(directory, "characters.gxtmap.json"));
         if (path is null)
         {
@@ -291,7 +285,7 @@ public partial class TxdViewerViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs!.ShowError(exception.Message, "Ошибка экспорта");
+            _dialogs!.ShowError(exception.Message, _localization.Get("Txd.ExportError"));
         }
     }
 
@@ -305,7 +299,7 @@ public partial class TxdViewerViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs?.ShowError(exception.Message, "Проверка профиля");
+            _dialogs?.ShowError(exception.Message, _localization.Get("Txd.ProfileValidation"));
         }
     }
 
@@ -343,7 +337,7 @@ public partial class TxdViewerViewModel : ObservableObject
         if (value is null)
         {
             TextureImage = null;
-            TextureMetadata = "Выберите текстуру";
+            TextureMetadata = _localization.Get("Txd.ChooseTexture");
             return;
         }
 
@@ -351,8 +345,15 @@ public partial class TxdViewerViewModel : ObservableObject
             ? value.PreviewPixelsBgra32
             : value.PixelsBgra32;
         TextureImage = CreateBitmap(value.Width, value.Height, pixels);
-        TextureMetadata = $"{value.Name} — {value.Width}×{value.Height}, {value.FormatDescription}, " +
-                          $"{value.Depth} бит, mipmap: {value.MipmapCount}, {value.Platform}";
+        TextureMetadata = _localization.Format(
+            "Txd.TextureMetadata",
+            value.Name,
+            value.Width,
+            value.Height,
+            value.FormatDescription,
+            value.Depth,
+            value.MipmapCount,
+            value.Platform);
 
         var decodeMap = _profile.ToDecodeMap();
         foreach (var cell in GlyphAtlasService.CreateCells(value, decodeMap, _request.GameType))
@@ -385,7 +386,7 @@ public partial class TxdViewerViewModel : ObservableObject
             .SelectMany(value => CharacterMapCodec.FindUnmappedExtendedCodes(value, decodeMap))
             .Distinct()
             .Order()
-            .Select(code => $"Код 0x{code:X2} используется в GXT, но не назначен.");
+            .Select(code => _localization.Format("Txd.UnmappedCode", code));
         issues.AddRange(unmappedCodes);
         var mappedCharacters = _profile.Mappings.Select(mapping => mapping.Character).ToHashSet();
         var usage = CharacterMapService.CountCharacters(_request.CurrentTexts)
@@ -394,27 +395,55 @@ public partial class TxdViewerViewModel : ObservableObject
             .Select(pair => $"{pair.Key}: {pair.Value}")
             .ToArray();
         var validation = issues.Count == 0
-            ? "Профиль не содержит конфликтов; все используемые символы и байты назначены."
+            ? _localization.Get("Txd.Analysis.Valid")
             : string.Join(Environment.NewLine, issues.Distinct(StringComparer.Ordinal));
         AnalysisText = usage.Length == 0
             ? validation
             : validation + Environment.NewLine + Environment.NewLine +
-              "Использование локализованных символов:" + Environment.NewLine +
+              _localization.Get("Txd.Analysis.Usage") + Environment.NewLine +
               string.Join(", ", usage);
     }
+
+    public void Dispose()
+    {
+        _localization.LanguageChanged -= OnLanguageChanged;
+        GC.SuppressFinalize(this);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        var selectedMode = SelectedApplyMode.Mode;
+        ApplyModes = CreateApplyModes();
+        OnPropertyChanged(nameof(ApplyModes));
+        SelectedApplyMode = ApplyModes.First(option => option.Mode == selectedMode);
+        OnPropertyChanged(nameof(GlyphAtlasHeading));
+        OnPropertyChanged(nameof(VerificationText));
+        RefreshGlyphs(SelectedGlyph?.Cell.Code);
+        UpdateAnalysis();
+    }
+
+    private CharacterMapApplyModeOption[] CreateApplyModes() =>
+    [
+        new(
+            CharacterMapApplyMode.Interpret,
+            _localization.Get("Options.Apply.Interpret")),
+        new(
+            CharacterMapApplyMode.Reencode,
+            _localization.Get("Options.Apply.Reencode")),
+    ];
 
     private bool IsVisibleFontAtlas(TxdTexture texture) =>
         texture.IsFontAtlas &&
         (_request.GameType != GXTType.GtaViceCity ||
          !texture.Name.Equals("pager", StringComparison.OrdinalIgnoreCase));
 
-    private static string FormatCellLabel(
+    private string FormatCellLabel(
         byte? code,
         IReadOnlyDictionary<byte, char> decodeMap)
     {
         if (code is not { } value)
         {
-            return "Вне диапазона";
+            return _localization.Get("Txd.OutOfRange");
         }
 
         var characters = new List<char>();

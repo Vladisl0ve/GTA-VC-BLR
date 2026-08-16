@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using GTA_GXT_Editor.ViewModels;
+using GTA_GXT_Editor.Models;
 
 namespace GTA_GXT_Editor.Views;
 
@@ -47,6 +48,15 @@ public partial class MainWindow : Window
         menu.Placement = PlacementMode.Bottom;
         menu.MinWidth = Math.Max(menu.MinWidth, placementTarget.ActualWidth);
         menu.IsOpen = true;
+    }
+
+    private void LanguageMenuItem_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: UiLanguageOption language } &&
+            DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.SelectUiLanguageCommand.Execute(language);
+        }
     }
 
     private void ComparisonColumns_OnCollectionChanged(

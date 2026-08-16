@@ -38,8 +38,9 @@ public sealed class GxtManagerFactory
         {
             GXTType.GtaIII => new GTAIII.GXTManager(path, dictionaryPath, language),
             GXTType.GtaViceCity => new GTAVC.GXTManager(path, dictionaryPath, language),
-            _ => throw new InvalidDataException(
-                $"Файл '{Path.GetFileName(path)}' повреждён или не является GXT-файлом GTA III/Vice City."),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Gxt.InvalidFile",
+                Path.GetFileName(path))),
         };
     }
 
@@ -68,7 +69,10 @@ public sealed class GxtManagerFactory
                 sourceName,
                 language,
                 characterMap),
-            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Неподдерживаемый тип GXT."),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(type),
+                type,
+                LocalizationProvider.Current.Get("Gxt.UnsupportedType")),
         };
     }
 
@@ -95,7 +99,7 @@ public sealed class GxtManagerFactory
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type),
                 type,
-                "Можно создать только GXT-файл GTA III или Vice City."),
+                LocalizationProvider.Current.Get("Gxt.CreateSupportedOnly")),
         };
     }
 }

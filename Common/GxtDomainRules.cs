@@ -1,5 +1,6 @@
 using System.IO;
 using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
 
 namespace GTA_GXT_Editor.Common;
@@ -23,7 +24,7 @@ public static class GxtDomainRules
         _ => throw new ArgumentOutOfRangeException(
             nameof(gameType),
             gameType,
-            "Неподдерживаемый тип GXT."),
+            LocalizationProvider.Current.Get("Gxt.UnsupportedType")),
     };
 
     public static GXTType ParseCanonicalGameName(string? game, string documentDescription) =>
@@ -31,8 +32,8 @@ public static class GxtDomainRules
         {
             "GTA III" => GXTType.GtaIII,
             "GTA Vice City" => GXTType.GtaViceCity,
-            _ => throw new InvalidDataException(
-                $"Игра '{game}' в {documentDescription} не поддерживается."),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Domain.GameUnsupportedInDocument", game, documentDescription)),
         };
 
     public static GXTType ParseJsonGameName(string? game) =>
@@ -41,9 +42,9 @@ public static class GxtDomainRules
             "GTA III" or "GTA 3" or "GTA3" => GXTType.GtaIII,
             "GTA VICE CITY" or "VICE CITY" or "GTAVC" => GXTType.GtaViceCity,
             null or "" => throw new InvalidDataException(
-                "В JSON отсутствует обязательное поле 'game'."),
-            _ => throw new InvalidDataException(
-                $"Игра '{game}' не поддерживается. Ожидается 'GTA III' или 'GTA Vice City'."),
+                LocalizationProvider.Current.Get("Domain.JsonGameMissing")),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Domain.GameUnsupported", game)),
         };
 
     public static string ToLanguageCode(GxtLanguage language) => language switch
@@ -61,8 +62,8 @@ public static class GxtDomainRules
             "ru" => GxtLanguage.Russian,
             "uk" => GxtLanguage.Ukrainian,
             "en" => GxtLanguage.English,
-            _ => throw new InvalidDataException(
-                $"Язык '{language}' не поддерживается."),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Domain.LanguageUnsupported", language)),
         };
 
     public static GxtLanguage ParseFlexibleLanguageCode(string? language) =>
@@ -73,8 +74,8 @@ public static class GxtDomainRules
             "BE" or "BEL" or "BELARUSIAN" or "БЕЛАРУСКАЯ" => GxtLanguage.Belarusian,
             "RU" or "RUS" or "RUSSIAN" or "РУССКИЙ" => GxtLanguage.Russian,
             "UK" or "UKR" or "UKRAINIAN" or "УКРАЇНСЬКА" => GxtLanguage.Ukrainian,
-            _ => throw new InvalidDataException(
-                $"Язык '{language}' не поддерживается. Ожидается 'be', 'en', 'ru' или 'uk'."),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Domain.LanguageCodeUnsupported", language)),
         };
 
     public static string? ToOptionalLanguageCode(GxtLanguage language) =>
@@ -87,7 +88,7 @@ public static class GxtDomainRules
             throw new ArgumentOutOfRangeException(
                 nameof(gameType),
                 gameType,
-                "Неподдерживаемый тип GXT.");
+                LocalizationProvider.Current.Get("Gxt.UnsupportedType"));
         }
     }
 
@@ -127,9 +128,10 @@ public static class GxtDomainRules
             (GXTType.GtaIII, GTAIII.GXTEntry) => null,
             (GXTType.GtaViceCity, GTAVC.GXTEntry viceCityEntry) =>
                 viceCityEntry.TableName.GetClearName(),
-            _ => throw new InvalidDataException(
-                $"Тип записи '{entry.GetType().Name}' не соответствует типу проекта " +
-                $"{ToGameName(gameType)}."),
+            _ => throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Domain.EntryTypeMismatch",
+                entry.GetType().Name,
+                ToGameName(gameType))),
         };
     }
 }

@@ -13,7 +13,7 @@ public static class CharacterMapService
         var issues = new List<string>();
         if (profile.Version != CharacterMapProfile.CurrentVersion)
         {
-            issues.Add($"Версия профиля {profile.Version} не поддерживается.");
+            issues.Add(LocalizationProvider.Current.Format("CharacterMap.VersionUnsupported", profile.Version));
         }
 
         var characters = new HashSet<char>();
@@ -22,36 +22,36 @@ public static class CharacterMapService
         {
             if (char.IsControl(mapping.Character) || char.IsSurrogate(mapping.Character))
             {
-                issues.Add($"Символ U+{(int)mapping.Character:X4} нельзя назначить ячейке шрифта.");
+                issues.Add(LocalizationProvider.Current.Format("CharacterMap.ControlCharacter", (int)mapping.Character));
             }
 
             if (!characters.Add(mapping.Character))
             {
-                issues.Add($"Символ '{mapping.Character}' описан несколько раз.");
+                issues.Add(LocalizationProvider.Current.Format("CharacterMap.DuplicateCharacter", mapping.Character));
             }
 
             if (mapping.Codes.Count == 0)
             {
-                issues.Add($"Для символа '{mapping.Character}' не задан ни один код.");
+                issues.Add(LocalizationProvider.Current.Format("CharacterMap.NoCodes", mapping.Character));
                 continue;
             }
 
             if (mapping.Codes.Any(code => code < 0x20))
             {
-                issues.Add($"Коды символа '{mapping.Character}' должны находиться в диапазоне 0x20–0xFF.");
+                issues.Add(LocalizationProvider.Current.Format("CharacterMap.CodeRange", mapping.Character));
             }
 
             foreach (var code in mapping.Codes)
             {
                 if (!codes.Add(code))
                 {
-                    issues.Add($"Код 0x{code:X2} назначен нескольким символам.");
+                    issues.Add(LocalizationProvider.Current.Format("CharacterMap.DuplicateCode", code));
                 }
             }
 
             if (!mapping.Codes.Contains(mapping.PreferredCode))
             {
-                issues.Add($"Предпочтительный код символа '{mapping.Character}' отсутствует в списке кодов.");
+                issues.Add(LocalizationProvider.Current.Format("CharacterMap.PreferredMissing", mapping.Character));
             }
         }
 
@@ -83,7 +83,7 @@ public static class CharacterMapService
                 var missingCodes = CharacterMapCodec.FindUnmappedExtendedCodes(entry.Value, decodeMap);
                 foreach (var code in missingCodes)
                 {
-                    issues.Add($"Код 0x{code:X2} используется в GXT, но не назначен профилю.");
+                    issues.Add(LocalizationProvider.Current.Format("CharacterMap.UnmappedProfileCode", code));
                 }
 
                 var current = manager.ConvertBytesToText(entry.Value);
@@ -109,9 +109,12 @@ public static class CharacterMapService
                     {
                         changedEntries++;
                         changedBytes += difference;
-                        changes.Add(
-                            $"{entry.DatName.TrimEnd('\0')}: изменено байтов {difference}; " +
-                            $"{FormatBytes(entry.Value)} → {FormatBytes(encoded)}");
+                        changes.Add(LocalizationProvider.Current.Format(
+                            "CharacterMap.BytesChanged",
+                            entry.DatName.TrimEnd('\0'),
+                            difference,
+                            FormatBytes(entry.Value),
+                            FormatBytes(encoded)));
                     }
                 }
                 catch (InvalidDataException exception)
@@ -187,7 +190,10 @@ public static class CharacterMapService
             .Where(pair => pair.Key > byte.MaxValue && !encodable.ContainsKey(pair.Key) ||
                            char.IsLetter(pair.Key) && pair.Key > 0x7F && !encodable.ContainsKey(pair.Key))
             .OrderBy(pair => pair.Key)
-            .Select(pair => $"Нет символа '{pair.Key}' — используется {pair.Value} раз.");
+            .Select(pair => LocalizationProvider.Current.Format(
+                "CharacterMap.MissingCharacterUsage",
+                pair.Key,
+                pair.Value));
         issues.AddRange(missing);
         return issues;
     }
@@ -439,8 +445,9 @@ internal static class CharacterMapCodec
     {
         if (character > byte.MaxValue)
         {
-            throw new InvalidDataException(
-                $"Символ '{character}' отсутствует в профиле маппинга.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "CharacterMap.CharacterMissing",
+                character));
         }
 
         return (byte)character;

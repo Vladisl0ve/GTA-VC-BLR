@@ -1,7 +1,8 @@
 <Window x:Class="GTA_GXT_Editor.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GTA GXT Editor"
+        xmlns:loc="clr-namespace:GTA_GXT_Editor.Localization"
+        Title="{loc:Translate App.Name}"
         Width="1180"
         Height="760"
         MinWidth="900"
@@ -46,19 +47,19 @@
 
                     <Button MinWidth="91"
                             Style="{StaticResource SplitPrimaryButtonStyle}"
-                            Content="Открыть…"
-                            ToolTip="Открыть GXT с автоматическим выбором кодировки (Ctrl+O)"
+                            Content="{loc:Translate Main.Open}"
+                            ToolTip="{loc:Translate Main.Open.ToolTip}"
                             Command="{Binding OpenFileCommand}" />
                     <Button Grid.Column="1"
                             Style="{StaticResource SplitChevronButtonStyle}"
                             Tag="{Binding ElementName=OpenFileSplitButton}"
-                            ToolTip="Дополнительные варианты открытия"
+                            ToolTip="{loc:Translate Main.Open.More}"
                             Click="DropDownButton_OnClick">
                         <Button.ContextMenu>
                             <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
                                          DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                          Header="Открыть с маппингом…"
+                                          Header="{loc:Translate Main.Open.WithMapping}"
                                           Command="{Binding OpenFileWithDictionaryCommand}" />
                             </ContextMenu>
                         </Button.ContextMenu>
@@ -73,23 +74,23 @@
 
                     <Button MinWidth="101"
                             Style="{StaticResource SplitPrimaryButtonStyle}"
-                            Content="JSON → GXT…"
-                            ToolTip="Преобразовать JSON в GXT с автоматическим выбором кодировки (Ctrl+Shift+I)"
+                            Content="{loc:Translate Main.ImportJson}"
+                            ToolTip="{loc:Translate Main.ImportJson.ToolTip}"
                             Command="{Binding ImportJsonCommand}" />
                     <Button Grid.Column="1"
                             Style="{StaticResource SplitChevronButtonStyle}"
                             Tag="{Binding ElementName=ImportJsonSplitButton}"
-                            ToolTip="Дополнительные варианты преобразования"
+                            ToolTip="{loc:Translate Main.ImportJson.More}"
                             Click="DropDownButton_OnClick">
                         <Button.ContextMenu>
                             <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
                                          DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                          Header="JSON → GXT с маппингом…"
+                                          Header="{loc:Translate Main.ImportJson.WithMapping}"
                                           Command="{Binding ImportJsonWithDictionaryCommand}" />
                                 <Separator />
                                 <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                          Header="Импортировать комментарии…"
+                                          Header="{loc:Translate Main.ImportComments}"
                                           Command="{Binding ImportCommentsCommand}" />
                             </ContextMenu>
                         </Button.ContextMenu>
@@ -99,20 +100,20 @@
                 <Button MinWidth="140"
                         Margin="8,0,0,0"
                         Style="{StaticResource DropDownButtonStyle}"
-                        Content="Сохранить как"
+                        Content="{loc:Translate Main.SaveAs}"
                         IsEnabled="{Binding IsDocumentLoaded}"
-                        ToolTip="Сохранить текущий документ или создать новый файл проекта BYX"
+                        ToolTip="{loc:Translate Main.SaveAs.ToolTip}"
                         Click="DropDownButton_OnClick">
                     <Button.ContextMenu>
                         <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
                                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="Сохранить текущий"
+                                      Header="{loc:Translate Main.SaveCurrent}"
                                       InputGestureText="Ctrl+S"
                                       Command="{Binding SaveCommand}" />
                             <Separator />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="Проект BYX как…"
+                                      Header="{loc:Translate Main.SaveProjectAs}"
                                       Command="{Binding SaveProjectAsCommand}" />
                         </ContextMenu>
                     </Button.ContextMenu>
@@ -120,37 +121,62 @@
                 <Button MinWidth="140"
                         Margin="8,0,0,0"
                         Style="{StaticResource DropDownButtonStyle}"
-                        Content="Экспорт как"
+                        Content="{loc:Translate Main.ExportAs}"
                         IsEnabled="{Binding IsDocumentLoaded}"
-                        ToolTip="Экспортировать данные в JSON, GXT или TXD"
+                        ToolTip="{loc:Translate Main.ExportAs.ToolTip}"
                         Click="DropDownButton_OnClick">
                     <Button.ContextMenu>
                         <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
                                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="JSON…"
+                                      Header="{loc:Translate Main.ExportJson}"
                                       InputGestureText="Ctrl+Shift+E"
                                       Command="{Binding ExportJsonCommand}" />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="GXT…"
+                                      Header="{loc:Translate Main.ExportGxt}"
                                       Command="{Binding ExportGxtCommand}" />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="Комментарии…"
+                                      Header="{loc:Translate Main.ExportComments}"
                                       Command="{Binding ExportCommentsCommand}" />
                             <Separator />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="TXD…"
+                                      Header="{loc:Translate Main.ExportTxd}"
                                       Command="{Binding ExportTxdCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+                <Button MinWidth="116"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource DropDownButtonStyle}"
+                        Content="{loc:Translate Settings.Button}"
+                        ToolTip="{loc:Translate Settings.ToolTip}"
+                        Click="DropDownButton_OnClick">
+                    <Button.ContextMenu>
+                        <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="{loc:Translate Settings.InterfaceLanguage}"
+                                      ItemsSource="{Binding SupportedUiLanguages}">
+                                <MenuItem.ItemContainerStyle>
+                                    <Style TargetType="{x:Type MenuItem}"
+                                           BasedOn="{StaticResource CommandMenuItemStyle}">
+                                        <Setter Property="Header" Value="{Binding NativeName}" />
+                                        <Setter Property="IsCheckable" Value="True" />
+                                        <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                        <EventSetter Event="Click" Handler="LanguageMenuItem_OnClick" />
+                                    </Style>
+                                </MenuItem.ItemContainerStyle>
+                            </MenuItem>
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
             </StackPanel>
 
             <StackPanel>
-                <TextBlock FontSize="24" FontWeight="SemiBold" Text="GTA GXT Editor" />
+                <TextBlock FontSize="24" FontWeight="SemiBold" Text="{loc:Translate App.Name}" />
                 <TextBlock Margin="0,4,0,0"
                            Opacity="0.7"
-                           Text="Редактор текстовых ресурсов GTA III и Vice City" />
+                           Text="{loc:Translate App.Tagline}" />
             </StackPanel>
         </DockPanel>
 
@@ -168,7 +194,7 @@
 
             <TextBlock Margin="0,0,10,0"
                        VerticalAlignment="Center"
-                       Text="GXT-файл" />
+                       Text="{loc:Translate Main.GxtFile}" />
             <TextBox Grid.Column="1"
                      MinHeight="34"
                      Padding="10,6"
@@ -186,13 +212,13 @@
                     MinWidth="110"
                     Margin="10,0,0,0"
                     Padding="12,6"
-                     Content="Перезагрузить"
+                     Content="{loc:Translate Main.Reload}"
                      Command="{Binding ReloadCommand}" />
 
             <TextBlock Grid.Row="1"
                        Margin="0,10,10,0"
                        VerticalAlignment="Center"
-                       Text="Проект BYX" />
+                       Text="{loc:Translate Main.ByxProject}" />
             <TextBox Grid.Row="1"
                      Grid.Column="1"
                      Grid.ColumnSpan="3"
@@ -200,7 +226,7 @@
                      MinHeight="34"
                      Padding="10,6"
                      IsReadOnly="True"
-                     ToolTip="Пусто, пока проект не сохранён в BYX"
+                     ToolTip="{loc:Translate Main.ByxProject.Empty.ToolTip}"
                      Text="{Binding ProjectPath}" />
         </Grid>
 
@@ -219,44 +245,44 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock VerticalAlignment="Center" Text="Шрифты TXD" />
+                <TextBlock VerticalAlignment="Center" Text="{loc:Translate Main.TxdFonts}" />
                 <TextBox Grid.Column="1"
                          Margin="10,0,0,0"
                          Padding="8,5"
                          IsReadOnly="True"
-                         Text="{Binding AttachedTxd.DisplayName, TargetNullValue='Не подключён'}" />
+                         Text="{Binding AttachedTxdDisplayName}" />
                 <TextBlock Grid.Column="2"
                            Margin="12,0,0,0"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
-                           Text="{Binding HasTxdAttachment, StringFormat='Подключён: {0}'}" />
+                           Text="{Binding TxdAttachmentStatus}" />
                 <TextBlock Grid.Column="3"
                            Margin="12,0"
                            VerticalAlignment="Center"
                            Opacity="0.65"
-                           Text="TXD доступны только для GTA Vice City PC" />
+                           Text="{loc:Translate Main.TxdAvailability}" />
                 <Button Grid.Column="4"
                         MinWidth="110"
                         Style="{StaticResource CompactCommandButtonStyle}"
-                        Content="Подключить/заменить…"
+                        Content="{loc:Translate Main.TxdAttach}"
                         Command="{Binding AddTxdCommand}" />
                 <Button Grid.Column="5"
                         MinWidth="120"
                         Margin="8,0,0,0"
                         Style="{StaticResource CompactDropDownButtonStyle}"
-                        Content="Действия"
+                        Content="{loc:Translate Main.Actions}"
                         IsEnabled="{Binding HasTxdAttachment}"
-                        ToolTip="Маппинг и управление подключённым TXD"
+                        ToolTip="{loc:Translate Main.TxdActions.ToolTip}"
                         Click="DropDownButton_OnClick">
                     <Button.ContextMenu>
                         <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
                                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                      Header="Маппинг…"
+                                      Header="{loc:Translate Main.Mapping}"
                                       Command="{Binding ViewTxdCommand}" />
                             <Separator />
                             <MenuItem Style="{StaticResource DangerCommandMenuItemStyle}"
-                                      Header="Удалить TXD из проекта"
+                                      Header="{loc:Translate Main.TxdRemove}"
                                       Command="{Binding RemoveTxdCommand}" />
                         </ContextMenu>
                     </Button.ContextMenu>
@@ -288,7 +314,7 @@
                          MinHeight="34"
                          Padding="10,6"
                          VerticalContentAlignment="Center"
-                         ToolTip="Поиск по ключам, тексту и таблицам"
+                         ToolTip="{loc:Translate Main.Search.ToolTip}"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                 <ComboBox Grid.Column="1"
                           Margin="10,0,0,0"
@@ -299,24 +325,24 @@
                 <CheckBox Grid.Column="2"
                           Margin="14,0,0,0"
                           VerticalAlignment="Center"
-                          Content="Учитывать регистр"
+                          Content="{loc:Translate Main.CaseSensitive}"
                           IsChecked="{Binding CaseSensitive}" />
                 <CheckBox Grid.Column="3"
                           Margin="14,0,0,0"
                           VerticalAlignment="Center"
-                          Content="Живой поиск"
+                          Content="{loc:Translate Main.LiveSearch}"
                           IsChecked="{Binding LiveSearch}" />
                 <Button Grid.Column="4"
                         MinWidth="90"
                         Margin="14,0,0,0"
                         Padding="12,6"
-                        Content="Найти"
+                        Content="{loc:Translate Main.Find}"
                         Command="{Binding ApplyFilterCommand}" />
                 <Button Grid.Column="5"
                         MinWidth="90"
                         Margin="8,0,0,0"
                         Padding="12,6"
-                        Content="Сбросить"
+                        Content="{loc:Translate Common.Reset}"
                         Command="{Binding ClearSearchCommand}" />
 
                 <Grid Grid.Row="1" Grid.ColumnSpan="6" Margin="0,10,0,0">
@@ -329,21 +355,21 @@
                         <ColumnDefinition Width="180" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock VerticalAlignment="Center" Text="Тип блока" />
+                    <TextBlock VerticalAlignment="Center" Text="{loc:Translate Main.BlockType}" />
                     <ComboBox Grid.Column="1"
                               Margin="8,0,18,0"
                               Padding="8,5"
                               ItemsSource="{Binding MetadataTypeOptions}"
                               DisplayMemberPath="Name"
                               SelectedItem="{Binding SelectedMetadataType}" />
-                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Блок" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{loc:Translate Main.Block}" />
                     <ComboBox Grid.Column="3"
                               Margin="8,0,18,0"
                               Padding="8,5"
                               ItemsSource="{Binding MetadataBlockOptions}"
                               DisplayMemberPath="Name"
                               SelectedItem="{Binding SelectedMetadataBlock}" />
-                    <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="Порядок" />
+                    <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{loc:Translate Main.Order}" />
                     <ComboBox Grid.Column="5"
                               Margin="8,0,0,0"
                               Padding="8,5"
@@ -378,12 +404,12 @@
                       VirtualizingPanel.VirtualizationMode="Recycling">
                 <DataGrid.Columns>
                     <DataGridTextColumn Width="160"
-                                        Header="Ключ"
+                                        Header="{loc:Translate Main.Key}"
                                         Binding="{Binding Name}" />
                     <DataGridTextColumn Width="2*"
-                                        Header="Перевод"
+                                        Header="{loc:Translate Main.Translation}"
                                         Binding="{Binding Text}" />
-                    <DataGridTemplateColumn Width="260" Header="Encounter">
+                    <DataGridTemplateColumn Width="260" Header="{loc:Translate Main.Encounter}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock VerticalAlignment="Center"
@@ -394,10 +420,10 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Width="190"
-                                        Header="Комментарий"
+                                        Header="{loc:Translate Main.Comment}"
                                         Binding="{Binding CommentPreview}" />
                     <DataGridTextColumn Width="130"
-                                        Header="Таблица"
+                                        Header="{loc:Translate Main.Table}"
                                         Binding="{Binding Table}" />
                 </DataGrid.Columns>
             </DataGrid>
@@ -428,7 +454,7 @@
                         </Grid.RowDefinitions>
                         <TextBlock Margin="0,0,0,6"
                                    FontWeight="SemiBold"
-                                   Text="English source" />
+                                   Text="{loc:Translate Main.EnglishSource}" />
                         <TextBox Grid.Row="1"
                                  Padding="8"
                                  AcceptsReturn="True"
@@ -445,7 +471,7 @@
                         </Grid.RowDefinitions>
                         <TextBlock Margin="0,0,0,6"
                                    FontWeight="SemiBold"
-                                   Text="Occurrences" />
+                                   Text="{loc:Translate Main.Occurrences}" />
                         <DataGrid Grid.Row="1"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False"
@@ -454,10 +480,10 @@
                                   IsReadOnly="True"
                                   ItemsSource="{Binding SelectedEntry.Occurrences}">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Width="1.2*" Header="Блок" Binding="{Binding BlockName}" />
-                                <DataGridTextColumn Width="85" Header="Порядок" Binding="{Binding OrderText}" />
-                                <DataGridTextColumn Width="1.4*" Header="Контекст" Binding="{Binding Context}" />
-                                <DataGridTextColumn Width="80" Header="Источник" Binding="{Binding SourceName}" />
+                                <DataGridTextColumn Width="1.2*" Header="{loc:Translate Main.Block}" Binding="{Binding BlockName}" />
+                                <DataGridTextColumn Width="85" Header="{loc:Translate Main.Order}" Binding="{Binding OrderText}" />
+                                <DataGridTextColumn Width="1.4*" Header="{loc:Translate Main.Context}" Binding="{Binding Context}" />
+                                <DataGridTextColumn Width="80" Header="{loc:Translate Main.Source}" Binding="{Binding SourceName}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
@@ -470,7 +496,7 @@
                         </Grid.RowDefinitions>
                         <TextBlock Margin="0,0,0,6"
                                    FontWeight="SemiBold"
-                                   Text="Комментарий переводчика" />
+                                   Text="{loc:Translate Main.TranslatorComment}" />
                         <TextBox Grid.Row="1"
                                  Padding="8"
                                  AcceptsReturn="True"
@@ -483,12 +509,12 @@
                                     Orientation="Horizontal">
                             <Button MinWidth="90"
                                     Padding="10,5"
-                                    Content="Очистить"
+                                    Content="{loc:Translate Common.Clear}"
                                     Command="{Binding ClearCommentCommand}" />
                             <Button MinWidth="100"
                                     Margin="8,0,0,0"
                                     Padding="10,5"
-                                    Content="Сохранить"
+                                    Content="{loc:Translate Common.Save}"
                                     Command="{Binding SaveCommentCommand}" />
                         </StackPanel>
                     </Grid>
@@ -510,37 +536,37 @@
             <Button Grid.Column="0"
                     MinWidth="110"
                     Padding="12,7"
-                    Content="Добавить"
+                    Content="{loc:Translate Common.Add}"
                     Command="{Binding AddEntryCommand}" />
             <Button Grid.Column="1"
                     MinWidth="110"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Изменить"
+                    Content="{loc:Translate Common.Edit}"
                     Command="{Binding EditEntryCommand}" />
             <Button Grid.Column="2"
                     MinWidth="110"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Удалить"
+                    Content="{loc:Translate Common.Delete}"
                     Command="{Binding DeleteEntryCommand}" />
             <Button Grid.Column="4"
                     MinWidth="190"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Оригинал/сравнение…"
+                    Content="{loc:Translate Main.Comparison}"
                     Command="{Binding OpenComparisonFileCommand}" />
             <Button Grid.Column="5"
                     MinWidth="190"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Добавить из другого GXT…"
+                    Content="{loc:Translate Main.AddFromGxt}"
                     Command="{Binding AddMissingEntriesCommand}" />
             <Button Grid.Column="6"
                     MinWidth="200"
                     Margin="8,0,0,0"
                     Padding="12,7"
-                    Content="Преобразовать маппинг…"
+                    Content="{loc:Translate Main.ConvertMapping}"
                     Command="{Binding ConvertDictionaryCommand}" />
         </Grid>
 
@@ -569,7 +595,7 @@
                                VerticalAlignment="Center"
                                Text="{Binding BusyText}" />
                     <Button Padding="8,2"
-                            Content="Отмена"
+                            Content="{loc:Translate Common.Cancel}"
                             Command="{Binding CancelOperationCommand}" />
                 </StackPanel>
             </StatusBarItem>

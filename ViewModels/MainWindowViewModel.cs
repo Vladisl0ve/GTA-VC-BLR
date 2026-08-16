@@ -13,28 +13,21 @@ namespace GTA_GXT_Editor.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string DocumentFileFilter =
-        "GXT или проект BYX (*.gxt;*.byx)|*.gxt;*.byx|GXT (*.gxt)|*.gxt|Проект BYX (*.byx)|*.byx|Все файлы (*.*)|*.*";
-    private const string GxtFileFilter =
-        "GTA III/Vice City GXT (*.gxt)|*.gxt|Все файлы (*.*)|*.*";
-    private const string TxdFileFilter =
-        "Vice City TXD (*.txd)|*.txd|Все файлы (*.*)|*.*";
-    private const string ByxFileFilter =
-        "Проект BYX (*.byx)|*.byx|Все файлы (*.*)|*.*";
-    private const string JsonFileFilter =
-        "JSON (*.json)|*.json|Все файлы (*.*)|*.*";
-    private const string CharacterMapFileFilter =
-        "Маппинг символов (*.gxtmap.json;*.json;*.txt)|*.gxtmap.json;*.json;*.txt|" +
-        "Маппинг JSON (*.gxtmap.json;*.json)|*.gxtmap.json;*.json|" +
-        "Старый словарь (*.txt)|*.txt|Все файлы (*.*)|*.*";
-    private const string CommentsFileFilter =
-        "Комментарии GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Все файлы (*.*)|*.*";
-
     private readonly IDialogService _dialogs;
     private readonly IDocumentWorkflow _documentWorkflow;
     private readonly ICharacterMapWorkflow _characterMapWorkflow;
     private readonly IEncounterMetadataProvider _encounterMetadataProvider;
     private readonly EditorSession _session;
+    private readonly ILocalizationService _localization;
+    private readonly IAppSettingsStore _appSettings;
+
+    private string DocumentFileFilter => _localization.Get("Filter.Document");
+    private string GxtFileFilter => _localization.Get("Filter.Gxt");
+    private string TxdFileFilter => _localization.Get("Filter.Txd");
+    private string ByxFileFilter => _localization.Get("Filter.Byx");
+    private string JsonFileFilter => _localization.Get("Filter.Json");
+    private string CharacterMapFileFilter => _localization.Get("Filter.CharacterMap");
+    private string CommentsFileFilter => _localization.Get("Filter.Comments");
 
     private CommonGXTManager? _manager => _session.Manager;
     private EditorProject? _project => _session.Project;
@@ -47,6 +40,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool _canonicalMetadataWarningShown;
     private CancellationTokenSource? _operationCancellation;
+    private string? _statusResourceKey;
+    private object?[] _statusArguments = [];
+    private string? _busyResourceKey;
 
     public MainWindowViewModel(
         GxtManagerFactory managerFactory,
@@ -56,9 +52,13 @@ public partial class MainWindowViewModel : ObservableObject
         IEncounterMetadataProvider? encounterMetadataProvider = null,
         IDocumentWorkflow? documentWorkflow = null,
         ICharacterMapWorkflow? characterMapWorkflow = null,
-        EditorSession? session = null)
+        EditorSession? session = null,
+        ILocalizationService? localization = null,
+        IAppSettingsStore? appSettings = null)
     {
         _dialogs = dialogs;
+        _localization = localization ?? LocalizationProvider.Current;
+        _appSettings = appSettings ?? new JsonAppSettingsStore();
         var resolvedTxdReader = txdReader ?? new TxdReader();
         var resolvedProjectSerializer = projectSerializer ??
             new ByxProjectSerializer(managerFactory, resolvedTxdReader);
@@ -68,7 +68,11 @@ public partial class MainWindowViewModel : ObservableObject
             new CharacterMapWorkflow(resolvedTxdReader);
         _encounterMetadataProvider = encounterMetadataProvider ?? new BundledEncounterMetadataProvider();
         _session = session ?? new EditorSession();
-        EntryList = new EntryListViewModel(_session);
+        EntryList = new EntryListViewModel(_session, _localization);
+        documentType = _localization.Get("Status.NoFile");
+        _statusResourceKey = "Status.OpenPrompt";
+        statusText = _localization.Get(_statusResourceKey);
+        _localization.LanguageChanged += OnLanguageChanged;
         EntryList.PropertyChanged += OnEntryListPropertyChanged;
         EntryList.ComparisonColumns.CollectionChanged += (_, _) =>
         {
@@ -78,6 +82,11 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     public EntryListViewModel EntryList { get; }
+
+    public IReadOnlyList<UiLanguageOption> SupportedUiLanguages =>
+        _localization.SupportedLanguages;
+
+    public UiLanguageOption CurrentUiLanguage => _localization.CurrentLanguage;
 
     public ObservableCollection<GxtEntryRow> Entries => EntryList.Entries;
 
@@ -197,10 +206,62 @@ public partial class MainWindowViewModel : ObservableObject
     private TxdAttachment? attachedTxd;
 
     [ObservableProperty]
-    private string documentType = "Файл не открыт";
+    private string documentType = string.Empty;
 
     [ObservableProperty]
-    private string statusText = "Откройте GXT-файл GTA III или Vice City";
+    private string statusText = string.Empty;
+
+    [RelayCommand]
+    private void SelectUiLanguage(UiLanguageOption? language)
+    {
+        if (language is null)
+        {
+            return;
+        }
+
+        _localization.SetLanguage(language.CultureName);
+        try
+        {
+            _appSettings.SaveUiLanguage(_localization.CurrentLanguage.CultureName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _dialogs.ShowError(
+                _localization.Format("Settings.SaveError", exception.Message),
+                _localization.Get("Common.Error"));
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        if (_statusResourceKey is not null)
+        {
+            StatusText = _localization.Format(_statusResourceKey, _statusArguments);
+        }
+
+        if (_busyResourceKey is not null)
+        {
+            BusyText = _localization.Get(_busyResourceKey);
+        }
+
+        OnPropertyChanged(nameof(CurrentUiLanguage));
+        OnPropertyChanged(nameof(SupportedUiLanguages));
+        OnPropertyChanged(nameof(AttachedTxdDisplayName));
+        OnPropertyChanged(nameof(TxdAttachmentStatus));
+    }
+
+    private void SetStatus(string resourceKey, params object?[] arguments)
+    {
+        _statusResourceKey = resourceKey;
+        _statusArguments = arguments;
+        StatusText = _localization.Format(resourceKey, arguments);
+    }
+
+    public string AttachedTxdDisplayName =>
+        AttachedTxd?.DisplayName ?? _localization.Get("Main.TxdNotAttached");
+
+    public string TxdAttachmentStatus =>
+        _localization.Format("Main.TxdAttached", HasTxdAttachment);
 
     public void OpenFromCommandLine(string path)
     {
@@ -214,7 +275,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (TryContinueAfterUnsavedChanges())
         {
-            await RunBusyAsync("Открытие документа…", token => OpenDocumentAsync(path, token));
+            await RunBusyAsync("Busy.OpenDocument", token => OpenDocumentAsync(path, token));
         }
     }
 
@@ -243,27 +304,27 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanStartOperation))]
     private async Task OpenFileAsync()
     {
-        var path = _dialogs.OpenFile("Открыть GXT или проект BYX", DocumentFileFilter);
+        var path = _dialogs.OpenFile(_localization.Get("Dialog.OpenDocument"), DocumentFileFilter);
         if (path is not null && TryContinueAfterUnsavedChanges())
         {
-            await RunBusyAsync("Открытие документа…", token => OpenDocumentAsync(path, token));
+            await RunBusyAsync("Busy.OpenDocument", token => OpenDocumentAsync(path, token));
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanStartOperation))]
     private async Task OpenFileWithDictionaryAsync()
     {
-        var path = _dialogs.OpenFile("Открыть GXT-файл с маппингом", GxtFileFilter);
+        var path = _dialogs.OpenFile(_localization.Get("Dialog.OpenWithMapping"), GxtFileFilter);
         if (path is null)
         {
             return;
         }
 
-        var dictionaryPath = _dialogs.OpenFile("Выбрать маппинг символов", CharacterMapFileFilter);
+        var dictionaryPath = _dialogs.OpenFile(_localization.Get("Dialog.SelectMapping"), CharacterMapFileFilter);
         if (dictionaryPath is not null && TryContinueAfterUnsavedChanges())
         {
             await RunBusyAsync(
-                "Открытие GXT…",
+                "Busy.OpenGxt",
                 token => LoadDocumentAsync(path, dictionaryPath, cancellationToken: token));
         }
     }
@@ -271,13 +332,13 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private async Task OpenComparisonFileAsync()
     {
-        var paths = _dialogs.OpenFiles("Добавить английский оригинал или GXT для сравнения", GxtFileFilter);
+        var paths = _dialogs.OpenFiles(_localization.Get("Dialog.AddComparison"), GxtFileFilter);
         if (paths.Count == 0)
         {
             return;
         }
 
-        await RunBusyAsync("Открытие файлов сравнения…", async token =>
+        await RunBusyAsync("Busy.OpenComparisons", async token =>
         {
             var loaded = new List<(string Path, Dictionary<GxtEntryIdentity, string> Texts)>();
             foreach (var path in paths)
@@ -304,8 +365,7 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(HasEnglishSource));
             var selected = SelectedEntry;
             RefreshEntries(selected?.Name, selected?.RawTableName);
-            StatusText = $"Загружено файлов для сравнения: {loaded.Count}; " +
-                         $"всего: {ComparisonColumns.Count}";
+            SetStatus("Status.ComparisonsLoaded", loaded.Count, ComparisonColumns.Count);
         });
     }
 
@@ -318,8 +378,9 @@ public partial class MainWindowViewModel : ObservableObject
             var type = _documentWorkflow.DetectType(path);
             if (type != _loadedType)
             {
-                _dialogs.ShowError(
-                    $"Тип файла '{Path.GetFileName(path)}' не соответствует открытому GXT.");
+                _dialogs.ShowError(_localization.Format(
+                    "Message.FileTypeMismatch",
+                    Path.GetFileName(path)));
                 return null;
             }
 
@@ -348,8 +409,11 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception exception)
         {
             _dialogs.ShowError(
-                $"Не удалось открыть '{Path.GetFileName(path)}' для сравнения.\n\n{exception.Message}",
-                "Ошибка открытия");
+                _localization.Format(
+                    "Message.OpenComparisonFailed",
+                    Path.GetFileName(path),
+                    exception.Message),
+                _localization.Get("Dialog.OpenErrorTitle"));
             return null;
         }
     }
@@ -365,14 +429,14 @@ public partial class MainWindowViewModel : ObservableObject
         if (_project?.ProjectPath is { Length: > 0 } projectPath)
         {
             await RunBusyAsync(
-                "Перезагрузка проекта…",
+                "Busy.ReloadProject",
                 token => LoadProjectAsync(projectPath, token));
             return;
         }
 
         if (_project?.GxtSourcePath is not { Length: > 0 } sourcePath)
         {
-            _dialogs.ShowError("Исходный GXT недоступен для перезагрузки.");
+            _dialogs.ShowError(_localization.Get("Message.SourceUnavailable"));
             return;
         }
 
@@ -380,7 +444,7 @@ public partial class MainWindowViewModel : ObservableObject
         var dictionaryPath = _manager?.CharacterMapPath;
 
         await RunBusyAsync(
-            "Перезагрузка GXT…",
+            "Busy.ReloadGxt",
             token => ReloadGxtInProjectAsync(
                 sourcePath,
                 dictionaryPath,
@@ -427,7 +491,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (EntryExists(result.Name, result.RawTableName))
         {
-            _dialogs.ShowError($"Ключ '{result.Name}' уже существует в выбранной таблице.");
+            _dialogs.ShowError(_localization.Format("Message.DuplicateKey", result.Name));
             return;
         }
 
@@ -435,7 +499,7 @@ public partial class MainWindowViewModel : ObservableObject
         SetProjectComment(result.Name, result.RawTableName, result.Comment);
         SetDirty(true);
         RefreshEntries(result.Name, result.RawTableName);
-        StatusText = $"Добавлен ключ {result.Name}";
+        SetStatus("Status.EntryAdded", result.Name);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelection))]
@@ -472,7 +536,7 @@ public partial class MainWindowViewModel : ObservableObject
         SetProjectComment(selected.Name, result.RawTableName, result.Comment);
         SetDirty(true);
         RefreshEntries(selected.Name, result.RawTableName);
-        StatusText = $"Изменён ключ {selected.Name}";
+        SetStatus("Status.EntryChanged", selected.Name);
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveComment))]
@@ -486,7 +550,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         SetDirty(true);
         RefreshEntries(selected.Name, selected.RawTableName);
-        StatusText = $"Комментарий для {selected.Name} сохранён";
+        SetStatus("Status.CommentSaved", selected.Name);
     }
 
     [RelayCommand(CanExecute = nameof(CanClearComment))]
@@ -500,7 +564,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         SetDirty(true);
         RefreshEntries(selected.Name, selected.RawTableName);
-        StatusText = $"Комментарий для {selected.Name} удалён";
+        SetStatus("Status.CommentCleared", selected.Name);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelection))]
@@ -512,8 +576,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         if (!_dialogs.Confirm(
-                $"Удалить ключ '{selected.Name}'? Это действие попадёт в файл только после сохранения.",
-                "Удаление ключа"))
+                _localization.Format("Message.DeleteEntry", selected.Name),
+                _localization.Get("Message.DeleteEntryTitle")))
         {
             return;
         }
@@ -521,22 +585,22 @@ public partial class MainWindowViewModel : ObservableObject
         _manager.RemoveGXTEntry(selected.Name, selected.RawTableName);
         SetDirty(true);
         RefreshEntries();
-        StatusText = $"Удалён ключ {selected.Name}";
+        SetStatus("Status.EntryDeleted", selected.Name);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private Task SaveAsync() => RunBusyAsync(
-        "Сохранение документа…",
+        "Busy.SaveDocument",
         async token => _ = await SaveCurrentDocumentAsync(token));
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private Task ExportGxtAsync() => RunBusyAsync(
-        "Экспорт GXT…",
+        "Busy.ExportGxt",
         async token => _ = await SaveGxtAsAsync(markProjectSaved: false, token));
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private Task SaveProjectAsAsync() => RunBusyAsync(
-        "Сохранение проекта…",
+        "Busy.SaveProject",
         async token => _ = await SaveProjectAsync(forceSaveAs: true, token));
 
     private bool SaveCurrentDocument()
@@ -568,7 +632,7 @@ public partial class MainWindowViewModel : ObservableObject
         var suggestedPath = Path.Combine(
             directory,
             $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}_modified.gxt");
-        var targetPath = _dialogs.SaveFile("Сохранить GXT-файл", GxtFileFilter, suggestedPath);
+        var targetPath = _dialogs.SaveFile(_localization.Get("Dialog.SaveGxt"), GxtFileFilter, suggestedPath);
 
         if (targetPath is null)
         {
@@ -588,13 +652,13 @@ public partial class MainWindowViewModel : ObservableObject
                 SetDirty(false);
             }
 
-            StatusText = $"Сохранено: {targetPath}";
+            SetStatus("Status.Saved", targetPath);
             OfferCharacterMapExport(targetPath);
             return true;
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.SaveFailed", exception.Message));
             return false;
         }
     }
@@ -614,7 +678,7 @@ public partial class MainWindowViewModel : ObservableObject
             var suggestedPath = Path.Combine(
                 directory,
                 $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}.byx");
-            targetPath = _dialogs.SaveFile("Сохранить проект BYX", ByxFileFilter, suggestedPath);
+            targetPath = _dialogs.SaveFile(_localization.Get("Dialog.SaveProject"), ByxFileFilter, suggestedPath);
         }
 
         if (targetPath is null)
@@ -629,12 +693,12 @@ public partial class MainWindowViewModel : ObservableObject
             _project.ProjectPath = targetPath;
             ProjectPath = targetPath;
             SetDirty(false);
-            StatusText = $"Проект сохранён: {targetPath}";
+            SetStatus("Status.ProjectSaved", targetPath);
             return true;
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось сохранить проект BYX.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.SaveProjectFailed", exception.Message));
             return false;
         }
     }
@@ -667,7 +731,7 @@ public partial class MainWindowViewModel : ObservableObject
         var suggestedPath = Path.Combine(
             directory,
             $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}_modified.gxt");
-        var targetPath = _dialogs.SaveFile("Сохранить GXT-файл", GxtFileFilter, suggestedPath);
+        var targetPath = _dialogs.SaveFile(_localization.Get("Dialog.SaveGxt"), GxtFileFilter, suggestedPath);
         if (targetPath is null)
         {
             return false;
@@ -691,7 +755,7 @@ public partial class MainWindowViewModel : ObservableObject
                 SetDirty(false);
             }
 
-            StatusText = $"Сохранено: {targetPath}";
+            SetStatus("Status.Saved", targetPath);
             OfferCharacterMapExport(targetPath);
             return true;
         }
@@ -701,7 +765,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось сохранить файл.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.SaveFailed", exception.Message));
             return false;
         }
     }
@@ -723,7 +787,7 @@ public partial class MainWindowViewModel : ObservableObject
             var suggestedPath = Path.Combine(
                 directory,
                 $"{Path.GetFileNameWithoutExtension(_project.GxtSourceName)}.byx");
-            targetPath = _dialogs.SaveFile("Сохранить проект BYX", ByxFileFilter, suggestedPath);
+            targetPath = _dialogs.SaveFile(_localization.Get("Dialog.SaveProject"), ByxFileFilter, suggestedPath);
         }
 
         if (targetPath is null)
@@ -743,7 +807,7 @@ public partial class MainWindowViewModel : ObservableObject
             _project.ProjectPath = targetPath;
             ProjectPath = targetPath;
             SetDirty(false);
-            StatusText = $"Проект сохранён: {targetPath}";
+            SetStatus("Status.ProjectSaved", targetPath);
             return true;
         }
         catch (OperationCanceledException)
@@ -752,7 +816,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось сохранить проект BYX.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.SaveProjectFailed", exception.Message));
             return false;
         }
     }
@@ -760,7 +824,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAddTxd))]
     private async Task AddTxdAsync()
     {
-        var path = _dialogs.OpenFile("Подключить или заменить TXD GTA Vice City", TxdFileFilter);
+        var path = _dialogs.OpenFile(_localization.Get("Dialog.AttachTxd"), TxdFileFilter);
         if (path is null)
         {
             return;
@@ -770,14 +834,16 @@ public partial class MainWindowViewModel : ObservableObject
         if (existing is not null &&
             !string.Equals(existing.SourcePath, path, StringComparison.OrdinalIgnoreCase) &&
             !_dialogs.Confirm(
-                $"Заменить подключённый TXD '{existing.DisplayName}' на '{Path.GetFileName(path)}'? " +
-                "Текущий маппинг будет сохранён как непроверенный черновик.",
-                "Замена TXD"))
+                _localization.Format(
+                    "Message.ReplaceTxd",
+                    existing.DisplayName,
+                    Path.GetFileName(path)),
+                _localization.Get("Message.ReplaceTxdTitle")))
         {
             return;
         }
 
-        await RunBusyAsync("Чтение TXD…", async token =>
+        await RunBusyAsync("Busy.ReadTxd", async token =>
         {
             try
             {
@@ -797,8 +863,10 @@ public partial class MainWindowViewModel : ObservableObject
                 AttachedTxd = attachment;
                 OnTxdAttachmentChanged();
                 SetDirty(true);
-                StatusText = $"Подключён TXD: {attachment.OriginalFileName} — " +
-                             $"{attachment.Document.Textures.Count} текстур";
+                SetStatus(
+                    "Status.TxdAttached",
+                    attachment.OriginalFileName,
+                    attachment.Document.Textures.Count);
             }
             catch (OperationCanceledException)
             {
@@ -806,7 +874,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось подключить TXD.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.AttachTxdFailed", exception.Message));
             }
         });
     }
@@ -815,7 +883,9 @@ public partial class MainWindowViewModel : ObservableObject
     private void RemoveTxd()
     {
         if (AttachedTxd is not { } selected ||
-            !_dialogs.Confirm($"Удалить '{selected.DisplayName}' из проекта?", "Удаление TXD"))
+            !_dialogs.Confirm(
+                _localization.Format("Message.RemoveTxd", selected.DisplayName),
+                _localization.Get("Message.RemoveTxdTitle")))
         {
             return;
         }
@@ -832,7 +902,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         OnTxdAttachmentChanged();
         SetDirty(true);
-        StatusText = $"TXD удалён из проекта: {selected.OriginalFileName}";
+        SetStatus("Status.TxdRemoved", selected.OriginalFileName);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseAttachedTxd))]
@@ -846,7 +916,7 @@ public partial class MainWindowViewModel : ObservableObject
         var source = selected.SourcePath ?? _project?.ProjectPath ?? Environment.CurrentDirectory;
         var directory = Path.GetDirectoryName(source) ?? Environment.CurrentDirectory;
         var targetPath = _dialogs.SaveFile(
-            "Экспортировать TXD",
+            _localization.Get("Dialog.ExportTxd"),
             TxdFileFilter,
             Path.Combine(directory, selected.OriginalFileName));
         if (targetPath is null)
@@ -854,12 +924,12 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        await RunBusyAsync("Экспорт TXD…", async token =>
+        await RunBusyAsync("Busy.ExportTxd", async token =>
         {
             try
             {
                 await _characterMapWorkflow.ExportAttachmentAsync(targetPath, selected, token);
-                StatusText = $"TXD экспортирован: {targetPath}";
+                SetStatus("Status.TxdExported", targetPath);
                 OfferCharacterMapExport(targetPath);
             }
             catch (OperationCanceledException)
@@ -868,7 +938,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось экспортировать TXD.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ExportTxdFailed", exception.Message));
             }
         });
     }
@@ -898,26 +968,31 @@ public partial class MainWindowViewModel : ObservableObject
         if (!preview.CanApply)
         {
             _dialogs.ShowError(
-                "Профиль нельзя применить:\n\n" + string.Join(Environment.NewLine, preview.Issues),
-                "Проверка маппинга");
+                _localization.Format(
+                    "Message.MappingCannotApply",
+                    string.Join(Environment.NewLine, preview.Issues)),
+                _localization.Get("Message.MappingValidationTitle"));
             return;
         }
 
-        var operation = result.ApplyMode == CharacterMapApplyMode.Interpret
-            ? "заново интерпретировать исходные байты"
-            : "перекодировать текущий Unicode-текст";
+        var operation = _localization.Get(result.ApplyMode == CharacterMapApplyMode.Interpret
+            ? "Message.MappingOperationInterpret"
+            : "Message.MappingOperationReencode");
         var changeDetails = preview.Changes.Count == 0
-            ? "Нет различий в текущих данных."
+            ? _localization.Get("Message.NoDifferences")
             : string.Join(Environment.NewLine, preview.Changes.Take(10)) +
               (preview.Changes.Count > 10
-                  ? $"{Environment.NewLine}…и ещё {preview.Changes.Count - 10}"
+                  ? _localization.Format("Message.MoreChanges", preview.Changes.Count - 10)
                   : string.Empty);
         if (!_dialogs.Confirm(
-                $"Будет выполнено действие: {operation}.\n" +
-                $"Затронуто строк: {preview.ChangedEntryCount}; изменено байтов: {preview.ChangedByteCount}.\n\n" +
-                changeDetails + "\n\n" +
-                "Применить профиль?",
-                "Применение маппинга"))
+                _localization.Format(
+                    "Message.ApplyMapping",
+                    operation,
+                    preview.ChangedEntryCount,
+                    preview.ChangedByteCount,
+                    changeDetails + Environment.NewLine + Environment.NewLine +
+                    _localization.Get("Message.ApplyMappingQuestion")),
+                _localization.Get("Message.ApplyMappingTitle")))
         {
             return;
         }
@@ -930,13 +1005,18 @@ public partial class MainWindowViewModel : ObservableObject
             _project.UsesCustomDictionary = true;
             SetDirty(true);
             RefreshEntries();
-            StatusText = result.ApplyMode == CharacterMapApplyMode.Interpret
-                ? "Маппинг применён без изменения байтов GXT"
-                : $"GXT перекодирован под TXD: изменено байтов {preview.ChangedByteCount}";
+            if (result.ApplyMode == CharacterMapApplyMode.Interpret)
+            {
+                SetStatus("Status.MappingApplied");
+            }
+            else
+            {
+                SetStatus("Status.GxtReencoded", preview.ChangedByteCount);
+            }
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось применить маппинг.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.ApplyMappingFailed", exception.Message));
         }
     }
 
@@ -950,7 +1030,7 @@ public partial class MainWindowViewModel : ObservableObject
             directory,
             $"{Path.GetFileNameWithoutExtension(sourceName)}.json");
         var targetPath = _dialogs.SaveFile(
-            "Экспортировать GXT в JSON",
+            _localization.Get("Dialog.ExportJson"),
             JsonFileFilter,
             suggestedPath);
 
@@ -960,7 +1040,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var entries = Entries.ToArray();
-        await RunBusyAsync("Экспорт JSON…", async token =>
+        await RunBusyAsync("Busy.ExportJson", async token =>
         {
             try
             {
@@ -972,7 +1052,7 @@ public partial class MainWindowViewModel : ObservableObject
                         entries,
                         _manager?.Language ?? GxtLanguage.Auto),
                     token);
-                StatusText = $"Экспортировано в JSON: {targetPath}";
+                SetStatus("Status.JsonExported", targetPath);
             }
             catch (OperationCanceledException)
             {
@@ -980,7 +1060,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось экспортировать JSON.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ExportJsonFailed", exception.Message));
             }
         });
     }
@@ -993,14 +1073,14 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var sourcePath = _dialogs.OpenFile("Импортировать комментарии", CommentsFileFilter);
+        var sourcePath = _dialogs.OpenFile(_localization.Get("Dialog.ImportComments"), CommentsFileFilter);
         if (sourcePath is null)
         {
             return;
         }
 
         var selected = SelectedEntry;
-        await RunBusyAsync("Импорт комментариев…", async token =>
+        await RunBusyAsync("Busy.ImportComments", async token =>
         {
             try
             {
@@ -1017,12 +1097,15 @@ public partial class MainWindowViewModel : ObservableObject
                     RefreshEntries(selected?.Name, selected?.RawTableName);
                 }
 
-                var summary =
-                    $"Обновлено: {result.UpdatedEntryCount}; удалено: {result.ClearedEntryCount}; " +
-                    $"без изменений: {result.UnchangedEntryCount}; отсутствует в GXT: " +
-                    $"{result.MissingEntries.Count}; текст отличается: {result.TextMismatches.Count}.";
-                StatusText = $"Импорт комментариев завершён — {summary}";
-                _dialogs.ShowInfo(summary, "Импорт комментариев");
+                var summary = _localization.Format(
+                    "Message.CommentsSummary",
+                    result.UpdatedEntryCount,
+                    result.ClearedEntryCount,
+                    result.UnchangedEntryCount,
+                    result.MissingEntries.Count,
+                    result.TextMismatches.Count);
+                SetStatus("Status.CommentsImported", summary);
+                _dialogs.ShowInfo(summary, _localization.Get("Dialog.ImportComments"));
             }
             catch (OperationCanceledException)
             {
@@ -1030,7 +1113,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось импортировать комментарии.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ImportCommentsFailed", exception.Message));
             }
         });
     }
@@ -1046,7 +1129,7 @@ public partial class MainWindowViewModel : ObservableObject
         var sourcePath = _project.GxtSourcePath ?? _project.ProjectPath ?? GxtPath;
         var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
         var targetPath = _dialogs.SaveFile(
-            "Экспортировать комментарии",
+            _localization.Get("Dialog.ExportComments"),
             CommentsFileFilter,
             Path.Combine(
                 directory,
@@ -1056,7 +1139,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        await RunBusyAsync("Экспорт комментариев…", async token =>
+        await RunBusyAsync("Busy.ExportComments", async token =>
         {
             try
             {
@@ -1064,7 +1147,7 @@ public partial class MainWindowViewModel : ObservableObject
                 await BackgroundOperation.Run(
                     () => GxtCommentsExporter.Export(targetPath, snapshot, includeText: true),
                     token);
-                StatusText = $"Комментарии экспортированы: {targetPath}";
+                SetStatus("Status.CommentsExported", targetPath);
             }
             catch (OperationCanceledException)
             {
@@ -1072,7 +1155,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось экспортировать комментарии.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ExportCommentsFailed", exception.Message));
             }
         });
     }
@@ -1090,7 +1173,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var sourcePath = _dialogs.OpenFile("Преобразовать JSON в GXT", JsonFileFilter);
+        var sourcePath = _dialogs.OpenFile(_localization.Get("Dialog.ConvertJson"), JsonFileFilter);
         if (sourcePath is null)
         {
             return;
@@ -1099,7 +1182,7 @@ public partial class MainWindowViewModel : ObservableObject
         string? dictionaryPath = null;
         if (useCustomDictionary)
         {
-            dictionaryPath = _dialogs.OpenFile("Выбрать маппинг символов", CharacterMapFileFilter);
+            dictionaryPath = _dialogs.OpenFile(_localization.Get("Dialog.SelectMapping"), CharacterMapFileFilter);
             if (dictionaryPath is null)
             {
                 return;
@@ -1111,7 +1194,7 @@ public partial class MainWindowViewModel : ObservableObject
             directory,
             $"{Path.GetFileNameWithoutExtension(sourcePath)}.gxt");
         var targetPath = _dialogs.SaveFile(
-            "Сохранить преобразованный GXT",
+            _localization.Get("Dialog.SaveConvertedGxt"),
             GxtFileFilter,
             suggestedPath);
         if (targetPath is null)
@@ -1119,7 +1202,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        await RunBusyAsync("Преобразование JSON в GXT…", async token =>
+        await RunBusyAsync("Busy.ConvertJson", async token =>
         {
             try
             {
@@ -1133,7 +1216,7 @@ public partial class MainWindowViewModel : ObservableObject
                         cancellationToken: token))
                 {
                     var game = GxtDomainRules.ToGameName(result.Type);
-                    StatusText = $"JSON преобразован в {game} GXT: {result.EntryCount} ключей";
+                    SetStatus("Status.JsonConverted", game, result.EntryCount);
                 }
             }
             catch (OperationCanceledException)
@@ -1142,7 +1225,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось преобразовать JSON в GXT.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ConvertJsonFailed", exception.Message));
             }
         });
     }
@@ -1157,20 +1240,20 @@ public partial class MainWindowViewModel : ObservableObject
 
         var gameName = GxtDomainRules.ToGameName(_loadedType);
         var path = _dialogs.OpenFile(
-            $"Добавить отсутствующие ключи из {gameName}",
-            $"{gameName} GXT (*.gxt)|*.gxt|Все файлы (*.*)|*.*");
+            _localization.Format("Dialog.AddMissing", gameName),
+            _localization.Format("Filter.GameGxt", gameName));
         if (path is null)
         {
             return;
         }
 
-        await RunBusyAsync("Чтение исходного GXT…", async token =>
+        await RunBusyAsync("Busy.ReadSourceGxt", async token =>
         {
             try
             {
                 if (_documentWorkflow.DetectType(path) != _loadedType)
                 {
-                    _dialogs.ShowError("Тип выбранного GXT-файла не соответствует открытому файлу.");
+                    _dialogs.ShowError(_localization.Get("Message.SelectedGxtTypeMismatch"));
                     return;
                 }
 
@@ -1204,7 +1287,7 @@ public partial class MainWindowViewModel : ObservableObject
                         selected?.RawTableName,
                         clearTransientState: false);
                 }
-                _dialogs.ShowInfo($"Добавлено отсутствующих ключей: {missingEntries.Count}.");
+                _dialogs.ShowInfo(_localization.Format("Message.MissingEntriesAdded", missingEntries.Count));
             }
             catch (OperationCanceledException)
             {
@@ -1212,7 +1295,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось добавить ключи.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.AddEntriesFailed", exception.Message));
             }
         });
     }
@@ -1226,14 +1309,14 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var targetPath = _dialogs.OpenFile(
-            "Выбрать целевой маппинг символов",
+            _localization.Get("Dialog.SelectTargetMapping"),
             CharacterMapFileFilter);
         if (targetPath is null)
         {
             return;
         }
 
-        await RunBusyAsync("Преобразование маппинга…", async token =>
+        await RunBusyAsync("Busy.ConvertMapping", async token =>
         {
             try
             {
@@ -1254,7 +1337,7 @@ public partial class MainWindowViewModel : ObservableObject
                     selected?.Name,
                     selected?.RawTableName,
                     clearTransientState: false);
-                _dialogs.ShowInfo("Маппинг символов успешно преобразован.");
+                _dialogs.ShowInfo(_localization.Get("Message.MappingConverted"));
             }
             catch (OperationCanceledException)
             {
@@ -1262,7 +1345,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (Exception exception)
             {
-                _dialogs.ShowError($"Не удалось преобразовать маппинг.\n\n{exception.Message}");
+                _dialogs.ShowError(_localization.Format("Message.ConvertMappingFailed", exception.Message));
             }
         });
     }
@@ -1278,14 +1361,14 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var project = _documentWorkflow.OpenGxt(path, dictionaryPath, language);
             CommitProject(project, selectedName, selectedTable, clearTransientState: true);
-            StatusText = $"Открыт {Path.GetFileName(path)} — {Entries.Count} ключей";
+            SetStatus("Status.Opened", Path.GetFileName(path), Entries.Count);
             return true;
         }
         catch (Exception exception)
         {
             _dialogs.ShowError(
-                $"Не удалось открыть '{Path.GetFileName(path)}'.\n\n{exception.Message}",
-                "Ошибка открытия");
+                _localization.Format("Message.OpenFailed", Path.GetFileName(path), exception.Message),
+                _localization.Get("Dialog.OpenErrorTitle"));
             return false;
         }
     }
@@ -1306,7 +1389,7 @@ public partial class MainWindowViewModel : ObservableObject
                 language,
                 cancellationToken);
             CommitProject(project, selectedName, selectedTable, clearTransientState: true);
-            StatusText = $"Открыт {Path.GetFileName(path)} — {Entries.Count} ключей";
+            SetStatus("Status.Opened", Path.GetFileName(path), Entries.Count);
             return true;
         }
         catch (OperationCanceledException)
@@ -1316,8 +1399,8 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception exception)
         {
             _dialogs.ShowError(
-                $"Не удалось открыть '{Path.GetFileName(path)}'.\n\n{exception.Message}",
-                "Ошибка открытия");
+                _localization.Format("Message.OpenFailed", Path.GetFileName(path), exception.Message),
+                _localization.Get("Dialog.OpenErrorTitle"));
             return false;
         }
     }
@@ -1372,7 +1455,7 @@ public partial class MainWindowViewModel : ObservableObject
                 LoadDocument(path);
                 break;
             default:
-                _dialogs.ShowError("Поддерживаются только файлы GXT и проекты BYX.");
+                _dialogs.ShowError(_localization.Get("Message.UnsupportedDocument"));
                 break;
         }
     }
@@ -1388,7 +1471,7 @@ public partial class MainWindowViewModel : ObservableObject
                 _ = await LoadDocumentAsync(path, cancellationToken: cancellationToken);
                 break;
             default:
-                _dialogs.ShowError("Поддерживаются только файлы GXT и проекты BYX.");
+                _dialogs.ShowError(_localization.Get("Message.UnsupportedDocument"));
                 break;
         }
     }
@@ -1399,15 +1482,18 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var project = _documentWorkflow.OpenProject(path);
             CommitProject(project, clearTransientState: true);
-            StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
-                         $"TXD: {(AttachedTxd is null ? 0 : 1)}";
+            SetStatus(
+                "Status.ProjectOpened",
+                Path.GetFileName(path),
+                Entries.Count,
+                _localization.Format("Status.TxdCount", AttachedTxd is null ? 0 : 1));
             return true;
         }
         catch (Exception exception)
         {
             _dialogs.ShowError(
-                $"Не удалось открыть проект '{Path.GetFileName(path)}'.\n\n{exception.Message}",
-                "Ошибка открытия BYX");
+                _localization.Format("Message.OpenProjectFailed", Path.GetFileName(path), exception.Message),
+                _localization.Get("Message.OpenProjectErrorTitle"));
             return false;
         }
     }
@@ -1420,8 +1506,11 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var project = await _documentWorkflow.OpenProjectAsync(path, cancellationToken);
             CommitProject(project, clearTransientState: true);
-            StatusText = $"Открыт проект {Path.GetFileName(path)} — {Entries.Count} ключей, " +
-                         $"TXD: {(AttachedTxd is null ? 0 : 1)}";
+            SetStatus(
+                "Status.ProjectOpened",
+                Path.GetFileName(path),
+                Entries.Count,
+                _localization.Format("Status.TxdCount", AttachedTxd is null ? 0 : 1));
             return true;
         }
         catch (OperationCanceledException)
@@ -1431,8 +1520,8 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception exception)
         {
             _dialogs.ShowError(
-                $"Не удалось открыть проект '{Path.GetFileName(path)}'.\n\n{exception.Message}",
-                "Ошибка открытия BYX");
+                _localization.Format("Message.OpenProjectFailed", Path.GetFileName(path), exception.Message),
+                _localization.Get("Message.OpenProjectErrorTitle"));
             return false;
         }
     }
@@ -1453,7 +1542,7 @@ public partial class MainWindowViewModel : ObservableObject
                 language,
                 cancellationToken);
             CommitProject(project, selectedName, selectedTable, clearTransientState: false);
-            StatusText = $"Перезагружен {Path.GetFileName(path)}";
+            SetStatus("Status.Reloaded", Path.GetFileName(path));
             return true;
         }
         catch (OperationCanceledException)
@@ -1462,7 +1551,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось перезагрузить GXT.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.ReloadFailed", exception.Message));
             return false;
         }
     }
@@ -1491,16 +1580,15 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 _canonicalMetadataWarningShown = true;
                 _dialogs.ShowError(
-                    "Встроенный encounter-order dataset недоступен. Документ открыт без " +
-                    $"канонической навигации.\n\n{exception.Message}",
-                    "Encounter metadata");
+                    _localization.Format("Message.CanonicalMetadataUnavailable", exception.Message),
+                    _localization.Get("Message.MetadataTitle"));
             }
         }
 
         if (clearTransientState)
         {
             SelectedMetadataType = MetadataTypeOptions[0];
-            SelectedMetadataBlock = MetadataBlockFilterOption.All;
+            SelectedMetadataBlock = MetadataBlockOptions[0];
             SelectedSortOption = project.GameType == GXTType.GtaViceCity
                 ? SortOptions[0]
                 : SortOptions[1];
@@ -1525,9 +1613,14 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var visibleCount = EntriesView.Cast<object>().Count();
-        StatusText = visibleCount == Entries.Count
-            ? $"{DocumentType} — {Entries.Count} ключей"
-            : $"Показано {visibleCount} из {Entries.Count} ключей";
+        if (visibleCount == Entries.Count)
+        {
+            SetStatus("Status.AllEntries", DocumentType, Entries.Count);
+        }
+        else
+        {
+            SetStatus("Status.FilteredEntries", visibleCount, Entries.Count);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelOperation))]
@@ -1544,7 +1637,8 @@ public partial class MainWindowViewModel : ObservableObject
 
         using var cancellation = new CancellationTokenSource();
         _operationCancellation = cancellation;
-        BusyText = operationName;
+        _busyResourceKey = operationName;
+        BusyText = _localization.Get(operationName);
         IsBusy = true;
         try
         {
@@ -1552,12 +1646,13 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Операция отменена";
+            SetStatus("Status.Cancelled");
         }
         finally
         {
             _operationCancellation = null;
             IsBusy = false;
+            _busyResourceKey = null;
             BusyText = string.Empty;
         }
     }
@@ -1641,6 +1736,8 @@ public partial class MainWindowViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasTxdAttachment));
         OnPropertyChanged(nameof(CanAttachTxd));
+        OnPropertyChanged(nameof(AttachedTxdDisplayName));
+        OnPropertyChanged(nameof(TxdAttachmentStatus));
         ViewTxdCommand.NotifyCanExecuteChanged();
         AddTxdCommand.NotifyCanExecuteChanged();
         RemoveTxdCommand.NotifyCanExecuteChanged();
@@ -1651,16 +1748,16 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_project?.CharacterMap is not { } profile ||
             !_dialogs.Confirm(
-                "Маппинг не хранится внутри отдельных GXT/TXD. Экспортировать рядом файл .gxtmap.json?",
-                "Экспорт маппинга"))
+                _localization.Get("Message.ExportMappingOffer"),
+                _localization.Get("Message.ExportMappingTitle")))
         {
             return;
         }
 
         var suggestedPath = Path.ChangeExtension(exportedPath, ".gxtmap.json");
         var targetPath = _dialogs.SaveFile(
-            "Экспортировать маппинг GXT + TXD",
-            "Маппинг GXT/TXD (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json",
+            _localization.Get("Dialog.ExportMapping"),
+            _localization.Get("Filter.GxtTxdMapping"),
             suggestedPath);
         if (targetPath is null)
         {
@@ -1670,11 +1767,11 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             CharacterMapFileSerializer.Save(targetPath, profile);
-            StatusText = $"Файл и маппинг экспортированы: {exportedPath}";
+            SetStatus("Status.FileAndMappingExported", exportedPath);
         }
         catch (Exception exception)
         {
-            _dialogs.ShowError($"Не удалось экспортировать маппинг.\n\n{exception.Message}");
+            _dialogs.ShowError(_localization.Format("Message.ExportMappingFailed", exception.Message));
         }
     }
 

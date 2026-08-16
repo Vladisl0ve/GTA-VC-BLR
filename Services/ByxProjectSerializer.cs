@@ -50,12 +50,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var file = new FileInfo(path);
         if (!file.Exists)
         {
-            throw new FileNotFoundException("Файл проекта не найден.", path);
+            throw new FileNotFoundException(LocalizationProvider.Current.Get("Byx.NotFound"), path);
         }
 
         if (file.Length > MaximumArchiveSize)
         {
-            throw new InvalidDataException("Проект BYX превышает допустимый размер 512 МБ.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TooLarge"));
         }
 
         using var stream = File.OpenRead(path);
@@ -66,15 +66,14 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var header = Deserialize<ByxManifestHeader>(manifestData, HeaderJsonOptions);
         if (!string.Equals(header.Format, "BYX", StringComparison.Ordinal))
         {
-            throw new InvalidDataException("Некорректный формат проекта BYX.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"));
         }
 
         if (header.Version != CurrentVersion)
         {
-            var description = header.Version > CurrentVersion
-                ? "пока не поддерживается"
-                : "больше не поддерживается";
-            throw new InvalidDataException($"Версия BYX {header.Version} {description}.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format(
+                header.Version > CurrentVersion ? "Byx.VersionNew" : "Byx.VersionOld",
+                header.Version));
         }
 
         var manifest = Deserialize<ByxManifest>(manifestData, JsonOptions);
@@ -187,7 +186,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath)
-            ?? throw new InvalidOperationException("Не удалось определить каталог проекта.");
+            ?? throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.DirectoryUnknown"));
         Directory.CreateDirectory(directory);
         var temporaryPath = Path.Combine(
             directory,
@@ -236,12 +235,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (project.GameType is not (GXTType.GtaIII or GXTType.GtaViceCity))
         {
-            throw new InvalidOperationException("Проект содержит неподдерживаемый тип GXT.");
+            throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.UnsupportedGxt"));
         }
 
         if (project.GameType != GXTType.GtaViceCity && project.AttachedTxd is not null)
         {
-            throw new InvalidOperationException("TXD можно подключать только к проекту GTA Vice City.");
+            throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.TxdViceCityOnly"));
         }
     }
 
@@ -265,7 +264,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             metadataData.LongLength > MaximumMetadataSize ||
             totalLength > MaximumArchiveSize)
         {
-            throw new InvalidOperationException("Проект превышает допустимые лимиты формата BYX.");
+            throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.Limits"));
         }
     }
 
@@ -282,7 +281,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         }
         catch (Exception exception) when (exception is JsonException or InvalidDataException)
         {
-            throw new InvalidDataException("Встроенный маппинг BYX повреждён.", exception);
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.MappingCorrupt"), exception);
         }
     }
 
@@ -290,7 +289,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (gameType != GXTType.GtaViceCity)
         {
-            throw new InvalidDataException("TXD можно подключать только к проекту GTA Vice City.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TxdViceCityOnly"));
         }
 
         var hash = SHA256.HashData(data);
@@ -310,13 +309,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (!string.Equals(manifest.Format, "BYX", StringComparison.Ordinal) ||
             manifest.Version != CurrentVersion || manifest.Gxt is null || manifest.Metadata is null)
         {
-            throw new InvalidDataException("Manifest проекта BYX v3 заполнен не полностью.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.ManifestIncomplete"));
         }
 
         _ = GxtDomainRules.ParseCanonicalGameName(manifest.Game, "BYX");
         _ = GxtDomainRules.ParseLanguageCode(manifest.Language);
         ValidateGxtItem(manifest.Gxt);
-        ValidateArchiveItem(manifest.Metadata, MetadataEntryName, "метаданных");
+        ValidateArchiveItem(manifest.Metadata, MetadataEntryName, LocalizationProvider.Current.Get("Byx.AttachmentMetadata"));
         if (manifest.Txd is not null)
         {
             ValidateTxdItem(manifest.Txd);
@@ -324,7 +323,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
         if (manifest.CharacterMap is not null)
         {
-            ValidateArchiveItem(manifest.CharacterMap, CharacterMapEntryName, "маппинга");
+            ValidateArchiveItem(manifest.CharacterMap, CharacterMapEntryName, LocalizationProvider.Current.Get("Byx.AttachmentMapping"));
         }
     }
 
@@ -332,7 +331,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (!IsFileNameOnly(item.OriginalFileName))
         {
-            throw new InvalidDataException("Manifest BYX содержит некорректное имя GXT.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidGxtName"));
         }
 
         ValidateArchiveItem(item.Entry, item.Sha256, GxtEntryName, "GXT");
@@ -342,7 +341,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (!IsFileNameOnly(item.OriginalFileName))
         {
-            throw new InvalidDataException("Manifest BYX содержит некорректное имя TXD.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidTxdName"));
         }
 
         ValidateArchiveItem(item.Entry, item.Sha256, TxdEntryName, "TXD");
@@ -363,8 +362,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (!string.Equals(entry, expectedEntry, StringComparison.Ordinal) ||
             !IsSha256(sha256))
         {
-            throw new InvalidDataException(
-                $"Manifest BYX содержит некорректное вложение {description}.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.InvalidAttachment", description));
         }
     }
 
@@ -379,12 +377,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (manifest.Txd is not null && !expected.Add(manifest.Txd.Entry) ||
             manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry))
         {
-            throw new InvalidDataException("Manifest BYX содержит повторяющиеся пути вложений.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.DuplicatePaths"));
         }
 
         if (!expected.SetEquals(archive.Entries.Select(entry => entry.FullName)))
         {
-            throw new InvalidDataException("Набор записей BYX не соответствует manifest.json.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.EntrySetMismatch"));
         }
     }
 
@@ -392,7 +390,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (archive.Entries.Count > MaximumEntries)
         {
-            throw new InvalidDataException("В проекте BYX слишком много записей.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TooManyEntries"));
         }
 
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -402,12 +400,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             ValidateEntryName(entry.FullName);
             if (!names.Add(entry.FullName))
             {
-                throw new InvalidDataException($"Запись '{entry.FullName}' повторяется в BYX.");
+                throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.DuplicateEntry", entry.FullName));
             }
 
             if (entry.Length > MaximumArchiveSize - totalLength)
             {
-                throw new InvalidDataException("Распакованные данные BYX превышают 512 МБ.");
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.UnpackedTooLarge"));
             }
 
             totalLength += entry.Length;
@@ -449,11 +447,11 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         try
         {
             return JsonSerializer.Deserialize<T>(data, options)
-                ?? throw new InvalidDataException("JSON внутри BYX повреждён.");
+                ?? throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.JsonCorrupt"));
         }
         catch (JsonException exception)
         {
-            throw new InvalidDataException("JSON внутри BYX повреждён.", exception);
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.JsonCorrupt"), exception);
         }
     }
 
@@ -462,14 +460,14 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         ValidateEntryName(name);
         return archive.Entries.SingleOrDefault(
                    entry => string.Equals(entry.FullName, name, StringComparison.Ordinal))
-               ?? throw new InvalidDataException($"В BYX отсутствует запись '{name}'.");
+               ?? throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.EntryMissing", name));
     }
 
     private static byte[] ReadEntry(ZipArchiveEntry entry, long maximumLength)
     {
         if (entry.Length > maximumLength || entry.Length > int.MaxValue)
         {
-            throw new InvalidDataException($"Запись '{entry.FullName}' слишком велика.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.EntryTooLarge", entry.FullName));
         }
 
         using var stream = entry.Open();
@@ -494,7 +492,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (string.IsNullOrWhiteSpace(name) || name.Contains('\\') || name.Contains(':') ||
             name.StartsWith('/') || name.Split('/').Any(part => part is "" or "." or ".."))
         {
-            throw new InvalidDataException($"Небезопасное имя записи BYX: '{name}'.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.UnsafeEntryName", name));
         }
     }
 
@@ -502,7 +500,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     {
         if (!string.Equals(ComputeHash(data), expected, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException($"Контрольная сумма записи '{entryName}' не совпадает.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format("Byx.ChecksumMismatch", entryName));
         }
     }
 

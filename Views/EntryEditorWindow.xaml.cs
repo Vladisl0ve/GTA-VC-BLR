@@ -7,14 +7,17 @@ namespace GTA_GXT_Editor.Views;
 public partial class EntryEditorWindow : Window
 {
     private readonly EntryEditorRequest _request;
+    private readonly ILocalizationService _localization;
 
-    public EntryEditorWindow(EntryEditorRequest request)
+    public EntryEditorWindow(EntryEditorRequest request, ILocalizationService? localization = null)
     {
         _request = request;
+        _localization = localization ?? LocalizationProvider.Current;
         InitializeComponent();
 
-        Title = request.IsAdding ? "Добавление ключа" : "Редактирование ключа";
-        SaveButton.Content = request.IsAdding ? "Добавить" : "Сохранить";
+        UpdateLocalizedText();
+        _localization.LanguageChanged += Localization_OnLanguageChanged;
+        Closed += (_, _) => _localization.LanguageChanged -= Localization_OnLanguageChanged;
         NameTextBox.Text = request.Name;
         NameTextBox.IsReadOnly = !request.IsAdding;
         ValueTextBox.Text = request.Text;
@@ -79,7 +82,21 @@ public partial class EntryEditorWindow : Window
 
     private void ShowValidationError(string message, System.Windows.Controls.Control control)
     {
-        MessageBox.Show(this, message, "Проверка данных", MessageBoxButton.OK, MessageBoxImage.Warning);
+        MessageBox.Show(
+            this,
+            message,
+            _localization.Get("Entry.ValidationTitle"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
         control.Focus();
+    }
+
+    private void Localization_OnLanguageChanged(object? sender, EventArgs e) =>
+        UpdateLocalizedText();
+
+    private void UpdateLocalizedText()
+    {
+        Title = _localization.Get(_request.IsAdding ? "Entry.Title.Add" : "Entry.Title.Edit");
+        SaveButton.Content = _localization.Get(_request.IsAdding ? "Common.Add" : "Common.Save");
     }
 }

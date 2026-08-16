@@ -8,6 +8,13 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class WpfDialogService : IDialogService
 {
+    private readonly ILocalizationService _localization;
+
+    public WpfDialogService(ILocalizationService? localization = null)
+    {
+        _localization = localization ?? LocalizationProvider.Current;
+    }
+
     public string? OpenFile(string title, string filter)
     {
         var dialog = new OpenFileDialog
@@ -65,29 +72,29 @@ public sealed class WpfDialogService : IDialogService
             MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
-    public void ShowInfo(string message, string title = "GTA GXT Editor")
+    public void ShowInfo(string message, string? title = null)
     {
         MessageBox.Show(
             GetOwner(),
             message,
-            title,
+            title ?? _localization.Get("App.Name"),
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
 
-    public void ShowError(string message, string title = "Ошибка")
+    public void ShowError(string message, string? title = null)
     {
         MessageBox.Show(
             GetOwner(),
             message,
-            title,
+            title ?? _localization.Get("Common.Error"),
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }
 
     public EntryEditorResult? EditEntry(EntryEditorRequest request)
     {
-        var dialog = new EntryEditorWindow(request)
+        var dialog = new EntryEditorWindow(request, _localization)
         {
             Owner = GetOwner(),
         };
@@ -99,8 +106,8 @@ public sealed class WpfDialogService : IDialogService
     {
         var result = MessageBox.Show(
             GetOwner(),
-            "В проекте есть несохранённые изменения. Сохранить их?",
-            "Несохранённые изменения",
+            _localization.Get("Message.UnsavedChanges"),
+            _localization.Get("Message.UnsavedChangesTitle"),
             MessageBoxButton.YesNoCancel,
             MessageBoxImage.Warning);
         return result switch
@@ -113,7 +120,7 @@ public sealed class WpfDialogService : IDialogService
 
     public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
     {
-        var dialog = new TxdViewerWindow(request, this)
+        var dialog = new TxdViewerWindow(request, this, _localization)
         {
             Owner = GetOwner(),
         };

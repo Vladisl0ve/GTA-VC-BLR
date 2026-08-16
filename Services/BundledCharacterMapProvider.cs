@@ -18,8 +18,9 @@ internal static class BundledCharacterMapProvider
     {
         using var stream = typeof(BundledCharacterMapProvider).Assembly
             .GetManifestResourceStream(BelarusianViceCityResourceName)
-            ?? throw new InvalidDataException(
-                $"Встроенный маппинг '{BelarusianViceCityResourceName}' не найден.");
+            ?? throw new InvalidDataException(LocalizationProvider.Current.Format(
+                "Resource.CharacterMapMissing",
+                BelarusianViceCityResourceName));
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
         return CharacterMapFileSerializer.Deserialize(buffer.ToArray());

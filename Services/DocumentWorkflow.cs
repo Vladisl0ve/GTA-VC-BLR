@@ -115,7 +115,9 @@ public sealed class DocumentWorkflow(
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if (!File.Exists(path))
         {
-            throw new FileNotFoundException($"Файл '{path}' не существует или недоступен.", path);
+            throw new FileNotFoundException(
+                LocalizationProvider.Current.Format("Document.FileUnavailable", path),
+                path);
         }
 
         var manager = managerFactory.Open(path, characterMapPath, language);

@@ -132,7 +132,7 @@ public sealed class MainWindowViewModelTests
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.HasCount(2, viewModel.ComparisonColumns);
         Assert.AreEqual(
-            "English source — first comparison",
+            "Английский оригинал — first comparison",
             viewModel.ComparisonColumns[0].Name);
         Assert.AreEqual(firstComparisonPath, viewModel.ComparisonColumns[0].Path);
         Assert.AreEqual("second-comparison", viewModel.ComparisonColumns[1].Name);
@@ -167,7 +167,7 @@ public sealed class MainWindowViewModelTests
         await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
         CollectionAssert.AreEqual(
-            new[] { "English source — shared", "shared (2)" },
+            new[] { "Английский оригинал — shared", "shared (2)" },
             viewModel.ComparisonColumns.Select(column => column.Name).ToArray());
     }
 
@@ -699,7 +699,7 @@ public sealed class MainWindowViewModelTests
 
         viewModel.EditEntryCommand.Execute(null);
 
-        Assert.AreEqual("English source — american", viewModel.ComparisonColumns[0].Name);
+        Assert.AreEqual("Английский оригинал — american", viewModel.ComparisonColumns[0].Name);
         Assert.AreEqual("The Party", dialogs.EntryEditorRequests.Single().SourceText);
         Assert.IsNotEmpty(dialogs.EntryEditorRequests.Single().Occurrences);
         Assert.AreEqual("The Party", viewModel.Entries.Single().SourceText);
@@ -979,14 +979,14 @@ public sealed class MainWindowViewModelTests
             return true;
         }
 
-        public void ShowInfo(string message, string title = "GTA GXT Editor")
+        public void ShowInfo(string message, string? title = null)
         {
-            InfoMessages.Add((message, title));
+            InfoMessages.Add((message, title ?? string.Empty));
         }
 
-        public void ShowError(string message, string title = "Ошибка")
+        public void ShowError(string message, string? title = null)
         {
-            Errors.Add((message, title));
+            Errors.Add((message, title ?? string.Empty));
             if (!AllowErrors)
             {
                 Assert.Fail($"Unexpected error dialog '{title}': {message}");

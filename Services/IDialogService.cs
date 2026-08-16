@@ -12,9 +12,9 @@ public interface IDialogService
 
     bool Confirm(string message, string title);
 
-    void ShowInfo(string message, string title = "GTA GXT Editor");
+    void ShowInfo(string message, string? title = null);
 
-    void ShowError(string message, string title = "Ошибка");
+    void ShowError(string message, string? title = null);
 
     EntryEditorResult? EditEntry(EntryEditorRequest request);
 

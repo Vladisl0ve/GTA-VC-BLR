@@ -152,7 +152,7 @@ namespace GTA_GXT_Editor.GTAVC
                 viceCityEntry.TableName.GetClearName() == NormalizeTableName(currentTableName).GetClearName());
             if (editIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries[editIndex].Value = ConvertTextToBytes(newDatValue);
@@ -169,7 +169,7 @@ namespace GTA_GXT_Editor.GTAVC
                 viceCityEntry.TableName.GetClearName() == normalizedTableName);
             if (removeIndex < 0)
             {
-                throw new KeyNotFoundException($"Ключ '{datName}' не найден.");
+                throw new KeyNotFoundException(LocalizationProvider.Current.Format("GtaThird.KeyMissing", datName));
             }
 
             _gxtEntries.RemoveAt(removeIndex);
@@ -187,7 +187,7 @@ namespace GTA_GXT_Editor.GTAVC
             ArgumentNullException.ThrowIfNull(fsStream);
             if (!fsStream.CanRead || !fsStream.CanSeek)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать чтение и позиционирование.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.ReadSeekRequired"), nameof(stream));
             }
 
             _emptyBlockKeySetsList.Clear();
@@ -196,14 +196,14 @@ namespace GTA_GXT_Editor.GTAVC
                 string tablIdentifier = fsStream.ReadString(4);
                 if (!string.Equals(tablIdentifier, "TABL", StringComparison.Ordinal))
                 {
-                    throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
                 }
 
                 //Читаем полный размер блока "TABL"
                 int tablBlockSize = fsStream.ReadInt();
                 if (tablBlockSize <= 0 || tablBlockSize % 12 != 0)
                 {
-                    throw new InvalidDataException("Некорректный размер блока TABL.");
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TablSize"));
                 }
 
                 //Читаем наборы ключей
@@ -257,14 +257,14 @@ namespace GTA_GXT_Editor.GTAVC
                     string tKeyIdentifier = fsStream.ReadString(4);
                     if (!string.Equals(tKeyIdentifier, "TKEY", StringComparison.Ordinal))
                     {
-                        throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
                     }
 
                     //Читаем полный размер блока "TKEY"
                     int tKeyBlockSize = fsStream.ReadInt();
                     if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
                     {
-                        throw new InvalidDataException("Некорректный размер блока TKEY.");
+                        throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TkeySize"));
                     }
 
                     //Считываем все названия текстовых данных и их сдвиги
@@ -288,7 +288,7 @@ namespace GTA_GXT_Editor.GTAVC
                     var tDatIdentifier = fsStream.ReadString(4);
                     if (!string.Equals(tDatIdentifier, "TDAT", StringComparison.Ordinal))
                     {
-                        throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                        throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
                     }
 
                     //Читаем полный размер блока "TDAT"
@@ -320,7 +320,7 @@ namespace GTA_GXT_Editor.GTAVC
                         //Позиция должна соответствовать текущей позиции считывания в файле
                         if (tDatPosition != fsStream.Position)
                         {
-                            throw new InvalidDataException($"В файле '{Path.GetFileName(sourceName)}' обнаружена неверная последовательность данных.");
+                            throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.Sequence", Path.GetFileName(sourceName)));
                         }
 
                         //Записываем в элемент блок текстовых данных
@@ -332,7 +332,7 @@ namespace GTA_GXT_Editor.GTAVC
                         //Проверяем правильность блока текстовых данных. Два нулевых байта должны быть строго в конце блока
                         if (!localGXTEntries.Last().Value.GXTValueIsValid())
                         {
-                            throw new InvalidDataException($"Файл '{Path.GetFileName(sourceName)}' повреждён или не является GXT файлом игры 'Grand Theft Auto: Vice City'.");
+                            throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
                         }
 
                         readedBytes += readLength;
@@ -343,7 +343,7 @@ namespace GTA_GXT_Editor.GTAVC
                 {
                     return localGXTEntries.Cast<GXTBase>().ToList();
                 }
-            throw new InvalidDataException("Ошибка при чтении GXT-файла.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
         }
 
         public override void WriteGXT(Stream stream)
@@ -352,7 +352,7 @@ namespace GTA_GXT_Editor.GTAVC
             ArgumentNullException.ThrowIfNull(fsStream);
             if (!fsStream.CanWrite)
             {
-                throw new ArgumentException("Поток GXT должен поддерживать запись.", nameof(stream));
+                throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.WriteRequired"), nameof(stream));
             }
 
             var nextOffset = 0;

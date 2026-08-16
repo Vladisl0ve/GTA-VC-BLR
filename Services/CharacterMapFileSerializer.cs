@@ -63,14 +63,14 @@ public static class CharacterMapFileSerializer
         using var json = JsonDocument.Parse(data);
         if (json.RootElement.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidDataException("JSON маппинга должен быть объектом.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Mapping.JsonMustBeObject"));
         }
 
         CharacterMapProfile profile;
         if (json.RootElement.TryGetProperty("mappings", out _))
         {
             var document = JsonSerializer.Deserialize<CharacterMapDocument>(data, JsonOptions)
-                ?? throw new InvalidDataException("JSON маппинга повреждён.");
+                ?? throw new InvalidDataException(LocalizationProvider.Current.Get("Mapping.JsonCorrupt"));
             profile = new CharacterMapProfile
             {
                 Version = document.Version,
@@ -86,7 +86,7 @@ public static class CharacterMapFileSerializer
                     property.Value.ValueKind != JsonValueKind.String)
                 {
                     throw new InvalidDataException(
-                        "Сокращённый JSON должен иметь формат { \"символ\": \"0x80\" }.");
+                        LocalizationProvider.Current.Get("Mapping.ShortJsonFormat"));
                 }
 
                 var code = ParseCode(property.Value.GetString());
@@ -115,7 +115,7 @@ public static class CharacterMapFileSerializer
         if (entry.Character.Length != 1 || char.IsSurrogate(entry.Character[0]) ||
             entry.Codes.Count == 0)
         {
-            throw new InvalidDataException("Запись JSON маппинга повреждена.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Mapping.JsonEntryCorrupt"));
         }
 
         return new CharacterMapEntry
@@ -132,7 +132,7 @@ public static class CharacterMapFileSerializer
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new InvalidDataException("Код символа в JSON не задан.");
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Mapping.CodeMissing"));
         }
 
         var text = value.Trim();
@@ -145,7 +145,7 @@ public static class CharacterMapFileSerializer
 
         if (!byte.TryParse(text, style, CultureInfo.InvariantCulture, out var code) || code < 0x20)
         {
-            throw new InvalidDataException($"Код '{value}' должен находиться в диапазоне 0x20–0xFF.");
+            throw new InvalidDataException(LocalizationProvider.Current.Format("Mapping.CodeRange", value));
         }
 
         return code;

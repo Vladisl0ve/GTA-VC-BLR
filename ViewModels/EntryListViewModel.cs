@@ -15,47 +15,25 @@ namespace GTA_GXT_Editor.ViewModels;
 public partial class EntryListViewModel : ObservableObject
 {
     private readonly EditorSession _session;
+    private readonly ILocalizationService _localization;
 
-    public EntryListViewModel(EditorSession session)
+    public EntryListViewModel(EditorSession session, ILocalizationService? localization = null)
     {
         _session = session;
+        _localization = localization ?? LocalizationProvider.Current;
         EntriesView = CollectionViewSource.GetDefaultView(Entries);
         EntriesView.Filter = FilterEntry;
-        SearchColumns =
-        [
-            SearchColumnOption.All,
-            new SearchColumnOption(SearchColumn.Name, "Ключ"),
-            new SearchColumnOption(SearchColumn.Text, "Перевод"),
-            new SearchColumnOption(SearchColumn.Source, "Английский оригинал"),
-            new SearchColumnOption(SearchColumn.Comparison, "Файлы сравнения"),
-            new SearchColumnOption(SearchColumn.Table, "Таблица"),
-            new SearchColumnOption(SearchColumn.Metadata, "Блок и контекст"),
-            new SearchColumnOption(SearchColumn.Comment, "Комментарий"),
-        ];
+        SearchColumns = CreateSearchColumns();
         selectedSearchColumn = SearchColumns[0];
 
-        MetadataTypeOptions =
-        [
-            MetadataTypeFilterOption.All,
-            new MetadataTypeFilterOption("story", "Сюжет"),
-            new MetadataTypeFilterOption("mission", "Миссии"),
-            new MetadataTypeFilterOption("asset", "Активы"),
-            new MetadataTypeFilterOption("phone", "Телефон"),
-            new MetadataTypeFilterOption("interface", "Интерфейс"),
-            new MetadataTypeFilterOption("world", "Мир"),
-            new MetadataTypeFilterOption("credits", "Титры"),
-            new MetadataTypeFilterOption("misc", "Прочее"),
-        ];
+        MetadataTypeOptions = CreateMetadataTypeOptions();
         selectedMetadataType = MetadataTypeOptions[0];
-        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
+        MetadataBlockOptions.Add(CreateAllBlocksOption());
         selectedMetadataBlock = MetadataBlockOptions[0];
 
-        SortOptions =
-        [
-            new EntrySortOption(EntrySortMode.EncounterOrder, "Encounter order"),
-            new EntrySortOption(EntrySortMode.GxtOrder, "GXT order"),
-        ];
+        SortOptions = CreateSortOptions();
         selectedSortOption = SortOptions[1];
+        _localization.LanguageChanged += OnLanguageChanged;
     }
 
     public ObservableCollection<GxtEntryRow> Entries { get; } = [];
@@ -66,11 +44,11 @@ public partial class EntryListViewModel : ObservableObject
 
     public ICollectionView EntriesView { get; }
 
-    public IReadOnlyList<SearchColumnOption> SearchColumns { get; }
+    public IReadOnlyList<SearchColumnOption> SearchColumns { get; private set; }
 
-    public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions { get; }
+    public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions { get; private set; }
 
-    public IReadOnlyList<EntrySortOption> SortOptions { get; }
+    public IReadOnlyList<EntrySortOption> SortOptions { get; private set; }
 
     public bool HasEncounterMetadata => Entries.Any(entry => entry.Occurrences.Count > 0);
 
@@ -353,6 +331,83 @@ public partial class EntryListViewModel : ObservableObject
         (!string.IsNullOrWhiteSpace(SelectedEntry.Comment) ||
          !string.IsNullOrWhiteSpace(CommentDraft));
 
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        var searchColumn = SelectedSearchColumn.Column;
+        var metadataType = SelectedMetadataType.Type;
+        var sortMode = SelectedSortOption.Mode;
+        var selectedName = SelectedEntry?.Name;
+        var selectedTable = SelectedEntry?.RawTableName;
+
+        SearchColumns = CreateSearchColumns();
+        MetadataTypeOptions = CreateMetadataTypeOptions();
+        SortOptions = CreateSortOptions();
+        OnPropertyChanged(nameof(SearchColumns));
+        OnPropertyChanged(nameof(MetadataTypeOptions));
+        OnPropertyChanged(nameof(SortOptions));
+
+        SelectedSearchColumn = SearchColumns.First(option => option.Column == searchColumn);
+        SelectedMetadataType = MetadataTypeOptions.First(option => option.Type == metadataType);
+        SelectedSortOption = SortOptions.First(option => option.Mode == sortMode);
+        RebuildComparisonColumns();
+
+        if (_session.Manager is null)
+        {
+            RebuildMetadataBlockOptions();
+            return;
+        }
+
+        RefreshEntries(selectedName, selectedTable);
+    }
+
+    private SearchColumnOption[] CreateSearchColumns() =>
+    [
+        new(SearchColumn.All, _localization.Get("Options.Search.All")),
+        new(SearchColumn.Name, _localization.Get("Options.Search.Name")),
+        new(SearchColumn.Text, _localization.Get("Options.Search.Text")),
+        new(SearchColumn.Source, _localization.Get("Options.Search.Source")),
+        new(SearchColumn.Comparison, _localization.Get("Options.Search.Comparison")),
+        new(SearchColumn.Table, _localization.Get("Options.Search.Table")),
+        new(SearchColumn.Metadata, _localization.Get("Options.Search.Metadata")),
+        new(SearchColumn.Comment, _localization.Get("Options.Search.Comment")),
+    ];
+
+    private MetadataTypeFilterOption[] CreateMetadataTypeOptions() =>
+    [
+        new(null, _localization.Get("Options.Metadata.AllTypes")),
+        new("story", _localization.Get("Options.Metadata.Story")),
+        new("mission", _localization.Get("Options.Metadata.Missions")),
+        new("asset", _localization.Get("Options.Metadata.Assets")),
+        new("phone", _localization.Get("Options.Metadata.Phone")),
+        new("interface", _localization.Get("Options.Metadata.Interface")),
+        new("world", _localization.Get("Options.Metadata.World")),
+        new("credits", _localization.Get("Options.Metadata.Credits")),
+        new("misc", _localization.Get("Options.Metadata.Misc")),
+    ];
+
+    private EntrySortOption[] CreateSortOptions() =>
+    [
+        new(EntrySortMode.EncounterOrder, _localization.Get("Options.Sort.Encounter")),
+        new(EntrySortMode.GxtOrder, _localization.Get("Options.Sort.Gxt")),
+    ];
+
+    private MetadataBlockFilterOption CreateAllBlocksOption() =>
+        new(null, _localization.Get("Options.Metadata.AllBlocks"), null);
+
+    private string GetMetadataTypeName(string type) =>
+        MetadataTypeOptions.FirstOrDefault(option => option.Type == type)?.Name ?? type;
+
+    private void RebuildComparisonColumns()
+    {
+        ComparisonColumns.Clear();
+        foreach (var document in _session.Comparisons)
+        {
+            ComparisonColumns.Add(new GxtComparisonColumn(
+                CreateComparisonColumnName(document.Path, ComparisonColumns.Count == 0),
+                document.Path));
+        }
+    }
+
     private GxtEntryOccurrenceView[] BuildOccurrences(
         EncounterMetadataIdentity identity,
         ProjectEntryMetadata? projectEntry,
@@ -428,12 +483,12 @@ public partial class EntryListViewModel : ObservableObject
             .ToArray();
 
         MetadataBlockOptions.Clear();
-        MetadataBlockOptions.Add(MetadataBlockFilterOption.All);
+        MetadataBlockOptions.Add(CreateAllBlocksOption());
         foreach (var block in blocks)
         {
             MetadataBlockOptions.Add(new MetadataBlockFilterOption(
                 block.BlockId,
-                $"{block.BlockName} · {block.BlockType}",
+                $"{block.BlockName} · {GetMetadataTypeName(block.BlockType)}",
                 block.BlockType));
         }
 
@@ -516,14 +571,15 @@ public partial class EntryListViewModel : ObservableObject
             normalizedName = "GXT";
         }
 
+        var sourcePrefix = _localization.Get("Comparison.EnglishPrefix");
         var usedNames = ComparisonColumns
-            .Select(column => column.Name.StartsWith("English source — ", StringComparison.Ordinal)
-                ? column.Name[17..]
+            .Select(column => column.Name.StartsWith(sourcePrefix, StringComparison.Ordinal)
+                ? column.Name[sourcePrefix.Length..]
                 : column.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!usedNames.Contains(normalizedName))
         {
-            return isEnglishSource ? $"English source — {normalizedName}" : normalizedName;
+            return isEnglishSource ? sourcePrefix + normalizedName : normalizedName;
         }
 
         for (var suffix = 2; ; suffix++)
@@ -531,7 +587,7 @@ public partial class EntryListViewModel : ObservableObject
             var candidate = $"{normalizedName} ({suffix})";
             if (!usedNames.Contains(candidate))
             {
-                return isEnglishSource ? $"English source — {candidate}" : candidate;
+                return isEnglishSource ? sourcePrefix + candidate : candidate;
             }
         }
     }
