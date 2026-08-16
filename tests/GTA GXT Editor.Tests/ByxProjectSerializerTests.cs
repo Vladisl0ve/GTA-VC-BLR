@@ -214,7 +214,7 @@ public sealed class ByxProjectSerializerTests
 
         var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
 
-        StringAssert.Contains(exception.Message, "больше не поддерживается");
+        StringAssert.Contains(exception.Message, "no longer supported");
     }
 
     [TestMethod]
@@ -225,7 +225,7 @@ public sealed class ByxProjectSerializerTests
 
         var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
 
-        StringAssert.Contains(exception.Message, "пока не поддерживается");
+        StringAssert.Contains(exception.Message, "not supported yet");
     }
 
     [TestMethod]

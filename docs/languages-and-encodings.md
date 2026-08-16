@@ -1,200 +1,206 @@
-# Языки, кодировки и пользовательские маппинги
+# Languages, encodings, and custom character mappings
 
-**Язык:** Русский · [English](languages-and-encodings.en.md) · [Беларуская](languages-and-encodings.be.md)
+**Language:** English · [Беларуская](languages-and-encodings.be.md)
 
-GXT не хранит название кодировки и не содержит Unicode-текст. Каждый отображаемый
-символ задаётся байтом в младшей половине двухбайтового значения, а соответствующий
-глиф находится в ячейке шрифта TXD. Поэтому один и тот же байт может означать разные
-буквы в разных переводах.
+A GXT file does not store an encoding name or Unicode text. Each displayed
+character is selected by the low byte of a two-byte value, while the matching
+glyph occupies a cell in a TXD font atlas. The same byte can therefore represent
+different letters in different translations.
 
-Эта статья описывает встроенные в редактор языковые допущения, автоопределение и
-способы заменить таблицу `байт ↔ символ` пользовательским профилем.
+This page documents the editor's built-in language assumptions, automatic
+detection, and the ways to replace the `byte ↔ character` table with a custom
+profile.
 
-## Три независимых понятия
+## Three independent concepts
 
-| Понятие | Для чего используется |
+| Concept | What it controls |
 | --- | --- |
-| Язык документа | Метаданные `auto`, `en`, `be`, `ru` или `uk`. Язык выбирает один из встроенных профилей и сохраняется в JSON/BYX. |
-| Встроенная кодировка | Поставляемая с редактором или скомпилированная таблица `байт ↔ Unicode-символ`, выбранная по языку и эвристикам. |
-| Профиль GXT + TXD | Конкретное соответствие байтов GXT ячейкам подключённого `fonts.txd`. Пользовательский профиль имеет приоритет над встроенной кодировкой. |
+| Document language | Metadata containing `auto`, `en`, `be`, `ru`, or `uk`. It selects a built-in profile and is stored in JSON/BYX. |
+| Built-in encoding | A bundled or compiled `byte ↔ Unicode character` table selected from the language and detection heuristics. |
+| GXT + TXD profile | The actual relationship between GXT bytes and cells in the attached `fonts.txd`. A custom profile takes priority over a built-in encoding. |
 
-Язык не гарантирует, что нужная буква есть в шрифте. И наоборот, пользовательский
-профиль может описывать символы языка, которого нет в перечислении `GxtLanguage`.
+A language value does not guarantee that its letters exist in the font. In the
+other direction, a custom profile may contain characters for a language that has
+no value in `GxtLanguage`.
 
-Приоритет декодирования и кодирования следующий:
+Decoding and encoding use this priority order:
 
-1. профиль, встроенный в BYX, применённый в редакторе TXD или явно выбранный при
-   открытии/импорте;
-2. встроенный профиль, выбранный явно указанным языком;
-3. встроенный профиль, выбранный автоопределением.
+1. a profile stored in BYX, applied in the TXD mapping editor, or explicitly
+   selected while opening/importing;
+2. a built-in profile selected by an explicit language;
+3. a built-in profile selected by automatic detection.
 
-Явно указанный `language` выбирает только встроенную кодировку. Если одновременно
-передан пользовательский маппинг, язык остаётся метаданными, а таблица символов
-берётся из маппинга.
+An explicit `language` selects only a built-in encoding. If a custom mapping is
+supplied at the same time, the language remains metadata and the character table
+comes from the mapping.
 
-## Что встроено для каждого языка
+## What is built in for each language
 
-| Язык | GTA III | GTA: Vice City |
+| Language | GTA III | GTA: Vice City |
 | --- | --- | --- |
-| English (`en`) | ASCII остаётся без изменений. Отдельного английского профиля нет: для всех языков, кроме белорусского, по умолчанию загружается русский `russian_chars.txt`. | Пустой кириллический профиль: младшие байты `0x01–0xFF` читаются напрямую как `U+0001–U+00FF`, а `0x00` завершает строку; обычный игровой текст остаётся ASCII. |
-| Русский (`ru`) | Поставляемый `russian_chars.txt`: `0x80–0x9F = А–Я`, `0xA0–0xBF = а–я`. Букв `Ё/ё` в профиле нет. | Гибридная 1C-раскладка с латинскими ASCII-псевдонимами и слотами `0x80–0xAF`, скомпилированная в приложение. `Ё/ё` при записи используют алиасы `E/e`, которые при обратном чтении кириллического слова становятся `Е/е`. |
-| Беларуская (`be`) | Используется тот же встроенный asset, что и для актуальной раскладки Vice City. Он содержит `Ё/ё`, `І/і` и `Ў/ў`. | Актуальная таблица из `Assets/ViceCity/belarusian.gxtmap.json`, а также две legacy-схемы для чтения старых файлов. |
-| Українська (`uk`) | Язык распознаётся и сохраняется в метаданных, но отдельной украинской таблицы нет: редактор откатывается к русскому `russian_chars.txt`. `Ґ/ґ`, `Є/є`, `І/і` и `Ї/ї` требуют пользовательского маппинга. | Отдельная таблица с `Ґ/ґ`, `Є/є`, `І/і` и `Ї/ї`, скомпилированная в приложение. |
+| English (`en`) | ASCII remains unchanged. There is no separate English profile: every language except Belarusian loads the Russian `russian_chars.txt` by default. | An empty Cyrillic profile: low bytes `0x01–0xFF` are read directly as `U+0001–U+00FF`, while `0x00` terminates the string. Normal game text remains ASCII. |
+| Russian (`ru`) | The bundled `russian_chars.txt`: `0x80–0x9F = А–Я`, `0xA0–0xBF = а–я`. It does not contain `Ё/ё`. | A hybrid 1C layout with Latin ASCII aliases and slots in `0x80–0xAF`, compiled into the application. When writing, `Ё/ё` use the `E/e` aliases; reading those bytes back inside a Cyrillic word produces `Е/е`. |
+| Belarusian (`be`) | The same embedded asset as the current Vice City layout is used. It contains `Ё/ё`, `І/і`, and `Ў/ў`. | The current table from `Assets/ViceCity/belarusian.gxtmap.json`, plus two legacy layouts used when reading older files. |
+| Ukrainian (`uk`) | The language is recognized and stored as metadata, but there is no Ukrainian table: the editor falls back to the Russian `russian_chars.txt`. `Ґ/ґ`, `Є/є`, `І/і`, and `Ї/ї` require a custom mapping. | A separate table containing `Ґ/ґ`, `Є/є`, `І/і`, and `Ї/ї`, compiled into the application. |
 
 ### GTA III
 
-`russian_chars.txt` лежит рядом с приложением и загружается во время работы. Его
-технически можно заменить в каталоге сборки, но это глобально изменит стандартное
-поведение GTA III для English, Русского и Української. Для отдельного файла или
-проекта безопаснее явно выбрать собственный маппинг.
+`russian_chars.txt` is placed next to the application and loaded at runtime. It
+can technically be replaced in the build output directory, but doing so globally
+changes the default GTA III behavior for English, Russian, and Ukrainian. An
+explicit custom mapping is safer for an individual file or project.
 
-Белорусский профиль загружается из встроенного ресурса
-`Assets/ViceCity/belarusian.gxtmap.json`. Копия asset в выходном каталоге не является
-источником встроенного профиля: её замена без пересборки приложения не изменит
-стандартную белорусскую таблицу. Пользовательский профиль при этом работает без
-пересборки.
+The Belarusian profile is loaded from the embedded
+`Assets/ViceCity/belarusian.gxtmap.json` resource. The copy of that asset in the
+output directory is not the source of the built-in profile: replacing the copy
+without rebuilding the application does not alter the default Belarusian table.
+A custom profile works without rebuilding.
 
 ### GTA: Vice City
 
-Русский, украинский и пустой английский профили находятся в
-`GTAVC/ViceCityTextEncodingProfile.cs` и входят в исполняемый файл. Изменить их
-внешним файлом нельзя, но любой из них можно перекрыть пользовательским маппингом.
+The Russian, Ukrainian, and empty English profiles are defined in
+`GTAVC/ViceCityTextEncodingProfile.cs` and compiled into the executable. An
+external file cannot edit them, but a custom mapping can override any of them.
 
-Актуальная белорусская раскладка использует:
+The current Belarusian layout uses:
 
 - `І = 0x49`, `і = 0x69`;
 - `Ў = 0x86`, `ў = 0x9D`;
 - `Т = 0x91`, `т = 0xA8`;
 - `Ё = 0x96`, `ё = 0xAF`.
 
-Для совместимости чтения также захардкожены две старые схемы:
+Two older layouts are also hardcoded for read compatibility:
 
-- непрерывный белорусский алфавит от `А` до `я` в диапазоне `0x80–0xBF`;
-- промежуточная раскладка с `Т/т = T/y`, `І/і = 0x86/0x9D` и
+- the continuous Belarusian alphabet, uppercase followed by lowercase, across
+  `0x80–0xBF`;
+- an intermediate layout with `Т/т = T/y`, `І/і = 0x86/0x9D`, and
   `Ў/ў = 0x91/0xA8`.
 
-Они нужны для распознавания старых GXT. Чтобы получить файл для актуального TXD,
-старый текст следует перекодировать текущим белорусским пресетом, а не просто
-сохранить GXT.
+These layouts exist to recognize old GXT files. To produce a file for the current
+TXD, re-encode the old text with the current Belarusian preset instead of merely
+saving the GXT.
 
-> **Важно:** `russian_chars_vc.txt` всё ещё указан в проекте как копируемый в
-> каталог приложения, но текущий код Vice City его не читает. Замена этого файла
-> не меняет кодировку.
+> **Important:** `russian_chars_vc.txt` is still listed in the project as content
+> copied to the application directory, but the current Vice City code never reads
+> it. Replacing that file does not change the encoding.
 
-## Коды языка
+## Language codes
 
-При импорте JSON поле `language` допускает следующие значения без учёта регистра:
+During JSON import, the `language` field accepts these case-insensitive values:
 
-| Результат | Допустимые значения JSON |
+| Result | Accepted JSON values |
 | --- | --- |
-| Автоопределение | поле отсутствует, пустая строка, `auto` |
+| Automatic detection | missing field, empty string, `auto` |
 | English | `en`, `eng`, `english` |
-| Беларуская | `be`, `bel`, `belarusian`, `беларуская` |
-| Русский | `ru`, `rus`, `russian`, `русский` |
-| Українська | `uk`, `ukr`, `ukrainian`, `українська` |
+| Belarusian | `be`, `bel`, `belarusian`, `беларуская` |
+| Russian | `ru`, `rus`, `russian`, `русский` |
+| Ukrainian | `uk`, `ukr`, `ukrainian`, `українська` |
 
-В манифесте BYX используются только канонические значения `en`, `be`, `ru` и `uk`.
-Произвольный код вроде `pl` будет отклонён даже при наличии подходящего
-пользовательского маппинга. Для такого профиля в JSON нужно опустить `language`,
-оставить `auto` или использовать один из поддерживаемых кодов, например `en`.
+A BYX manifest accepts only the canonical values `en`, `be`, `ru`, and `uk`. An
+arbitrary value such as `pl` is rejected even when a matching custom profile is
+provided. For such a profile, omit `language` in JSON, use `auto`, or use one of
+the supported values such as `en`.
 
-## Автоопределение
+## Automatic detection
 
-Автоопределение не анализирует TXD и не может проверить, какой глиф действительно
-нарисован в ячейке. Его результат — предположение для выбора встроенной таблицы.
-При нестандартном GXT следует открывать файл с явным маппингом.
+Automatic detection does not inspect the TXD and cannot verify which glyph is
+actually drawn in a cell. Its result is only a guess used to select a built-in
+table. Open a nonstandard GXT with an explicit mapping.
 
-### Имена файлов и текст JSON
+### File names and JSON text
 
-Общий детектор сначала проверяет имя файла без расширения:
+The shared detector first checks the file name without its extension:
 
-1. `belarus` в имени или начало `bel` → Беларуская;
-2. `ukrain` в имени или начало `ukr` → Українська;
-3. `russian` в имени или начало `rus` → Русский;
-4. `american` или `english` в имени → English.
+1. contains `belarus` or starts with `bel` → Belarusian;
+2. contains `ukrain` or starts with `ukr` → Ukrainian;
+3. contains `russian` or starts with `rus` → Russian;
+4. contains `american` or `english` → English.
 
-Если имя ничего не определило, при создании GXT из JSON проверяется объединённый
-текст всех записей:
+If the name does not resolve the language, creating a GXT from JSON examines all
+entry texts concatenated together:
 
-1. нет кириллицы `U+0400–U+04FF` → English;
-2. есть `Ў/ў` → Беларуская;
-3. есть хотя бы одна из `Ґ/ґ`, `Є/є`, `Ї/ї` → Українська;
-4. есть `І/і` → Українська как исторический fallback, потому что эта буква общая
-   для белорусского и украинского языков;
-5. любая другая кириллица → Русский.
+1. no characters in the Cyrillic range `U+0400–U+04FF` → English;
+2. contains `Ў/ў` → Belarusian;
+3. contains any of `Ґ/ґ`, `Є/є`, or `Ї/ї` → Ukrainian;
+4. contains `І/і` → Ukrainian as a historical fallback, because Belarusian and
+   Ukrainian share this letter;
+5. any other Cyrillic text → Russian.
 
-Явное поддерживаемое значение `language`, отличное от `auto`, пропускает эти
-эвристики.
+An explicit supported `language` other than `auto` skips these heuristics.
 
-### Открытие бинарного GTA III GXT
+### Opening a binary GTA III GXT
 
-При обычном открытии редактор:
+On a normal open, the editor:
 
-1. пытается определить язык по имени файла;
-2. если имя не помогло, проверяет младшие байты символов всех записей;
-3. наличие любого байта `>= 0x80` выбирает Русский, иначе выбирается English.
+1. tries to determine the language from the file name;
+2. if the name is inconclusive, checks the low character bytes in all entries;
+3. selects Russian if any byte is `>= 0x80`, otherwise English.
 
-Содержимое кириллицы не распознаётся, поэтому без подходящего имени украинский и
-белорусский GXT может быть принят за русский. Пользовательский маппинг устраняет
-зависимость декодирования от этого решения.
+The Cyrillic content itself is not classified. Without a suitable file name, a
+Ukrainian or Belarusian GXT may be treated as Russian. A custom mapping removes
+decoding's dependence on that decision.
 
-### Открытие бинарного Vice City GXT
+### Opening a binary Vice City GXT
 
-Если язык не задан явно, профили проверяются в следующем порядке. Проценты считаются
-от количества младших байтов до завершающего нуля каждой строки.
+When no explicit language is supplied, profiles are checked in the following
+order. Percentages use the number of low bytes before each string terminator.
 
-1. Пустой файл или менее 2% байтов в диапазоне `0x80–0xBF` → English. Эта проверка
-   выполняется до анализа имени файла.
-2. Если в диапазоне `0xB0–0xBF` встретилось не менее восьми разных кодов и на него
-   приходится не менее 1% текста → белорусская непрерывная legacy-схема.
-3. Для белорусского имени сравнивается число ASCII-алиасов `I/i` и `T/y`:
-   `I/i >= T/y` выбирает актуальный профиль, иначе промежуточный legacy-профиль.
-4. Без белорусского имени актуальный профиль выбирается, если `I/i`, `0xA8` и
-   `0xA9` встречаются каждый не реже 0,5% текста.
-5. Промежуточный белорусский профиль выбирается, если `T/y` встречаются не реже
-   0,5%, а `0xA8` встречается минимум четыре раза и также занимает не менее 0,5%.
-6. После белорусских проверок имя `russian/rus*` принудительно выбирает Русский, а
-   `ukrain/ukr*` — Українську.
-7. В остальных случаях вычисляются оценки:
+1. An empty file or fewer than 2% of bytes in `0x80–0xBF` → English. This check
+   runs before the file name is examined.
+2. At least eight distinct codes in `0xB0–0xBF`, with that range accounting for
+   at least 1% of the text → the continuous Belarusian legacy layout.
+3. For a Belarusian file name, compare the counts of ASCII aliases `I/i` and
+   `T/y`: `I/i >= T/y` selects the current profile; otherwise the intermediate
+   legacy profile is selected.
+4. Without a Belarusian name, the current profile is selected when `I/i`, `0xA8`,
+   and `0xA9` each appear in at least 0.5% of the text.
+5. The intermediate Belarusian profile is selected when `T/y` account for at
+   least 0.5%, while `0xA8` appears at least four times and also accounts for at
+   least 0.5%.
+6. After the Belarusian checks, a `russian/rus*` name selects Russian and an
+   `ukrain/ukr*` name selects Ukrainian.
+7. Otherwise, two scores are calculated:
 
    ```text
    russianScore   = count(0xA9) * 4 + count('y')
    ukrainianScore = count('i') * 2 + count('t') * 2 + count(0xAF) * 3
    ```
 
-   Если `ukrainianScore > russianScore`, выбирается Українська; при равенстве или
-   меньшем значении — Русский.
+   Ukrainian is selected only when `ukrainianScore > russianScore`; a tie or a
+   lower score selects Russian.
 
-Имя `american/english` само по себе не отменяет порог байтов из первого шага:
-нестандартный English GXT с большим числом кодов `0x80–0xBF` лучше открывать с
-явным маппингом.
+An `american/english` name does not override the byte threshold in step 1. A
+nonstandard English GXT containing many `0x80–0xBF` codes should be opened with an
+explicit mapping.
 
-## Как подменить кодировку
+## Replacing an encoding
 
-### Способы в интерфейсе
+### Commands in the current UI
 
-- **«Открыть с маппингом…»** — открыть существующий GXT и сразу полностью заменить
-  встроенную таблицу выбранным `.gxtmap.json`, сокращённым `.json` или `.txt`.
-- **«JSON → GXT с маппингом…»** — создать GXT из Unicode-текста с использованием
-  выбранной таблицы вместо профиля из `language`/автоопределения.
-- Для Vice City: подключить `fonts.txd` и открыть **«Маппинг…»**. Откроется окно
-  **«Маппинг GXT + TXD»**, где можно импортировать или отредактировать профиль и
-  выбрать **«Интерпретировать исходные байты»** либо **«Перекодировать текущий
-  текст»**. Кнопка **«Проверить…»** только проверяет профиль и возвращает выбранный
-  режим в главное окно. Байты или активный профиль меняются лишь после следующего
-  предварительного просмотра и подтверждения **«Применение маппинга»**.
-- Кнопка **«Белорусский 0x80–0xBF»** в окне маппинга, несмотря на название,
-  загружает актуальный гибридный `Assets/ViceCity/belarusian.gxtmap.json` с
-  `І = 0x49`, `Ў = 0x86` и другими слотами, перечисленными выше. Непрерывная
-  legacy-схема `0x80–0xBF` этой кнопкой не выбирается.
-- **«Преобразовать маппинг…»** — заменить одну раскладку байтов другой без
-  промежуточного редактирования текста. Исходный и целевой профили обязаны иметь
-  одинаковое количество и одинаковый набор символов.
+- **“Open with mapping…”** opens an existing GXT
+  and completely replaces the built-in table with the selected `.gxtmap.json`,
+  compact `.json`, or `.txt` file.
+- **“JSON → GXT with mapping…”** creates a GXT
+  from Unicode JSON text using the selected table instead of the profile chosen
+  by `language` or automatic detection.
+- For Vice City, attach `fonts.txd` and open **“Mapping…”**. The
+  **“GXT + TXD mapping”** window lets you import or edit a profile and select
+  **“Interpret source bytes”** or **“Re-encode current text”**. Its **“Check…”** button only validates
+  the profile and returns the selected mode to the main window. Bytes or the
+  active profile change only after the subsequent preview and the
+  **“Apply mapping”** confirmation.
+- Despite its label, **“Belarusian 0x80–0xBF”** loads the current hybrid
+  `Assets/ViceCity/belarusian.gxtmap.json`, including `І = 0x49`, `Ў = 0x86`, and
+  the other current slots listed above. It does not select the continuous
+  `0x80–0xBF` legacy layout.
+- **“Convert mapping…”** changes one byte
+  layout into another without an intermediate text-editing step. The source and
+  target profiles must contain the same number and exact same set of characters.
 
-### Канонический `.gxtmap.json`
+### Canonical `.gxtmap.json`
 
-Канонический формат поддерживает несколько кодов-алиасов для одного символа и
-отдельно задаёт код, используемый при записи:
+The canonical format supports multiple decoding aliases for one character and a
+separate code used when writing:
 
 ```json
 {
@@ -209,9 +215,9 @@ GXT не хранит название кодировки и не содержи
 }
 ```
 
-### Сокращённый JSON
+### Compact JSON
 
-Подходит для простых таблиц с одним кодом на символ:
+Use this form for simple tables with one code per character:
 
 ```json
 {
@@ -220,62 +226,63 @@ GXT не хранит название кодировки и не содержи
 }
 ```
 
-### Старый текстовый словарь
+### Legacy text dictionary
 
-В каждой строке указываются десятичные коды через запятую, пробел и один символ.
-Первый код становится предпочтительным:
+Each line contains decimal codes separated by commas, a space, and one character.
+The first code becomes the preferred code:
 
 ```text
 128,66 В
 129 Б
 ```
 
-Файл сначала читается как строгий UTF-8, а при ошибке декодирования — как Windows-1251.
+The file is first read as strict UTF-8. If decoding fails, Windows-1251 is used.
 
-### Ограничения профиля
+### Profile restrictions
 
-- версия канонического формата должна быть `1`;
-- одна запись описывает ровно один BMP-символ Unicode; управляющие символы и
-  суррогатные пары запрещены;
-- каждый код должен находиться в диапазоне `0x20–0xFF`;
-- символ нельзя объявить дважды, а один код нельзя назначить разным символам;
-- список `codes` не может быть пустым, а `preferredCode` обязан входить в него;
-- конструкции форматирования `~...~` всегда читаются и записываются как служебный
-  ASCII, независимо от профиля;
-- если длинное тире `—` отсутствует в профиле, кодировщик заменяет его на `-`;
-- профиль меняет только интерпретацию байтов и должен соответствовать реальным
-  ячейкам TXD; редактор не перерисовывает и не переставляет глифы.
+- the canonical format version must be `1`;
+- one entry describes exactly one Unicode BMP character; control characters and
+  surrogate pairs are rejected;
+- each code must be within `0x20–0xFF`;
+- a character cannot be declared twice, and one code cannot belong to different
+  characters;
+- `codes` cannot be empty, and `preferredCode` must be present in that list;
+- formatting tokens `~...~` are always read and written as service ASCII,
+  independently of the profile;
+- if the em dash `—` is missing from the profile, the encoder substitutes `-`;
+- a profile changes only byte interpretation and must match the real TXD cells;
+  the editor does not redraw or rearrange glyphs.
 
-Профиль может содержать польские, литовские или любые другие допустимые BMP-символы.
-Это не добавляет новый код языка в JSON/BYX и не расширяет список значений
-`GxtLanguage`.
+A profile may contain Polish, Lithuanian, or any other supported BMP characters.
+That does not create a new JSON/BYX language code or extend `GxtLanguage`.
 
-### Интерпретация, перекодирование и преобразование
+### Interpret, re-encode, and convert
 
-| Операция | Что происходит с GXT |
+| Operation | Effect on the GXT |
 | --- | --- |
-| Интерпретировать | Байты не меняются. Редактор повторно показывает их через новый профиль. Используется, когда GXT уже соответствует подключённому TXD, но раньше читался неверно. |
-| Перекодировать | Текущий текст декодируется старым профилем и кодируется новым. Байты меняются транзакционно; операция отменяется, если символы нельзя закодировать. |
-| Преобразовать маппинг | Байты заменяются напрямую по совпадающим символам исходного и целевого профилей. Наборы символов должны полностью совпадать. |
+| Interpret source bytes | The bytes do not change. The editor displays them through the new profile. Use this when the GXT already matches the attached TXD but was decoded incorrectly. |
+| Re-encode current text | The current text is decoded with the old profile and encoded with the new one. Bytes change transactionally; the operation is rejected if any character cannot be encoded. |
+| Convert mapping | Bytes are replaced directly by matching characters between the source and target profiles. The character sets must match exactly. |
 
-Перед перекодированием следует проверить предварительный просмотр: он показывает
-неназначенные байты, отсутствующие символы и число изменяемых записей/байтов.
+Review the preview before re-encoding. It reports unmapped bytes, missing
+characters, and the number of affected entries and bytes.
 
-## Хранение профиля
+## Profile storage
 
-Обычные GXT и TXD не содержат `.gxtmap.json` внутри себя. При раздельном экспорте
-профиль нужно сохранить рядом и передавать вместе с файлами. Один профиль действует
-для всех атласов `font1`, `font2` и `pager` подключённого TXD: код общий, отличается
-только изображение глифа.
+Plain GXT and TXD files do not embed `.gxtmap.json`. When exporting them
+separately, save the profile alongside them and distribute all files together.
+One profile applies to the `font1`, `font2`, and `pager` atlases in the attached
+TXD: the code is shared, while only the glyph image differs.
 
-BYX v3 хранит пользовательский профиль внутри проекта в
-`mapping/characters.json`, связывает его с GXT/TXD через манифест и восстанавливает
-при следующем открытии.
+BYX v3 stores a custom profile inside the project as
+`mapping/characters.json`, links it to the GXT/TXD through the manifest, and
+restores it the next time the project is opened.
 
-## Источники в коде
+## Sources in the code
 
-- список языков и общие эвристики: [`Common/GxtLanguage.cs`](../Common/GxtLanguage.cs);
-- допустимые коды языка: [`Common/GxtDomainRules.cs`](../Common/GxtDomainRules.cs);
-- поведение GTA III: [`GTAIII/GXTManager.cs`](../GTAIII/GXTManager.cs);
-- профили и детектор Vice City: [`GTAVC/ViceCityTextEncodingProfile.cs`](../GTAVC/ViceCityTextEncodingProfile.cs);
-- загрузка и проверка пользовательских файлов: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs).
+- language list and shared heuristics: [`Common/GxtLanguage.cs`](../Common/GxtLanguage.cs);
+- accepted language codes: [`Common/GxtDomainRules.cs`](../Common/GxtDomainRules.cs);
+- GTA III behavior: [`GTAIII/GXTManager.cs`](../GTAIII/GXTManager.cs);
+- Vice City profiles and detector: [`GTAVC/ViceCityTextEncodingProfile.cs`](../GTAVC/ViceCityTextEncodingProfile.cs);
+- custom mapping loading and validation: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs).
+

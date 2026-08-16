@@ -1,24 +1,26 @@
 # GTA GXT Editor
 
-Windows-редактор текстовых ресурсов GTA III и GTA: Vice City, адаптированный для работы над белорусскими переводами.
+**Language:** English · [Беларуская](README.be.md)
 
-## Вики
+A Windows editor for GTA III and GTA: Vice City text resources, tailored for Belarusian translation projects. The interface is available in English by default and in Belarusian.
 
-README — главная страница документации проекта. Подробные руководства:
+## Documentation
 
-- Языки, кодировки и пользовательские маппинги — какие языковые таблицы встроены для GTA III и Vice City, как работает автоопределение и как заменить таблицу символов своей: [Русский](docs/languages-and-encodings.md) · [English](docs/languages-and-encodings.en.md) · [Беларуская](docs/languages-and-encodings.be.md).
+This README is the main project documentation page. Detailed guides:
 
-## Технологии
+- Languages, encodings, and custom mappings — the language tables bundled for GTA III and Vice City, automatic detection, and replacing a character table with your own: [English](docs/languages-and-encodings.md) · [Беларуская](docs/languages-and-encodings.be.md).
 
-- .NET 10 LTS и C# 14;
-- WPF/XAML с системной темой Fluent;
-- MVVM на базе `CommunityToolkit.Mvvm` 8.4.2;
-- MSTest 4.3.2 и Microsoft Testing Platform;
-- nullable reference types и анализаторы .NET в стиле SDK.
+## Technology
 
-## Запуск
+- .NET 10 LTS and C# 14;
+- WPF/XAML with the system Fluent theme;
+- MVVM powered by `CommunityToolkit.Mvvm` 8.4.2;
+- MSTest 4.3.2 and Microsoft Testing Platform;
+- nullable reference types and SDK-style .NET analyzers.
 
-Требуется .NET SDK 10.0.302 или более новый патч-релиз ветки 10.0.
+## Running the project
+
+.NET SDK 10.0.302 or a newer patch release from the 10.0 line is required.
 
 ```powershell
 dotnet restore "GTA GXT Editor.slnx"
@@ -27,22 +29,22 @@ dotnet test "GTA GXT Editor.slnx" --configuration Release
 dotnet run --project "GTA GXT Editor.csproj"
 ```
 
-## GXT, TXD и таблица символов
+## GXT, TXD, and character mappings
 
-К открытому GXT можно подключить не более одного TXD. Вместе они образуют пару с собственным профилем соответствия между символами Unicode и кодами `0x20–0xFF`: байт в GXT выбирает ячейку атласа TXD, а профиль описывает, какой символ находится в этой ячейке.
+At most one TXD can be attached to an open GXT. Together they form a pair with its own mapping profile between Unicode characters and codes in the `0x20–0xFF` range: a byte in the GXT selects a cell in the TXD atlas, while the profile describes which character occupies that cell.
 
-Редактор маппинга показывает атласы `font1`, `font2` и `pager`, код и назначенные символы каждой ячейки. В нём можно:
+The mapping editor displays the `font1`, `font2`, and `pager` atlases together with the code and assigned characters of every cell. It can:
 
-- назначать и очищать символы, а также выбирать предпочтительный код для обратного кодирования;
-- импортировать канонический `.gxtmap.json`, сокращённый JSON и старый текстовый словарь;
-- экспортировать канонический `.gxtmap.json`;
-- применять встроенный белорусский пресет на базе `Ё/ё`, `І/і` и `Ў/ў`, загружаемый из канонического asset;
-- анализировать отсутствующие символы, неназначенные байты, конфликты и частоту использования;
-- интерпретировать исходные байты без изменения GXT либо транзакционно перекодировать текущий Unicode-текст под TXD.
+- assign and clear characters and select the preferred code used for encoding;
+- import canonical `.gxtmap.json`, compact JSON, and legacy text dictionaries;
+- export canonical `.gxtmap.json`;
+- apply the bundled Belarusian preset containing `Ё/ё`, `І/і`, and `Ў/ў`, loaded from the canonical asset;
+- analyze missing characters, unmapped bytes, conflicts, and usage frequency;
+- reinterpret the source bytes without changing the GXT or transactionally re-encode the current Unicode text for the TXD.
 
-Форматирующие конструкции `~...~` всегда кодируются как служебный ASCII. Один код имеет общее значение для всех шрифтов в подключённом TXD; меняется только изображение глифа. Редактор не изменяет пиксели и расположение глифов.
+Formatting constructs such as `~...~` are always encoded as control ASCII. A code has the same meaning for every font in the attached TXD; only the glyph image changes. The editor does not alter glyph pixels or placement.
 
-Канонический профиль имеет вид:
+A canonical profile looks like this:
 
 ```json
 {
@@ -57,45 +59,65 @@ dotnet run --project "GTA GXT Editor.csproj"
 }
 ```
 
-Единственный встроенный источник белорусского маппинга находится в
-`Assets/ViceCity/belarusian.gxtmap.json`. Он встраивается в приложение и одновременно
-копируется в выходной каталог для использования с GXT/TXD. Профиль задаёт целевую
-раскладку белорусского `fonts.txd`: он сохраняет ASCII-псевдонимы 1C,
-использует `І = 0x49`, `і = 0x69`, а слоты русского `И/и` отдаёт под
-`Ў = 0x86` и `ў = 0x9D`. Для `Ё/ё` зарезервированы бывшие слоты `Ъ/ъ`:
+The single built-in source of the Belarusian mapping is
+`Assets/ViceCity/belarusian.gxtmap.json`. It is embedded into the application and
+also copied to the output directory for use with GXT/TXD files. The profile defines
+the target layout for the Belarusian `fonts.txd`: it preserves the 1C ASCII aliases,
+uses `І = 0x49` and `і = 0x69`, and reuses the Russian `И/и` slots for
+`Ў = 0x86` and `ў = 0x9D`. The former `Ъ/ъ` slots are reserved for `Ё/ё`:
 `Ё = 0x96`, `ё = 0xAF`.
 
-GXT, созданные предыдущими версиями проекта, распознаются отдельно: редактор умеет
-прочитать как старую непрерывную схему `0x80–0xBF`, так и промежуточную схему со
-слотами `І = 0x86`, `Ў = 0x91`, `і = 0x9D`, `ў = 0xA8`. Для игры такой файл нужно
-перекодировать встроенным актуальным пресетом, не просто сохранить без изменений.
+GXT files created by earlier project versions are detected separately. The editor
+can read both the old continuous `0x80–0xBF` layout and the intermediate layout with
+`І = 0x86`, `Ў = 0x91`, `і = 0x9D`, and `ў = 0xA8`. To use such a file in the
+game, re-encode it with the current built-in preset instead of merely saving it
+unchanged.
 
-Команды открытия GXT с маппингом и `JSON → GXT с маппингом` принимают канонический
-`.gxtmap.json`, сокращённый `.json` вида `{ "А": "0x80" }` и старый текстовый
-словарь `.txt`. Явно выбранный файл имеет приоритет над встроенной кодировкой.
+The **Open with mapping…** and **JSON → GXT with mapping…** commands accept a
+canonical `.gxtmap.json`, compact `.json` such as `{ "А": "0x80" }`, and legacy
+`.txt` dictionaries. An explicitly selected file takes priority over the built-in
+encoding.
 
-При отдельном экспорте GXT или TXD приложение предлагает также сохранить профиль `.gxtmap.json`. При замене TXD профиль сохраняется как непроверенный черновик; при удалении TXD он остаётся активной пользовательской кодировкой GXT.
+When exporting a GXT or TXD separately, the application also offers to save the
+`.gxtmap.json` profile. Replacing a TXD keeps the profile as an unverified draft;
+removing a TXD leaves it active as the custom GXT encoding.
 
-## Проекты BYX
+## BYX projects
 
-BYX v3 — самодостаточный ZIP-контейнер с GXT, необязательным одиночным TXD,
-профилем пары, метаданными переводчика и контрольными суммами SHA-256. Манифест
-хранит TXD одиночным объектом и связывает его с файлом маппинга через поле
-`characterMap`.
+BYX v3 is a self-contained ZIP container with a GXT, an optional single TXD, the
+pair's profile, translator metadata, and SHA-256 checksums. The manifest stores the
+TXD as a single object and links it to the mapping through the `characterMap` field.
 
-Предыдущие версии BYX больше не поддерживаются и отклоняются при открытии. Более
-новые версии также отклоняются до обновления приложения.
+Older BYX versions are no longer supported and are rejected when opened. Newer
+versions are also rejected until the application is updated.
 
-Поддерживаются PC TXD RenderWare D3D8/D3D9: PAL4/PAL8, распространённые 8/16/24/32-битные растры, DXT1 и DXT3. TXD для PS2, Xbox и мобильных версий отклоняются до изменения открытого проекта.
+RenderWare D3D8/D3D9 PC TXD files are supported: PAL4/PAL8, common
+8/16/24/32-bit rasters, DXT1, and DXT3. TXD files for PS2, Xbox, and mobile
+versions are rejected before the open project is changed.
 
-## Возможности GXT
+## GXT features
 
-Приложение читает и записывает GXT-файлы GTA III/Vice City, поддерживает встроенные и пользовательские таблицы символов, поиск, добавление, редактирование, удаление и импорт отсутствующих ключей, а также преобразование GXT в JSON и обратно.
+The application reads and writes GTA III/Vice City GXT files and supports built-in
+and custom character tables, searching, adding, editing, deleting, and importing
+missing keys, as well as converting GXT to JSON and back.
 
-Для GTA Vice City встроенная encounter-order metadata автоматически добавляет к строкам названия миссий и других игровых блоков, контекст и порядок появления. Канонический слой доступен только для просмотра, не копируется в BYX и не заменяет пользовательские комментарии. Если BYX содержит собственные occurrences для строки, они имеют приоритет над встроенными.
+For GTA Vice City, the bundled encounter-order metadata automatically adds mission
+and game-block names, context, and progression order to entries. The canonical
+layer is read-only, is not copied into BYX, and does not replace custom translator
+comments. If a BYX project provides its own occurrences for an entry, they take
+priority over the bundled metadata.
 
-Таблицу можно фильтровать по типу и названию блока и переключать между encounter order и исходным порядком GXT. Первый файл, добавленный через «Оригинал/сравнение», считается английским оригиналом и показывается в таблице, инспекторе и окне редактирования.
+The table can be filtered by block type and name and switched between progression
+order and the original GXT order. The first file added through **Source/comparison…**
+is treated as the English source and appears in the table, inspector, and entry
+editor.
 
-Комментарии переводчика хранятся в metadata проекта BYX. При добавлении комментария к обычному GXT команда сохранения предлагает создать BYX; отдельный экспорт GXT остаётся доступен. Импорт и экспорт комментариев используют формат `GXT_COMMENTS` v1 и включают текущий текст для обнаружения несовпадений.
+Translator comments are stored in the BYX project metadata. Adding a comment to a
+plain GXT makes the save command offer to create a BYX project; separate GXT export
+remains available. Comment import and export use the `GXT_COMMENTS` v1 format and
+include the current text to detect mismatches.
 
-Белорусский язык поддерживается встроенными кодировками обеих игр, включая `Ё/ё`, `І/і` и `Ў/ў`. Поле JSON `"language": "be"` выбирает белорусскую кодировку GXT без эвристического определения. Язык может предложить пресет, но никогда не заменяет профиль пары GXT + TXD автоматически.
+Belarusian is supported by the built-in encodings for both games, including
+`Ё/ё`, `І/і`, and `Ў/ў`. The JSON field `"language": "be"` selects the Belarusian
+GXT encoding without heuristic detection. A language can suggest a preset, but it
+never replaces the mapping profile of a GXT + TXD pair automatically.

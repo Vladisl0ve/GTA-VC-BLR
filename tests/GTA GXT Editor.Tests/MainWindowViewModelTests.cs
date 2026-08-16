@@ -132,7 +132,7 @@ public sealed class MainWindowViewModelTests
         Assert.IsTrue(viewModel.IsComparisonLoaded);
         Assert.HasCount(2, viewModel.ComparisonColumns);
         Assert.AreEqual(
-            "Английский оригинал — first comparison",
+            "English source — first comparison",
             viewModel.ComparisonColumns[0].Name);
         Assert.AreEqual(firstComparisonPath, viewModel.ComparisonColumns[0].Path);
         Assert.AreEqual("second-comparison", viewModel.ComparisonColumns[1].Name);
@@ -167,7 +167,7 @@ public sealed class MainWindowViewModelTests
         await viewModel.OpenComparisonFileCommand.ExecuteAsync(null);
 
         CollectionAssert.AreEqual(
-            new[] { "Английский оригинал — shared", "shared (2)" },
+            new[] { "English source — shared", "shared (2)" },
             viewModel.ComparisonColumns.Select(column => column.Name).ToArray());
     }
 
@@ -264,7 +264,7 @@ public sealed class MainWindowViewModelTests
         Assert.HasCount(1, viewModel.Entries);
         Assert.AreEqual("Ў", viewModel.Entries[0].Text);
         Assert.HasCount(2, dialogs.OpenFileCalls);
-        StringAssert.Contains(dialogs.OpenFileCalls[1].Title, "маппинг");
+        StringAssert.Contains(dialogs.OpenFileCalls[1].Title, "mapping");
         StringAssert.Contains(dialogs.OpenFileCalls[1].Filter, "*.gxtmap.json");
         Assert.AreEqual(0, dialogs.ConfirmCallCount);
     }
@@ -699,7 +699,7 @@ public sealed class MainWindowViewModelTests
 
         viewModel.EditEntryCommand.Execute(null);
 
-        Assert.AreEqual("Английский оригинал — american", viewModel.ComparisonColumns[0].Name);
+        Assert.AreEqual("English source — american", viewModel.ComparisonColumns[0].Name);
         Assert.AreEqual("The Party", dialogs.EntryEditorRequests.Single().SourceText);
         Assert.IsNotEmpty(dialogs.EntryEditorRequests.Single().Occurrences);
         Assert.AreEqual("The Party", viewModel.Entries.Single().SourceText);
@@ -808,7 +808,7 @@ public sealed class MainWindowViewModelTests
 
         Assert.AreEqual("Imported note", viewModel.Entries.Single().Comment);
         Assert.IsTrue(viewModel.IsProjectDirty);
-        StringAssert.Contains(dialogs.InfoMessages.Single().Message, "текст отличается: 1");
+        StringAssert.Contains(dialogs.InfoMessages.Single().Message, "text differs: 1");
         using var document = JsonDocument.Parse(File.ReadAllBytes(exportPath));
         Assert.AreEqual(
             "Imported note",

@@ -8,7 +8,7 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class LocalizationService : ILocalizationService
 {
-    public const string DefaultCultureName = "ru-RU";
+    public const string DefaultCultureName = "en-US";
 
     private readonly ResourceManager _resources;
     private readonly IReadOnlyList<UiLanguageOption> _languages;
@@ -23,8 +23,8 @@ public sealed class LocalizationService : ILocalizationService
             Assembly.GetExecutingAssembly());
         _languages = supportedLanguages ??
         [
-            new UiLanguageOption(DefaultCultureName, "Русский"),
-            new UiLanguageOption("en-US", "English"),
+            new UiLanguageOption(DefaultCultureName, "English"),
+            new UiLanguageOption("be-BY", "Беларуская"),
         ];
         if (_languages.Count == 0 || !_languages.Any(language =>
                 string.Equals(

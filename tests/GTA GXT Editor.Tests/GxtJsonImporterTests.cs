@@ -250,7 +250,7 @@ public sealed class GxtJsonImporterTests
         var exception = Assert.Throws<InvalidDataException>(() =>
             GxtJsonImporter.Import(jsonPath, gxtPath, _dictionaryPath));
 
-        StringAssert.Contains(exception.Message, "дублирует ключ");
+        StringAssert.Contains(exception.Message, "duplicates key");
         Assert.AreEqual("keep me", File.ReadAllText(gxtPath));
     }
 

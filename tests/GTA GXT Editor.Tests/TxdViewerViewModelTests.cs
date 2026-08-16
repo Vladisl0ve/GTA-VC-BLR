@@ -16,7 +16,7 @@ public sealed class TxdViewerViewModelTests
         CollectionAssert.AreEqual(
             new[] { "font1", "font2" },
             viewModel.Textures.Select(texture => texture.Name).ToArray());
-        Assert.AreEqual("Ячейки font1 / font2", viewModel.GlyphAtlasHeading);
+        Assert.AreEqual("font1 / font2 cells", viewModel.GlyphAtlasHeading);
     }
 
     [TestMethod]
@@ -27,7 +27,7 @@ public sealed class TxdViewerViewModelTests
         CollectionAssert.AreEqual(
             new[] { "font1", "font2", "pager" },
             viewModel.Textures.Select(texture => texture.Name).ToArray());
-        Assert.AreEqual("Ячейки font1 / font2 / pager", viewModel.GlyphAtlasHeading);
+        Assert.AreEqual("font1 / font2 / pager cells", viewModel.GlyphAtlasHeading);
     }
 
     [TestMethod]

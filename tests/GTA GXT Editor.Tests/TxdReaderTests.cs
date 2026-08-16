@@ -161,7 +161,7 @@ public sealed class TxdReaderTests
         var exception = Assert.Throws<InvalidDataException>(() =>
             _reader.Read(TestTxdFactory.Create(texture), "ps2.txd"));
 
-        StringAssert.Contains(exception.Message, "платформа");
+        StringAssert.Contains(exception.Message, "platform");
     }
 
     [TestMethod]

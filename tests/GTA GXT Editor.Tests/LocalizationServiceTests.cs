@@ -11,7 +11,7 @@ namespace GTA_GXT_Editor.Tests;
 public sealed class LocalizationServiceTests
 {
     [TestMethod]
-    public void RussianCatalog_ContainsNonEmptyValuesAndCriticalUiKeys()
+    public void DefaultCatalog_ContainsEnglishValuesAndIsSelectedByDefault()
     {
         var resources = new ResourceManager(
             "GTA_GXT_Editor.Localization.Strings",
@@ -25,57 +25,68 @@ public sealed class LocalizationServiceTests
         Assert.IsTrue(resourceSet.Cast<DictionaryEntry>().Count() > 100);
         Assert.IsTrue(resourceSet.Cast<DictionaryEntry>().All(entry =>
             entry.Key is string { Length: > 0 } && entry.Value is string { Length: > 0 }));
-        Assert.AreEqual("Настройки", resources.GetString("Settings.Button"));
-        Assert.AreEqual("Язык интерфейса", resources.GetString("Settings.InterfaceLanguage"));
-        Assert.AreEqual("Русский", new LocalizationService().CurrentLanguage.NativeName);
-    }
-
-    [TestMethod]
-    public void EnglishCatalog_MatchesRussianCatalogAndCanBeSelected()
-    {
-        var resources = new ResourceManager(
-            "GTA_GXT_Editor.Localization.Strings",
-            typeof(LocalizationService).Assembly);
-        var russianSet = resources.GetResourceSet(
-            CultureInfo.InvariantCulture,
-            createIfNotExists: true,
-            tryParents: false);
-        var englishSet = resources.GetResourceSet(
-            CultureInfo.GetCultureInfo("en-US"),
-            createIfNotExists: true,
-            tryParents: false);
-
-        Assert.IsNotNull(russianSet);
-        Assert.IsNotNull(englishSet);
-
-        var russianKeys = russianSet.Cast<DictionaryEntry>()
-            .Select(entry => (string)entry.Key)
-            .OrderBy(key => key)
-            .ToArray();
-        var englishEntries = englishSet.Cast<DictionaryEntry>().ToArray();
-        var englishKeys = englishEntries
-            .Select(entry => (string)entry.Key)
-            .OrderBy(key => key)
-            .ToArray();
-
-        CollectionAssert.AreEqual(russianKeys, englishKeys);
-        Assert.IsTrue(englishEntries.All(entry =>
-            entry.Value is string { Length: > 0 }));
-
+        Assert.AreEqual(
+            "Settings",
+            resources.GetString("Settings.Button", CultureInfo.InvariantCulture));
+        Assert.AreEqual(
+            "Interface language",
+            resources.GetString("Settings.InterfaceLanguage", CultureInfo.InvariantCulture));
         var localization = new LocalizationService();
         Assert.AreEqual(2, localization.SupportedLanguages.Count);
-        Assert.IsTrue(localization.SetLanguage("en-US"));
+        Assert.AreEqual("en-US", localization.CurrentLanguage.CultureName);
         Assert.AreEqual("English", localization.CurrentLanguage.NativeName);
         Assert.AreEqual("Settings", localization.Get("Settings.Button"));
         Assert.AreEqual("Interface language", localization.Get("Settings.InterfaceLanguage"));
     }
 
     [TestMethod]
-    public void UnknownResourceKey_ReturnsKeyAndUnsupportedCultureFallsBackToRussian()
+    public void BelarusianCatalog_MatchesDefaultCatalogAndCanBeSelected()
+    {
+        var resources = new ResourceManager(
+            "GTA_GXT_Editor.Localization.Strings",
+            typeof(LocalizationService).Assembly);
+        var defaultSet = resources.GetResourceSet(
+            CultureInfo.InvariantCulture,
+            createIfNotExists: true,
+            tryParents: false);
+        var belarusianSet = resources.GetResourceSet(
+            CultureInfo.GetCultureInfo("be-BY"),
+            createIfNotExists: true,
+            tryParents: false);
+
+        Assert.IsNotNull(defaultSet);
+        Assert.IsNotNull(belarusianSet);
+
+        var defaultKeys = defaultSet.Cast<DictionaryEntry>()
+            .Select(entry => (string)entry.Key)
+            .OrderBy(key => key)
+            .ToArray();
+        var belarusianEntries = belarusianSet.Cast<DictionaryEntry>().ToArray();
+        var belarusianKeys = belarusianEntries
+            .Select(entry => (string)entry.Key)
+            .OrderBy(key => key)
+            .ToArray();
+
+        CollectionAssert.AreEqual(defaultKeys, belarusianKeys);
+        Assert.IsTrue(belarusianEntries.All(entry =>
+            entry.Value is string { Length: > 0 }));
+
+        var localization = new LocalizationService();
+        Assert.IsTrue(localization.SetLanguage("be-BY"));
+        Assert.AreEqual("Беларуская", localization.CurrentLanguage.NativeName);
+        Assert.AreEqual("Налады", localization.Get("Settings.Button"));
+        Assert.AreEqual("Мова інтэрфейсу", localization.Get("Settings.InterfaceLanguage"));
+    }
+
+    [TestMethod]
+    [DataRow("xx-XX")]
+    [DataRow("ru-RU")]
+    public void UnknownResourceKey_ReturnsKeyAndUnsupportedCultureFallsBackToEnglish(
+        string unsupportedCulture)
     {
         var localization = new LocalizationService();
 
-        Assert.IsFalse(localization.SetLanguage("xx-XX"));
+        Assert.IsFalse(localization.SetLanguage(unsupportedCulture));
         Assert.AreEqual(LocalizationService.DefaultCultureName, localization.CurrentLanguage.CultureName);
         Assert.AreEqual("Missing.Resource", localization.Get("Missing.Resource"));
     }
@@ -83,11 +94,11 @@ public sealed class LocalizationServiceTests
     [TestMethod]
     public void SetLanguage_RaisesNotificationsAndChangesLocalizedValuesImmediately()
     {
-        var russian = new UiLanguageOption("ru-RU", "Русский");
+        var belarusian = new UiLanguageOption("be-BY", "Беларуская");
         var english = new UiLanguageOption("en-US", "English");
         var localization = new LocalizationService(
             new TestResourceManager(),
-            [russian, english]);
+            [english, belarusian]);
         var languageChanged = 0;
         var indexerChanged = 0;
         localization.LanguageChanged += (_, _) => languageChanged++;
@@ -99,13 +110,13 @@ public sealed class LocalizationServiceTests
             }
         };
 
-        Assert.AreEqual("ru-RU:Sample", localization.Get("Sample"));
-        Assert.IsTrue(localization.SetLanguage("en-US"));
-
         Assert.AreEqual("en-US:Sample", localization.Get("Sample"));
-        Assert.AreSame(english, localization.CurrentLanguage);
-        Assert.IsTrue(english.IsSelected);
-        Assert.IsFalse(russian.IsSelected);
+        Assert.IsTrue(localization.SetLanguage("be-BY"));
+
+        Assert.AreEqual("be-BY:Sample", localization.Get("Sample"));
+        Assert.AreSame(belarusian, localization.CurrentLanguage);
+        Assert.IsTrue(belarusian.IsSelected);
+        Assert.IsFalse(english.IsSelected);
         Assert.AreEqual(1, languageChanged);
         Assert.AreEqual(1, indexerChanged);
     }
@@ -116,9 +127,10 @@ public sealed class LocalizationServiceTests
         var localization = new LocalizationService(
             new TestResourceManager(),
             [
-                new UiLanguageOption("ru-RU", "Русский"),
                 new UiLanguageOption("en-US", "English"),
+                new UiLanguageOption("be-BY", "Беларуская"),
             ]);
+        localization.SetLanguage("be-BY");
         var viewModel = new EntryListViewModel(new EditorSession(), localization);
         viewModel.SelectedSearchColumn = viewModel.SearchColumns.Single(option =>
             option.Column == SearchColumn.Comment);
