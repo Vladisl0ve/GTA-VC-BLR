@@ -314,7 +314,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public async Task ExportInstaller_IsEnabledOnlyForViceCityWithTxd()
+    public async Task InstallerCommands_AreEnabledOnlyForViceCityWithTxd()
     {
         var gtaIIIPath = CreateGxt("gta3.gxt");
         var viceCityPath = CreateViceCityGxt("vice.gxt");
@@ -324,12 +324,105 @@ public sealed class MainWindowViewModelTests
 
         viewModel.OpenFromCommandLine(gtaIIIPath);
         Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ConfigureInstallerCommand.CanExecute(null));
         viewModel.OpenFromCommandLine(viceCityPath);
         Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ConfigureInstallerCommand.CanExecute(null));
         dialogs.OpenFileResults.Enqueue(txdPath);
         await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.ConfigureInstallerCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ConfigureInstaller_CancelledProfileLeavesProjectUnchanged()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.InstallerProfileResults.Enqueue(null);
+        var exporter = new RecordingInstallerExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            installerExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        viewModel.ConfigureInstallerCommand.Execute(null);
+
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        Assert.IsFalse(viewModel.HasInstallerProfile);
+        Assert.AreEqual(0, viewModel.InstallerAssetCount);
+        Assert.AreEqual(0, exporter.CallCount);
+        Assert.HasCount(1, dialogs.InstallerProfileRequests);
+        Assert.HasCount(1, dialogs.SaveFileCalls);
+        var reopened = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsNull(reopened.InstallerProfile);
+    }
+
+    [TestMethod]
+    public async Task ConfigureInstaller_ConfirmedProfileIsSavedAndRestoredFromByx()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var profile = CreateInstallerProfile();
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.InstallerProfileResults.Enqueue(new InstallerProfileEditorResult(profile));
+        var exporter = new RecordingInstallerExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            installerExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        viewModel.ConfigureInstallerCommand.Execute(null);
+
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.IsTrue(viewModel.HasInstallerProfile);
+        Assert.AreEqual(profile.Assets.Count, viewModel.InstallerAssetCount);
+        StringAssert.Contains(viewModel.InstallerProfileStatus, profile.Assets.Count.ToString());
+        Assert.AreEqual(0, exporter.CallCount);
+        Assert.HasCount(1, dialogs.SaveFileCalls);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        Assert.HasCount(1, dialogs.SaveFileCalls);
+        var stored = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsNotNull(stored.InstallerProfile);
+        Assert.AreEqual(profile.ProductId, stored.InstallerProfile.ProductId);
+        Assert.AreEqual(profile.Assets.Count, stored.InstallerProfile.Assets.Count);
+        foreach (var expected in profile.Assets)
+        {
+            var actual = stored.InstallerProfile.Assets.Single(asset => asset.Id == expected.Id);
+            Assert.AreEqual(expected.DestinationPath, actual.DestinationPath);
+            CollectionAssert.AreEqual(expected.Data, actual.Data);
+        }
+
+        dialogs.InstallerProfileResults.Enqueue(null);
+        await viewModel.ExportInstallerCommand.ExecuteAsync(null);
+        Assert.HasCount(2, dialogs.InstallerProfileRequests);
+        var exportProfile = dialogs.InstallerProfileRequests[1].Profile;
+        Assert.AreEqual(profile.ProductId, exportProfile.ProductId);
+        Assert.AreEqual(profile.Assets.Count, exportProfile.Assets.Count);
+        CollectionAssert.AreEqual(profile.Assets[0].Data, exportProfile.Assets[0].Data);
+        Assert.AreEqual(0, exporter.CallCount);
+
+        var reopenedViewModel = CreateViewModel(new FakeDialogService());
+        reopenedViewModel.OpenFromCommandLine(byxPath);
+        Assert.IsTrue(reopenedViewModel.HasInstallerProfile);
+        Assert.AreEqual(profile.Assets.Count, reopenedViewModel.InstallerAssetCount);
     }
 
     [TestMethod]
@@ -1055,8 +1148,17 @@ public sealed class MainWindowViewModelTests
         Assets =
         [
             CreateInstallerBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
-            CreateInstallerBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"),
-            CreateInstallerBinary(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
+            .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
+                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                    ? CreateInstallerBinary(InstallerAssetRole.SilentPatch, destination)
+                    : new InstallerAsset
+                    {
+                        Id = Guid.NewGuid(),
+                        Role = InstallerAssetRole.SilentPatch,
+                        OriginalFileName = Path.GetFileName(destination),
+                        DestinationPath = destination,
+                        Data = Encoding.UTF8.GetBytes(destination),
+                    }),
         ],
     };
 

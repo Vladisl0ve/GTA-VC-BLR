@@ -4,8 +4,16 @@
 
 **Export as → Windows installer…** is enabled only for a classic GTA Vice City
 project with an attached TXD. GTA III and Definitive Edition are not supported.
-The installer profile is applied only after the profile dialog is confirmed; this
-marks the project dirty and the profile is persisted in BYX v4.
+The **Windows installer** panel below the TXD controls opens the same profile
+editor without starting an export. Confirming the dialog attaches the selected
+`BelarusianLanguage.asi` and complete SilentPatch set to the current project and
+marks it dirty. Use the normal **Save** command to persist the profile and binary
+attachments in BYX v4. For a plain GXT document with an attached TXD, saving
+prompts for a new BYX project path.
+
+Export still opens the profile editor so its product metadata can be reviewed,
+but files already stored in the BYX project are preselected and do not need to be
+read from disk again.
 
 ## BYX v4 installer data
 

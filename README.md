@@ -101,10 +101,12 @@ versions are rejected before the open project is changed.
 ## Windows installer export
 
 For a GTA Vice City project with an attached TXD, choose **Export as → Windows
-installer…**. The profile editor requires `BelarusianLanguage.asi` and a
-complete SilentPatch distribution: `SilentPatchVC.asi`, `SilentPatchVC.ini`, and
-the eight supported IPL files. ASI Loaders and arbitrary additional files are not
-included.
+installer…**. To prepare and store its files before exporting, use the
+**Windows installer** panel below the TXD controls and save the project as BYX.
+The profile editor requires `BelarusianLanguage.asi` and a complete SilentPatch
+distribution: `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight supported
+IPL files. Files already stored in BYX remain selected on later exports. ASI
+Loaders and arbitrary additional files are not included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
 Inno Setup 7.0.2 x86 compiler. The installer always writes `TEXT\BELARUS.GXT`,

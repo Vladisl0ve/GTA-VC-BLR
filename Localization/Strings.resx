@@ -58,6 +58,11 @@
   <data name="Main.TxdActions.ToolTip" xml:space="preserve"><value>Mapping and attached TXD management</value></data>
   <data name="Main.Mapping" xml:space="preserve"><value>Mapping…</value></data>
   <data name="Main.TxdRemove" xml:space="preserve"><value>Remove TXD from project</value></data>
+  <data name="Main.InstallerWindows" xml:space="preserve"><value>Windows installer</value></data>
+  <data name="Main.InstallerNotConfigured" xml:space="preserve"><value>Not configured</value></data>
+  <data name="Main.InstallerConfigured" xml:space="preserve"><value>Attached files: {0}</value></data>
+  <data name="Main.InstallerAvailability" xml:space="preserve"><value>Available for GTA Vice City PC projects with an attached TXD</value></data>
+  <data name="Main.InstallerConfigure" xml:space="preserve"><value>Configure…</value></data>
   <data name="Main.Search.ToolTip" xml:space="preserve"><value>Search keys, text, and tables</value></data>
   <data name="Main.CaseSensitive" xml:space="preserve"><value>Case-sensitive</value></data>
   <data name="Main.LiveSearch" xml:space="preserve"><value>Live search</value></data>
@@ -408,6 +413,7 @@
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Export Windows installer</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Building Windows installer…</value></data>
   <data name="Status.InstallerExported" xml:space="preserve"><value>Installer exported: {0}</value></data>
+  <data name="Status.InstallerProfileUpdated" xml:space="preserve"><value>Installer profile updated ({0} attached files). Save the BYX project to keep it.</value></data>
   <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Could not build the installer: {0}</value></data>
 
   <data name="Installer.Editor.Title" xml:space="preserve"><value>Windows installer profile</value></data>

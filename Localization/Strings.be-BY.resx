@@ -58,6 +58,11 @@
   <data name="Main.TxdActions.ToolTip" xml:space="preserve"><value>Мапінг і кіраванне далучаным TXD</value></data>
   <data name="Main.Mapping" xml:space="preserve"><value>Мапінг…</value></data>
   <data name="Main.TxdRemove" xml:space="preserve"><value>Выдаліць TXD з праекта</value></data>
+  <data name="Main.InstallerWindows" xml:space="preserve"><value>Інсталятар Windows</value></data>
+  <data name="Main.InstallerNotConfigured" xml:space="preserve"><value>Не настроены</value></data>
+  <data name="Main.InstallerConfigured" xml:space="preserve"><value>Далучаных файлаў: {0}</value></data>
+  <data name="Main.InstallerAvailability" xml:space="preserve"><value>Даступны для праектаў GTA Vice City PC з далучаным TXD</value></data>
+  <data name="Main.InstallerConfigure" xml:space="preserve"><value>Настроіць…</value></data>
   <data name="Main.Search.ToolTip" xml:space="preserve"><value>Пошук па ключах, тэксце і табліцах</value></data>
   <data name="Main.CaseSensitive" xml:space="preserve"><value>Улічваць рэгістр</value></data>
   <data name="Main.LiveSearch" xml:space="preserve"><value>Жывы пошук</value></data>
@@ -408,6 +413,7 @@
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Экспартаваць інсталятар Windows</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Стварэнне інсталятара Windows…</value></data>
   <data name="Status.InstallerExported" xml:space="preserve"><value>Інсталятар экспартаваны: {0}</value></data>
+  <data name="Status.InstallerProfileUpdated" xml:space="preserve"><value>Профіль інсталятара абноўлены ({0} далучаных файлаў). Захавайце праект BYX, каб пакінуць змены.</value></data>
   <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Не ўдалося стварыць інсталятар: {0}</value></data>
 
   <data name="Installer.Editor.Title" xml:space="preserve"><value>Профіль інсталятара Windows</value></data>

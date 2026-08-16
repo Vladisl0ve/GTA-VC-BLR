@@ -122,6 +122,14 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool CanAttachTxd => IsDocumentLoaded && _loadedType == GXTType.GtaViceCity;
 
+    public bool HasInstallerProfile => _project?.InstallerProfile is not null;
+
+    public int InstallerAssetCount => _project?.InstallerProfile?.Assets.Count ?? 0;
+
+    public string InstallerProfileStatus => HasInstallerProfile
+        ? _localization.Format("Main.InstallerConfigured", InstallerAssetCount)
+        : _localization.Get("Main.InstallerNotConfigured");
+
     [ObservableProperty]
     private string gxtPath = string.Empty;
 
@@ -201,6 +209,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ImportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConfigureInstallerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleReviewedCommand))]
     private bool isDocumentLoaded;
 
@@ -214,6 +223,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConfigureInstallerCommand))]
     private TxdAttachment? attachedTxd;
 
     [ObservableProperty]
@@ -259,6 +269,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(SupportedUiLanguages));
         OnPropertyChanged(nameof(AttachedTxdDisplayName));
         OnPropertyChanged(nameof(TxdAttachmentStatus));
+        OnPropertyChanged(nameof(InstallerProfileStatus));
     }
 
     private void SetStatus(string resourceKey, params object?[] arguments)
@@ -630,17 +641,14 @@ public partial class MainWindowViewModel : ObservableObject
             return Task.CompletedTask;
         }
 
-        var sourcePath = _project.ProjectPath ?? _project.GxtSourcePath ?? GxtPath;
-        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
-        var profile = _project.InstallerProfile?.Clone() ?? new InstallerProfile();
-        var result = _dialogs.EditInstallerProfile(new InstallerProfileEditorRequest(profile, directory));
+        var directory = GetProjectDirectory();
+        var result = EditInstallerProfile(directory);
         if (result is null)
         {
             return Task.CompletedTask;
         }
 
-        _project.InstallerProfile = result.Profile.Clone();
-        SetDirty(true);
+        ApplyInstallerProfile(result.Profile);
         var targetPath = _dialogs.SaveFile(
             _localization.Get("Dialog.ExportInstaller"),
             InstallerFileFilter,
@@ -667,6 +675,49 @@ public partial class MainWindowViewModel : ObservableObject
                 _dialogs.ShowError(_localization.Format("Message.ExportInstallerFailed", exception.Message));
             }
         });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanConfigureInstaller))]
+    private void ConfigureInstaller()
+    {
+        if (_project is null || _project.AttachedTxd is null)
+        {
+            return;
+        }
+
+        var result = EditInstallerProfile(GetProjectDirectory());
+        if (result is null)
+        {
+            return;
+        }
+
+        ApplyInstallerProfile(result.Profile);
+        SetStatus("Status.InstallerProfileUpdated", InstallerAssetCount);
+    }
+
+    private string GetProjectDirectory()
+    {
+        var sourcePath = _project?.ProjectPath ?? _project?.GxtSourcePath ?? GxtPath;
+        return Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+    }
+
+    private InstallerProfileEditorResult? EditInstallerProfile(string suggestedDirectory)
+    {
+        var profile = _project?.InstallerProfile?.Clone() ?? new InstallerProfile();
+        return _dialogs.EditInstallerProfile(
+            new InstallerProfileEditorRequest(profile, suggestedDirectory));
+    }
+
+    private void ApplyInstallerProfile(InstallerProfile profile)
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _project.InstallerProfile = profile.Clone();
+        OnInstallerProfileChanged();
+        SetDirty(true);
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
@@ -1673,6 +1724,7 @@ public partial class MainWindowViewModel : ObservableObject
         SetDirty(project.IsDirty);
         AttachedTxd = project.AttachedTxd;
         OnTxdAttachmentChanged();
+        OnInstallerProfileChanged();
         RefreshEntries(selectedName, selectedTable);
     }
 
@@ -1737,6 +1789,7 @@ public partial class MainWindowViewModel : ObservableObject
         SaveCommand.NotifyCanExecuteChanged();
         ExportGxtCommand.NotifyCanExecuteChanged();
         ExportInstallerCommand.NotifyCanExecuteChanged();
+        ConfigureInstallerCommand.NotifyCanExecuteChanged();
         SaveProjectAsCommand.NotifyCanExecuteChanged();
         AddEntryCommand.NotifyCanExecuteChanged();
         EditEntryCommand.NotifyCanExecuteChanged();
@@ -1764,6 +1817,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanExportInstaller() =>
         CanUseDocument() && _loadedType == GXTType.GtaViceCity && AttachedTxd is not null;
+
+    private bool CanConfigureInstaller() => CanExportInstaller();
 
     private bool CanAddTxd() => !IsBusy && CanAttachTxd;
 
@@ -1818,6 +1873,13 @@ public partial class MainWindowViewModel : ObservableObject
         AddTxdCommand.NotifyCanExecuteChanged();
         RemoveTxdCommand.NotifyCanExecuteChanged();
         ExportTxdCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnInstallerProfileChanged()
+    {
+        OnPropertyChanged(nameof(HasInstallerProfile));
+        OnPropertyChanged(nameof(InstallerAssetCount));
+        OnPropertyChanged(nameof(InstallerProfileStatus));
     }
 
     private void OfferCharacterMapExport(string exportedPath)
