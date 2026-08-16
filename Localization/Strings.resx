@@ -30,11 +30,12 @@
   <data name="Main.Open.ToolTip" xml:space="preserve"><value>Open a GXT with automatic encoding detection (Ctrl+O)</value></data>
   <data name="Main.Open.More" xml:space="preserve"><value>More open options</value></data>
   <data name="Main.Open.WithMapping" xml:space="preserve"><value>Open with mapping…</value></data>
-  <data name="Main.ImportJson" xml:space="preserve"><value>JSON → GXT…</value></data>
-  <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Convert JSON to GXT with automatic encoding detection (Ctrl+Shift+I)</value></data>
-  <data name="Main.ImportJson.More" xml:space="preserve"><value>More conversion options</value></data>
-  <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON → GXT with mapping…</value></data>
-  <data name="Main.ImportComments" xml:space="preserve"><value>Import comments…</value></data>
+  <data name="Main.Import" xml:space="preserve"><value>Import…</value></data>
+  <data name="Main.Import.ToolTip" xml:space="preserve"><value>Import JSON into the open project, or convert JSON to a new GXT (Ctrl+Shift+I)</value></data>
+  <data name="Main.ImportJson" xml:space="preserve"><value>JSON…</value></data>
+  <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Import JSON into the open project, or convert JSON to GXT with automatic encoding detection (Ctrl+Shift+I)</value></data>
+  <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON with mapping…</value></data>
+  <data name="Main.ImportComments" xml:space="preserve"><value>Comments…</value></data>
   <data name="Main.SaveAs" xml:space="preserve"><value>Save as</value></data>
   <data name="Main.SaveAs.ToolTip" xml:space="preserve"><value>Save the current document or create a new BYX project file</value></data>
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Save current</value></data>
@@ -143,6 +144,7 @@
   <data name="Busy.ImportComments" xml:space="preserve"><value>Importing comments…</value></data>
   <data name="Busy.ExportComments" xml:space="preserve"><value>Exporting comments…</value></data>
   <data name="Busy.ConvertJson" xml:space="preserve"><value>Converting JSON to GXT…</value></data>
+  <data name="Busy.ImportJsonIntoProject" xml:space="preserve"><value>Importing JSON into the project…</value></data>
   <data name="Busy.ReadSourceGxt" xml:space="preserve"><value>Reading source GXT…</value></data>
   <data name="Busy.ConvertMapping" xml:space="preserve"><value>Converting mapping…</value></data>
 
@@ -159,6 +161,7 @@
   <data name="Dialog.ImportComments" xml:space="preserve"><value>Import comments</value></data>
   <data name="Dialog.ExportComments" xml:space="preserve"><value>Export comments</value></data>
   <data name="Dialog.ConvertJson" xml:space="preserve"><value>Convert JSON to GXT</value></data>
+  <data name="Dialog.ImportJson" xml:space="preserve"><value>Import JSON</value></data>
   <data name="Dialog.SaveConvertedGxt" xml:space="preserve"><value>Save converted GXT</value></data>
   <data name="Dialog.AddMissing" xml:space="preserve"><value>Add missing keys from {0}</value></data>
   <data name="Dialog.SelectTargetMapping" xml:space="preserve"><value>Select target character mapping</value></data>
@@ -181,6 +184,7 @@
   <data name="Status.CommentsImported" xml:space="preserve"><value>Comment import completed — {0}</value></data>
   <data name="Status.CommentsExported" xml:space="preserve"><value>Comments exported: {0}</value></data>
   <data name="Status.JsonConverted" xml:space="preserve"><value>JSON converted to {0} GXT: {1} keys</value></data>
+  <data name="Status.JsonImportedIntoProject" xml:space="preserve"><value>JSON imported into the project: {0} keys</value></data>
   <data name="Status.Opened" xml:space="preserve"><value>Opened {0} — {1} keys</value></data>
   <data name="Status.ProjectOpened" xml:space="preserve"><value>Opened project {0} — {1} keys, {2}</value></data>
   <data name="Status.TxdCount" xml:space="preserve"><value>TXD: {0}</value></data>
@@ -218,6 +222,8 @@
   <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Could not import comments.&#xA;&#xA;{0}</value></data>
   <data name="Message.ExportCommentsFailed" xml:space="preserve"><value>Could not export comments.&#xA;&#xA;{0}</value></data>
   <data name="Message.ConvertJsonFailed" xml:space="preserve"><value>Could not convert JSON to GXT.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ImportJsonFailed" xml:space="preserve"><value>Could not import JSON.&#xA;&#xA;{0}</value></data>
+  <data name="Message.JsonGameTypeMismatch" xml:space="preserve"><value>The JSON game type does not match the open project.</value></data>
   <data name="Message.SelectedGxtTypeMismatch" xml:space="preserve"><value>The selected GXT file type does not match the open file.</value></data>
   <data name="Message.MissingEntriesAdded" xml:space="preserve"><value>Missing keys added: {0}.</value></data>
   <data name="Message.AddEntriesFailed" xml:space="preserve"><value>Could not add keys.&#xA;&#xA;{0}</value></data>

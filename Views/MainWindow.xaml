@@ -67,36 +67,29 @@
                     </Button>
                 </Grid>
 
-                <Grid x:Name="ImportJsonSplitButton" Margin="8,0,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <Button MinWidth="101"
-                            Style="{StaticResource SplitPrimaryButtonStyle}"
-                            Content="{loc:Translate Main.ImportJson}"
-                            ToolTip="{loc:Translate Main.ImportJson.ToolTip}"
-                            Command="{Binding ImportJsonCommand}" />
-                    <Button Grid.Column="1"
-                            Style="{StaticResource SplitChevronButtonStyle}"
-                            Tag="{Binding ElementName=ImportJsonSplitButton}"
-                            ToolTip="{loc:Translate Main.ImportJson.More}"
-                            Click="DropDownButton_OnClick">
-                        <Button.ContextMenu>
-                            <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
-                                         DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                          Header="{loc:Translate Main.ImportJson.WithMapping}"
-                                          Command="{Binding ImportJsonWithDictionaryCommand}" />
-                                <Separator />
-                                <MenuItem Style="{StaticResource CommandMenuItemStyle}"
-                                          Header="{loc:Translate Main.ImportComments}"
-                                          Command="{Binding ImportCommentsCommand}" />
-                            </ContextMenu>
-                        </Button.ContextMenu>
-                    </Button>
-                </Grid>
+                <Button MinWidth="140"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource DropDownButtonStyle}"
+                        Content="{loc:Translate Main.Import}"
+                        ToolTip="{loc:Translate Main.Import.ToolTip}"
+                        Click="DropDownButton_OnClick">
+                    <Button.ContextMenu>
+                        <ContextMenu Style="{StaticResource CommandContextMenuStyle}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="{loc:Translate Main.ImportJson}"
+                                      InputGestureText="Ctrl+Shift+I"
+                                      Command="{Binding ImportJsonCommand}" />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="{loc:Translate Main.ImportJson.WithMapping}"
+                                      Command="{Binding ImportJsonWithDictionaryCommand}" />
+                            <Separator />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="{loc:Translate Main.ImportComments}"
+                                      Command="{Binding ImportCommentsCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
 
                 <Button MinWidth="140"
                         Margin="8,0,0,0"

@@ -297,6 +297,130 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task ImportJson_WhenDocumentLoaded_RebuildsGxtInPlace()
+    {
+        var gxtPath = CreateGxtWithEntries(
+            "open.gxt",
+            ("HELLO", "Original"),
+            ("KEEP", "Gone"));
+        var jsonPath = Path.Combine(_testDirectory, "rebuild.json");
+        File.WriteAllText(
+            jsonPath,
+            """
+            {
+              "game": "GTA III",
+              "entries": [
+                { "key": "HELLO", "text": "Imported" },
+                { "key": "NEW", "text": "Added" }
+              ]
+            }
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(jsonPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+        viewModel.SelectedEntry = viewModel.Entries.Single(entry => entry.Name == "HELLO");
+        viewModel.CommentDraft = "Keep me";
+        viewModel.SaveCommentCommand.Execute(null);
+
+        await viewModel.ImportJsonCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(gxtPath, viewModel.GxtPath);
+        Assert.IsEmpty(dialogs.SaveFileCalls);
+        Assert.AreEqual(0, dialogs.UnsavedConfirmationCount);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.HasCount(2, viewModel.Entries);
+        Assert.AreEqual("Imported", viewModel.Entries.Single(entry => entry.Name == "HELLO").Text);
+        Assert.AreEqual("Keep me", viewModel.Entries.Single(entry => entry.Name == "HELLO").Comment);
+        Assert.AreEqual("Added", viewModel.Entries.Single(entry => entry.Name == "NEW").Text);
+        Assert.IsFalse(viewModel.Entries.Any(entry => entry.Name == "KEEP"));
+        StringAssert.Contains(dialogs.OpenFileCalls[0].Title, "Import JSON");
+    }
+
+    [TestMethod]
+    public async Task ImportJson_WhenGameTypeMismatches_DoesNotChangeOpenProject()
+    {
+        var gxtPath = CreateViceCityGxt("vice.gxt", "Stay");
+        var jsonPath = WriteJson("wrong-game.json", "Nope", "en");
+        var dialogs = new FakeDialogService { AllowErrors = true };
+        dialogs.OpenFileResults.Enqueue(jsonPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+
+        await viewModel.ImportJsonCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(gxtPath, viewModel.GxtPath);
+        Assert.HasCount(1, viewModel.Entries);
+        Assert.AreEqual("Stay", viewModel.Entries[0].Text);
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        Assert.IsEmpty(dialogs.SaveFileCalls);
+        Assert.HasCount(1, dialogs.Errors);
+        StringAssert.Contains(dialogs.Errors[0].Message, "does not match the open project");
+    }
+
+    [TestMethod]
+    public async Task ImportJsonWithDictionary_WhenDocumentLoaded_AppliesMappingWithoutSavingFile()
+    {
+        var gxtPath = CreateGxt("open-mapped.gxt", text: "Hello");
+        var mappingPath = Path.Combine(_testDirectory, "in-place.gxtmap.json");
+        File.WriteAllText(
+            mappingPath,
+            "{\"Ў\":\"0xC8\"}",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var jsonPath = WriteJson("in-place.json", "Ў", "be");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(jsonPath);
+        dialogs.OpenFileResults.Enqueue(mappingPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(gxtPath);
+
+        await viewModel.ImportJsonWithDictionaryCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(gxtPath, viewModel.GxtPath);
+        Assert.IsEmpty(dialogs.SaveFileCalls);
+        Assert.HasCount(1, viewModel.Entries);
+        Assert.AreEqual("Ў", viewModel.Entries[0].Text);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+    }
+
+    [TestMethod]
+    public async Task ImportJson_WhenDocumentLoaded_PreservesAttachedTxd()
+    {
+        var viceCityPath = CreateViceCityGxtWithEntries(
+            "vice.gxt",
+            ("MAIN", "HELLO", "Hello"));
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var jsonPath = Path.Combine(_testDirectory, "vice.json");
+        File.WriteAllText(
+            jsonPath,
+            """
+            {
+              "game": "GTA Vice City",
+              "entries": [
+                { "key": "HELLO", "text": "Rebuilt", "table": "MAIN" }
+              ]
+            }
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.OpenFileResults.Enqueue(jsonPath);
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        var txdName = viewModel.AttachedTxdDisplayName;
+
+        await viewModel.ImportJsonCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.HasTxdAttachment);
+        Assert.AreEqual(txdName, viewModel.AttachedTxdDisplayName);
+        Assert.AreEqual(viceCityPath, viewModel.GxtPath);
+        Assert.AreEqual("Rebuilt", viewModel.Entries.Single().Text);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+    }
+
+    [TestMethod]
     public async Task TxdCommands_AreEnabledOnlyForViceCity()
     {
         var gtaIIIPath = CreateGxt("gta3.gxt");

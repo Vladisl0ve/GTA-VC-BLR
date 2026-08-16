@@ -308,6 +308,144 @@ public sealed class GxtJsonImporterTests
         Assert.AreEqual("keep me", File.ReadAllText(gxtPath));
     }
 
+    [TestMethod]
+    public void ImportInto_ViceCity_ReplacesEntriesAndPrunesMetadata()
+    {
+        var project = CreateViceCityProject();
+        project.Metadata.Entries.AddRange(
+        [
+            new ProjectEntryMetadata
+            {
+                Table = "MAIN",
+                Key = "HELLO",
+                Comment = "Keep this note",
+                IsReviewed = true,
+            },
+            new ProjectEntryMetadata
+            {
+                Table = "MAIN",
+                Key = "KEEP",
+                Comment = "Removed with the key",
+            },
+        ]);
+        var jsonPath = WriteJson(
+            "into-project.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "entries": [
+                { "key": "HELLO", "text": "Updated hello" },
+                { "key": "NEW", "text": "Brand new" }
+              ]
+            }
+            """);
+
+        var result = GxtJsonImporter.ImportInto(jsonPath, project);
+
+        Assert.AreEqual(2, result.EntryCount);
+        Assert.IsTrue(project.IsDirty);
+        Assert.AreEqual("Updated hello", GetText(project.GxtManager, "HELLO"));
+        Assert.AreEqual("Brand new", GetText(project.GxtManager, "NEW"));
+        Assert.IsFalse(project.GxtManager.GXTEntries.Any(entry => entry.DatName.GetClearName() == "KEEP"));
+        Assert.HasCount(1, project.Metadata.Entries);
+        Assert.AreEqual("HELLO", project.Metadata.Entries[0].Key);
+        Assert.AreEqual("Keep this note", project.Metadata.Entries[0].Comment);
+        Assert.IsTrue(project.Metadata.Entries[0].IsReviewed);
+    }
+
+    [TestMethod]
+    public void ImportInto_GameTypeMismatch_DoesNotChangeProject()
+    {
+        var project = CreateViceCityProject();
+        var originalManager = project.GxtManager;
+        var jsonPath = WriteJson(
+            "gta3-into-vc.json",
+            """
+            {
+              "game": "GTA III",
+              "entries": [
+                { "key": "HELLO", "text": "Wrong game" }
+              ]
+            }
+            """);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            GxtJsonImporter.ImportInto(jsonPath, project));
+
+        StringAssert.Contains(exception.Message, "does not match the open project");
+        Assert.AreSame(originalManager, project.GxtManager);
+        Assert.IsFalse(project.IsDirty);
+        Assert.AreEqual("Hello", GetText(project.GxtManager, "HELLO"));
+    }
+
+    [TestMethod]
+    public void ImportInto_WithMapping_AttachesCharacterMap()
+    {
+        var project = CreateViceCityProject();
+        var jsonPath = WriteJson(
+            "mapped.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "language": "be",
+              "entries": [
+                { "key": "HELLO", "text": "Ў" }
+              ]
+            }
+            """);
+        var mapPath = WriteJson("custom.gxtmap.json", "{\"Ў\":\"0xC8\"}");
+
+        var result = GxtJsonImporter.ImportInto(jsonPath, project, mapPath);
+
+        Assert.AreEqual(1, result.EntryCount);
+        Assert.IsTrue(project.UsesCustomDictionary);
+        Assert.IsNotNull(project.CharacterMap);
+        Assert.AreEqual("Ў", GetText(project.GxtManager, "HELLO"));
+        Assert.AreEqual((byte)0xC8, project.CharacterMap.ToEncodeMap()['Ў']);
+    }
+
+    [TestMethod]
+    public void ImportInto_UsesExistingProjectCharacterMap()
+    {
+        var project = CreateViceCityProject();
+        var mapPath = WriteJson("project.gxtmap.json", "{\"Ў\":\"0xC8\"}");
+        project.GxtManager.CharacterMap = CharacterMapFileSerializer.Load(mapPath);
+        project.UsesCustomDictionary = true;
+        var jsonPath = WriteJson(
+            "reuse-map.json",
+            """
+            {
+              "game": "GTA Vice City",
+              "entries": [
+                { "key": "HELLO", "text": "Ў" }
+              ]
+            }
+            """);
+
+        GxtJsonImporter.ImportInto(jsonPath, project);
+
+        Assert.IsTrue(project.UsesCustomDictionary);
+        Assert.AreEqual("Ў", GetText(project.GxtManager, "HELLO"));
+        Assert.AreEqual((byte)0xC8, project.GxtManager.CharacterMap.ToEncodeMap()['Ў']);
+    }
+
+    private static EditorProject CreateViceCityProject()
+    {
+        var manager = GxtManagerFactory.Create(
+            GXTType.GtaViceCity,
+            sourceName: "american.gxt",
+            sourceTexts: ["Hello", "Keep"],
+            language: GxtLanguage.English);
+        manager.AddGXTEntry("HELLO", "Hello", "MAIN");
+        manager.AddGXTEntry("KEEP", "Keep", "MAIN");
+        return new EditorProject
+        {
+            GxtSourceName = "american.gxt",
+            GameType = GXTType.GtaViceCity,
+            GxtManager = manager,
+        };
+    }
+
     private string WriteJson(string fileName, string contents)
     {
         var path = Path.Combine(_testDirectory, fileName);

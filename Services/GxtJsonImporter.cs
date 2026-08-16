@@ -2,7 +2,9 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Models;
+using GTA_GXT_Editor.Utils;
 
 namespace GTA_GXT_Editor.Services;
 
@@ -21,18 +23,79 @@ public static class GxtJsonImporter
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
 
+        var payload = Load(sourcePath);
+        var manager = CreateManager(payload, dictionaryPath);
+        SaveAtomically(manager.SaveGXTChanges, targetPath);
+        return ToResult(payload, manager);
+    }
+
+    public static GxtJsonImportResult ImportInto(
+        string sourcePath,
+        EditorProject project,
+        string? dictionaryPath = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentNullException.ThrowIfNull(project);
+
+        var payload = Load(sourcePath);
+        if (payload.Type != project.GameType)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Message.JsonGameTypeMismatch"));
+        }
+
+        var existingManager = project.GxtManager;
+        var manager = CreateManager(
+            payload,
+            dictionaryPath,
+            project.GxtSourceName,
+            dictionaryPath is null ? existingManager.CharacterMap : null,
+            dictionaryPath is null ? existingManager.Language : payload.Language);
+        if (dictionaryPath is null)
+        {
+            manager.CharacterMapPath = existingManager.CharacterMapPath;
+        }
+
+        project.GxtManager = manager;
+        if (dictionaryPath is not null)
+        {
+            project.UsesCustomDictionary = true;
+            project.CharacterMap = manager.CharacterMap.Clone();
+        }
+
+        PruneMissingMetadata(project, payload.Type, manager);
+        project.IsDirty = true;
+        return ToResult(payload, manager);
+    }
+
+    private static JsonGxtPayload Load(string sourcePath)
+    {
         var document = ReadDocument(sourcePath);
         var type = GxtDomainRules.ParseJsonGameName(document.Game);
         var language = GxtDomainRules.ParseFlexibleLanguageCode(document.Language);
         var entries = ValidateEntries(document.Entries, type);
-        var manager = GxtManagerFactory.Create(
-            type,
-            dictionaryPath,
-            document.Source,
-            entries.Select(entry => entry.Text),
-            language);
+        return new JsonGxtPayload(type, language, document.Source, entries);
+    }
 
-        foreach (var entry in entries)
+    private static CommonGXTManager CreateManager(
+        JsonGxtPayload payload,
+        string? dictionaryPath,
+        string? sourceName = null,
+        CharacterMapProfile? characterMap = null,
+        GxtLanguage? language = null)
+    {
+        var manager = GxtManagerFactory.Create(
+            payload.Type,
+            dictionaryPath,
+            sourceName ?? payload.Source,
+            payload.Entries.Select(entry => entry.Text),
+            language ?? payload.Language);
+
+        if (characterMap is not null)
+        {
+            manager.CharacterMap = characterMap;
+        }
+
+        foreach (var entry in payload.Entries)
         {
             try
             {
@@ -48,11 +111,31 @@ public static class GxtJsonImporter
             }
         }
 
-        SaveAtomically(manager.SaveGXTChanges, targetPath);
-        return new GxtJsonImportResult(type, entries.Count)
+        return manager;
+    }
+
+    private static GxtJsonImportResult ToResult(JsonGxtPayload payload, CommonGXTManager manager) =>
+        new(payload.Type, payload.Entries.Count)
         {
             Language = manager.Language,
         };
+
+    private static void PruneMissingMetadata(
+        EditorProject project,
+        GXTType type,
+        CommonGXTManager manager)
+    {
+        var remaining = new HashSet<GxtEntryIdentity>();
+        foreach (var entry in manager.GXTEntries)
+        {
+            remaining.Add(GxtDomainRules.CreateIdentity(
+                type,
+                entry.DatName.GetClearName(),
+                GxtDomainRules.GetTableName(type, entry)));
+        }
+
+        project.Metadata.Entries.RemoveAll(entry =>
+            !remaining.Contains(GxtDomainRules.CreateIdentity(type, entry.Key, entry.Table)));
     }
 
     private static JsonGxtDocument ReadDocument(string sourcePath)
@@ -193,6 +276,12 @@ public static class GxtJsonImporter
         [JsonPropertyName("table")]
         public string? Table { get; init; }
     }
+
+    private sealed record JsonGxtPayload(
+        GXTType Type,
+        GxtLanguage Language,
+        string? Source,
+        List<ValidatedEntry> Entries);
 
     private sealed record ValidatedEntry(
         int Index,

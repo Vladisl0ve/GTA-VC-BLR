@@ -1294,12 +1294,15 @@ public partial class MainWindowViewModel : ObservableObject
 
     private async Task ImportJsonAsync(bool useCustomDictionary)
     {
-        if (!TryContinueAfterUnsavedChanges())
+        var importIntoProject = _project is not null;
+        if (!importIntoProject && !TryContinueAfterUnsavedChanges())
         {
             return;
         }
 
-        var sourcePath = _dialogs.OpenFile(_localization.Get("Dialog.ConvertJson"), JsonFileFilter);
+        var sourcePath = _dialogs.OpenFile(
+            _localization.Get(importIntoProject ? "Dialog.ImportJson" : "Dialog.ConvertJson"),
+            JsonFileFilter);
         if (sourcePath is null)
         {
             return;
@@ -1313,6 +1316,12 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 return;
             }
+        }
+
+        if (importIntoProject)
+        {
+            await ImportJsonIntoProjectAsync(sourcePath, dictionaryPath);
+            return;
         }
 
         var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
@@ -1352,6 +1361,41 @@ public partial class MainWindowViewModel : ObservableObject
             catch (Exception exception)
             {
                 _dialogs.ShowError(_localization.Format("Message.ConvertJsonFailed", exception.Message));
+            }
+        });
+    }
+
+    private async Task ImportJsonIntoProjectAsync(string sourcePath, string? dictionaryPath)
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        var selected = SelectedEntry;
+        await RunBusyAsync("Busy.ImportJsonIntoProject", async token =>
+        {
+            try
+            {
+                var snapshot = await _documentWorkflow.CreateSnapshotAsync(_project, token);
+                var result = await BackgroundOperation.Run(
+                    () => GxtJsonImporter.ImportInto(sourcePath, snapshot, dictionaryPath),
+                    token);
+                token.ThrowIfCancellationRequested();
+                CommitProject(
+                    snapshot,
+                    selected?.Name,
+                    selected?.RawTableName,
+                    clearTransientState: false);
+                SetStatus("Status.JsonImportedIntoProject", result.EntryCount);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError(_localization.Format("Message.ImportJsonFailed", exception.Message));
             }
         });
     }

@@ -73,10 +73,12 @@ can read both the old continuous `0x80–0xBF` layout and the intermediate layou
 game, re-encode it with the current built-in preset instead of merely saving it
 unchanged.
 
-The **Open with mapping…** and **JSON → GXT with mapping…** commands accept a
+The **Open with mapping…** and **JSON with mapping…** commands accept a
 canonical `.gxtmap.json`, compact `.json` such as `{ "А": "0x80" }`, and legacy
 `.txt` dictionaries. An explicitly selected file takes priority over the built-in
-encoding.
+encoding. **Import… → JSON…** recreates the GXT inside an open GXT or BYX project
+from Unicode JSON while keeping comments, TXD, and installer data. With no
+document open, the same command still converts JSON to a new `.gxt` file.
 
 When exporting a GXT or TXD separately, the application also offers to save the
 `.gxtmap.json` profile. Replacing a TXD keeps the profile as an unverified draft;
@@ -123,7 +125,8 @@ selected directory is used verbatim and does not need to contain
 
 The application reads and writes GTA III/Vice City GXT files and supports built-in
 and custom character tables, searching, adding, editing, deleting, and importing
-missing keys, as well as converting GXT to JSON and back.
+missing keys, as well as converting GXT to JSON and importing JSON back into an
+open project or a new GXT file.
 
 For GTA Vice City, the bundled encounter-order metadata automatically adds mission
 and game-block names, context, and progression order to entries. The canonical

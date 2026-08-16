@@ -180,9 +180,11 @@ explicit mapping.
 - **“Open with mapping…”** opens an existing GXT
   and completely replaces the built-in table with the selected `.gxtmap.json`,
   compact `.json`, or `.txt` file.
-- **“JSON → GXT with mapping…”** creates a GXT
+- **“JSON with mapping…”** recreates a GXT
   from Unicode JSON text using the selected table instead of the profile chosen
-  by `language` or automatic detection.
+  by `language` or automatic detection. In an open GXT or BYX project the command
+  replaces the GXT in place. With no document open it still creates a new `.gxt`
+  file.
 - For Vice City, attach `fonts.txd` and open **“Mapping…”**. The
   **“GXT + TXD mapping”** window lets you import or edit a profile and select
   **“Interpret source bytes”** or **“Re-encode current text”**. Its **“Check…”** button only validates

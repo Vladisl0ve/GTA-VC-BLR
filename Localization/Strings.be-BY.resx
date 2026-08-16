@@ -30,11 +30,12 @@
   <data name="Main.Open.ToolTip" xml:space="preserve"><value>Адкрыць GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+O)</value></data>
   <data name="Main.Open.More" xml:space="preserve"><value>Дадатковыя варыянты адкрыцця</value></data>
   <data name="Main.Open.WithMapping" xml:space="preserve"><value>Адкрыць з мапінгам…</value></data>
-  <data name="Main.ImportJson" xml:space="preserve"><value>JSON → GXT…</value></data>
-  <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Пераўтварыць JSON у GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+Shift+I)</value></data>
-  <data name="Main.ImportJson.More" xml:space="preserve"><value>Дадатковыя варыянты пераўтварэння</value></data>
-  <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON → GXT з мапінгам…</value></data>
-  <data name="Main.ImportComments" xml:space="preserve"><value>Імпартаваць каментары…</value></data>
+  <data name="Main.Import" xml:space="preserve"><value>Імпартаваць…</value></data>
+  <data name="Main.Import.ToolTip" xml:space="preserve"><value>Імпартаваць JSON у адкрыты праект або пераўтварыць JSON у новы GXT (Ctrl+Shift+I)</value></data>
+  <data name="Main.ImportJson" xml:space="preserve"><value>JSON…</value></data>
+  <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Імпартаваць JSON у адкрыты праект або пераўтварыць JSON у GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+Shift+I)</value></data>
+  <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON з мапінгам…</value></data>
+  <data name="Main.ImportComments" xml:space="preserve"><value>Каментары…</value></data>
   <data name="Main.SaveAs" xml:space="preserve"><value>Захаваць як</value></data>
   <data name="Main.SaveAs.ToolTip" xml:space="preserve"><value>Захаваць бягучы дакумент або стварыць новы файл праекта BYX</value></data>
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Захаваць бягучы</value></data>
@@ -143,6 +144,7 @@
   <data name="Busy.ImportComments" xml:space="preserve"><value>Імпарт каментароў…</value></data>
   <data name="Busy.ExportComments" xml:space="preserve"><value>Экспарт каментароў…</value></data>
   <data name="Busy.ConvertJson" xml:space="preserve"><value>Пераўтварэнне JSON у GXT…</value></data>
+  <data name="Busy.ImportJsonIntoProject" xml:space="preserve"><value>Імпарт JSON у праект…</value></data>
   <data name="Busy.ReadSourceGxt" xml:space="preserve"><value>Чытанне зыходнага GXT…</value></data>
   <data name="Busy.ConvertMapping" xml:space="preserve"><value>Пераўтварэнне мапінга…</value></data>
 
@@ -159,6 +161,7 @@
   <data name="Dialog.ImportComments" xml:space="preserve"><value>Імпартаваць каментары</value></data>
   <data name="Dialog.ExportComments" xml:space="preserve"><value>Экспартаваць каментары</value></data>
   <data name="Dialog.ConvertJson" xml:space="preserve"><value>Пераўтварыць JSON у GXT</value></data>
+  <data name="Dialog.ImportJson" xml:space="preserve"><value>Імпартаваць JSON</value></data>
   <data name="Dialog.SaveConvertedGxt" xml:space="preserve"><value>Захаваць пераўтвораны GXT</value></data>
   <data name="Dialog.AddMissing" xml:space="preserve"><value>Дадаць адсутныя ключы з {0}</value></data>
   <data name="Dialog.SelectTargetMapping" xml:space="preserve"><value>Выбраць мэтавы мапінг сімвалаў</value></data>
@@ -181,6 +184,7 @@
   <data name="Status.CommentsImported" xml:space="preserve"><value>Імпарт каментароў завершаны — {0}</value></data>
   <data name="Status.CommentsExported" xml:space="preserve"><value>Каментары экспартаваныя: {0}</value></data>
   <data name="Status.JsonConverted" xml:space="preserve"><value>JSON пераўтвораны ў GXT {0}: ключоў: {1}</value></data>
+  <data name="Status.JsonImportedIntoProject" xml:space="preserve"><value>JSON імпартаваны ў праект: ключоў: {0}</value></data>
   <data name="Status.Opened" xml:space="preserve"><value>Адкрыты {0} — ключоў: {1}</value></data>
   <data name="Status.ProjectOpened" xml:space="preserve"><value>Адкрыты праект {0} — ключоў: {1}, {2}</value></data>
   <data name="Status.TxdCount" xml:space="preserve"><value>TXD: {0}</value></data>
@@ -218,6 +222,8 @@
   <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Не ўдалося імпартаваць каментары.&#xA;&#xA;{0}</value></data>
   <data name="Message.ExportCommentsFailed" xml:space="preserve"><value>Не ўдалося экспартаваць каментары.&#xA;&#xA;{0}</value></data>
   <data name="Message.ConvertJsonFailed" xml:space="preserve"><value>Не ўдалося пераўтварыць JSON у GXT.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ImportJsonFailed" xml:space="preserve"><value>Не ўдалося імпартаваць JSON.&#xA;&#xA;{0}</value></data>
+  <data name="Message.JsonGameTypeMismatch" xml:space="preserve"><value>Тып гульні ў JSON не адпавядае адкрытаму праекту.</value></data>
   <data name="Message.SelectedGxtTypeMismatch" xml:space="preserve"><value>Тып выбранага файла GXT не адпавядае адкрытаму файлу.</value></data>
   <data name="Message.MissingEntriesAdded" xml:space="preserve"><value>Дададзена адсутных ключоў: {0}.</value></data>
   <data name="Message.AddEntriesFailed" xml:space="preserve"><value>Не ўдалося дадаць ключы.&#xA;&#xA;{0}</value></data>
