@@ -1,6 +1,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 
@@ -19,6 +20,11 @@ public sealed class InnoInstallerExportService : IInstallerExportService
     private const string TemplateRelativePath = "Assets/Installer/InstallerTemplate.iss";
     private const string BelarusianLanguageRelativePath = "Assets/Installer/Belarusian.isl";
     private const string NoticesRelativePath = "Assets/Installer/THIRD-PARTY-NOTICES.txt";
+
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new()
+    {
+        WriteIndented = true,
+    };
 
     private readonly IInstallerCompiler _compiler;
     private readonly string _assetRoot;
@@ -67,11 +73,11 @@ public sealed class InnoInstallerExportService : IInstallerExportService
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var payloads = StagePayload(projectSnapshot, profile, stageDirectory);
+            var package = StagePayload(projectSnapshot, profile, stageDirectory);
             File.Copy(belarusianLanguagePath, Path.Combine(buildDirectory, "Belarusian.isl"));
             File.Copy(noticesPath, Path.Combine(buildDirectory, "THIRD-PARTY-NOTICES.txt"));
             var template = await File.ReadAllTextAsync(templatePath, Encoding.UTF8, cancellationToken);
-            var script = GenerateScript(template, profile, payloads);
+            var script = GenerateScript(template, profile, package);
             var scriptPath = Path.Combine(buildDirectory, "installer.iss");
             await File.WriteAllTextAsync(
                 scriptPath,
@@ -125,7 +131,7 @@ public sealed class InnoInstallerExportService : IInstallerExportService
         return path;
     }
 
-    private static List<StagedPayload> StagePayload(
+    private static StagedInstallerPackage StagePayload(
         EditorProject project,
         InstallerProfile profile,
         string stageDirectory)
@@ -134,9 +140,20 @@ public sealed class InnoInstallerExportService : IInstallerExportService
         project.GxtManager.WriteGXT(gxtStream);
         var payloads = new List<StagedPayload>
         {
-            Stage(stageDirectory, "generated-gxt.bin", "TEXT\\BELARUS.GXT", gxtStream.ToArray()),
-            Stage(stageDirectory, "generated-font-root.bin", "FONTB.TXD", project.AttachedTxd!.Data),
-            Stage(stageDirectory, "generated-font-models.bin", "MODELS\\FONTS.TXD", project.AttachedTxd.Data),
+            Stage(
+                stageDirectory,
+                "generated-gxt.bin",
+                "TEXT\\BELARUS.GXT",
+                "core",
+                backupOriginal: false,
+                data: gxtStream.ToArray()),
+            Stage(
+                stageDirectory,
+                "generated-font-models.bin",
+                "MODELS\\FONTS.TXD",
+                "core",
+                backupOriginal: true,
+                data: project.AttachedTxd!.Data),
         };
 
         foreach (var asset in profile.Assets)
@@ -145,16 +162,33 @@ public sealed class InnoInstallerExportService : IInstallerExportService
                 stageDirectory,
                 $"asset-{asset.Id:N}.bin",
                 asset.DestinationPath,
+                asset.Role == InstallerAssetRole.SilentPatch ? "silentpatch" : "core",
+                asset.Role == InstallerAssetRole.SilentPatch &&
+                Path.GetExtension(asset.DestinationPath).Equals(".ipl", StringComparison.OrdinalIgnoreCase),
                 asset.Data));
         }
 
-        return payloads;
+        var coreManifest = StageManifest(
+            stageDirectory,
+            "manifest-core.json",
+            profile,
+            payloads.Where(payload => payload.Component == "core").ToArray(),
+            ["core"]);
+        var fullManifest = StageManifest(
+            stageDirectory,
+            "manifest-full.json",
+            profile,
+            payloads,
+            ["core", "silentpatch"]);
+        return new StagedInstallerPackage(payloads, coreManifest, fullManifest);
     }
 
     private static StagedPayload Stage(
         string stageDirectory,
         string stageName,
         string destinationPath,
+        string component,
+        bool backupOriginal,
         byte[] data)
     {
         var path = Path.Combine(stageDirectory, stageName);
@@ -162,16 +196,51 @@ public sealed class InnoInstallerExportService : IInstallerExportService
         return new StagedPayload(
             stageName,
             destinationPath,
+            component,
+            backupOriginal,
             Convert.ToHexStringLower(SHA256.HashData(data)));
+    }
+
+    private static StagedManifest StageManifest(
+        string stageDirectory,
+        string stageName,
+        InstallerProfile profile,
+        IReadOnlyList<StagedPayload> payloads,
+        string[] selectedComponents)
+    {
+        var manifest = new
+        {
+            schemaVersion = 1,
+            installId = profile.ProductId,
+            product = new
+            {
+                name = profile.Name,
+                version = profile.Version,
+                publisher = profile.Publisher,
+            },
+            selectedComponents,
+            files = payloads.Select(payload => new
+            {
+                path = payload.DestinationPath,
+                component = payload.Component,
+                sha256 = payload.Sha256,
+                backupOriginal = payload.BackupOriginal,
+                backupPath = payload.BackupOriginal ? payload.DestinationPath : null,
+            }),
+        };
+        var path = Path.Combine(stageDirectory, stageName);
+        var data = JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions);
+        File.WriteAllBytes(path, data);
+        return new StagedManifest(stageName, Convert.ToHexStringLower(SHA256.HashData(data)));
     }
 
     private static string GenerateScript(
         string template,
         InstallerProfile profile,
-        IReadOnlyList<StagedPayload> payloads)
+        StagedInstallerPackage package)
     {
         var fileEntries = new StringBuilder();
-        foreach (var payload in payloads)
+        foreach (var payload in package.Payloads)
         {
             var destinationDirectory = Path.GetDirectoryName(payload.DestinationPath);
             var destinationName = Path.GetFileName(payload.DestinationPath);
@@ -184,14 +253,29 @@ public sealed class InnoInstallerExportService : IInstallerExportService
                 .Append(destination)
                 .Append("\"; DestName: \"")
                 .Append(Escape(destinationName))
-                .Append("\"; Flags: ignoreversion overwritereadonly uninsneveruninstall; BeforeInstall: BackupPayload('")
+                .Append("\"; Components: ")
+                .Append(payload.Component)
+                .Append("; Flags: ignoreversion overwritereadonly uninsneveruninstall; BeforeInstall: BackupPayload('")
                 .Append(EscapePascal(payload.DestinationPath))
-                .Append("'); AfterInstall: RecordPayload('")
+                .Append("', ")
+                .Append(payload.BackupOriginal ? "True" : "False")
+                .Append("); AfterInstall: RecordPayload('")
                 .Append(EscapePascal(payload.DestinationPath))
                 .Append("', '")
                 .Append(payload.Sha256)
                 .AppendLine("')");
         }
+
+        AppendManifestEntry(
+            fileEntries,
+            package.CoreManifest,
+            profile.ProductId,
+            "not IsSilentPatchSelected");
+        AppendManifestEntry(
+            fileEntries,
+            package.FullManifest,
+            profile.ProductId,
+            "IsSilentPatchSelected");
 
         var publisherDirective = string.IsNullOrWhiteSpace(profile.Publisher)
             ? string.Empty
@@ -205,6 +289,28 @@ public sealed class InnoInstallerExportService : IInstallerExportService
             .Replace("@@FILE_ENTRIES@@", fileEntries.ToString().TrimEnd(), StringComparison.Ordinal);
     }
 
+    private static void AppendManifestEntry(
+        StringBuilder fileEntries,
+        StagedManifest manifest,
+        Guid productId,
+        string check)
+    {
+        var destinationPath = $"_BelarusianModBackup\\{productId:D}\\manifest.json";
+        fileEntries.Append("Source: \"payload\\")
+            .Append(Escape(manifest.StageName))
+            .Append("\"; DestDir: \"{app}\\_BelarusianModBackup\\")
+            .Append(productId.ToString("D"))
+            .Append("\"; DestName: \"manifest.json\"; Components: core; Check: ")
+            .Append(check)
+            .Append("; Flags: ignoreversion overwritereadonly uninsneveruninstall; BeforeInstall: BackupPayload('")
+            .Append(EscapePascal(destinationPath))
+            .Append("', False); AfterInstall: RecordPayload('")
+            .Append(EscapePascal(destinationPath))
+            .Append("', '")
+            .Append(manifest.Sha256)
+            .AppendLine("')");
+    }
+
     private static string Escape(string value) => value.Replace("\"", "\"\"");
 
     private static string EscapePascal(string value) => value.Replace("'", "''");
@@ -215,5 +321,14 @@ public sealed class InnoInstallerExportService : IInstallerExportService
     private sealed record StagedPayload(
         string StageName,
         string DestinationPath,
+        string Component,
+        bool BackupOriginal,
         string Sha256);
+
+    private sealed record StagedInstallerPackage(
+        IReadOnlyList<StagedPayload> Payloads,
+        StagedManifest CoreManifest,
+        StagedManifest FullManifest);
+
+    private sealed record StagedManifest(string StageName, string Sha256);
 }

@@ -12,8 +12,9 @@ marks the project dirty and the profile is persisted in BYX v4.
 The optional `installer` manifest item references `installer/profile.json` and an
 array of binary attachments. Each attachment is stored as
 `installer/assets/<guid>.bin` and has an ID, original file name, destination,
-role, bytes, and SHA-256 in the profile/manifest pair. The roles are main ASI, ASI
-Loader, SilentPatch, and additional file.
+role, bytes, and SHA-256 in the profile/manifest pair. Legacy profiles may still
+store the ASI Loader and additional-file roles, so existing BYX projects remain
+readable. New exports accept only the main ASI and the exact SilentPatch set.
 
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,
@@ -37,37 +38,42 @@ failure removes staging and leaves an existing target untouched.
 The generated installer always contains:
 
 - `TEXT\BELARUS.GXT`, generated from the current GXT snapshot;
-- `FONTB.TXD` and `MODELS\FONTS.TXD`, both copied from the attached TXD;
+- `MODELS\FONTS.TXD`, copied from the attached TXD;
 - the main plugin as `BelarusianLanguage.asi`;
-- all selected SilentPatch files, including `SilentPatchVC.asi`;
-- explicitly selected additional files.
+- `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight fixed IPL replacements.
 
-An x86 ASI Loader may optionally be included as `dinput8.dll`.
+The core component is fixed. SilentPatch is one all-or-nothing component, selected
+by default but removable on the components page. `FONTB.TXD`, `dinput8.dll`, and
+arbitrary additional payloads are not emitted.
 
-No source, archive, checksum, README, or apply/clean command file is copied into
-the game.
+Two UTF-8 JSON manifests are staged and setup writes the one matching the selected
+components to `_BelarusianModBackup\<ProductId>\manifest.json`. It records schema
+version 1, the stable ProductId, product metadata, selected components, and each
+file's path, component, SHA-256, and original-backup policy.
 
 ## Installation and removal
 
 Setup is available in English and Belarusian and shows the standard language,
-welcome, game-directory, ready, progress, and finish pages. It suggests a common
-Steam, Rockstar, or GOG directory (or the previous AppId directory), but browsing
-is always available. A selected directory must contain `gta-vc.exe` and cannot be
-a drive root or protected Windows directory. An executable without readable
-version information produces a warning rather than a block.
+welcome, game-directory, components, ready, progress, and finish pages. The common
+Steam path is only an initial suggestion. Setup does not inspect `gta-vc.exe` or
+validate the folder contents, and `AppendDefaultDirName=no` ensures the directory
+selected by the user is used verbatim.
 
-The stable Inno AppId derives from the profile ProductId. Backups, transactional
-state, licenses, conflict files, and the uninstaller live outside the game under
-`%ProgramData%\GTA GXT Editor\Installations\<ProductId>`. Before each write, setup
-captures both the first original and a pending pre-attempt snapshot. Duplicate
-`BelarusianLanguage*.asi` files in the game root, `scripts`, and `plugins` are
-disabled into the same state. A failed or cancelled attempt restores every pending
-snapshot and does not commit a new state.
+The stable Inno AppId and backup directory derive from the profile ProductId.
+Original `MODELS\FONTS.TXD` and, when SilentPatch is selected, the eight IPL files
+are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
+Existing GXT/ASI/INI payloads are mod-owned and overwritten without an original
+backup. Transaction state, licenses, conflicts, and the uninstaller stay under
+`%ProgramData%\GTA GXT Editor\Installations\<ProductId>`. A failed or cancelled
+attempt restores its pending pre-attempt snapshots and does not commit new state.
+An update must use the same game directory recorded by the first successful
+installation; moving the installation requires uninstalling it first.
 
-Updates keep the first original backup, update the installed hash, and restore or
-remove payloads omitted by the new profile. On uninstall, unchanged replacements
-are restored, newly created files are deleted, disabled ASI duplicates are
-returned, and empty created directories are removed.
+Updates keep the first original backup and update installed hashes. Reinstalling
+without SilentPatch restores the IPL originals and removes its ASI/INI. Uninstall
+restores the font/IPL originals, deletes mod-owned payloads, then removes the
+ProductId backup directory. State created by the previous installer schema is
+rejected with an instruction to uninstall that version first.
 
 If a managed file changed after installation, interactive uninstall asks per file:
 restore it (archive the changed copy, then restore/delete) or leave it (archive the

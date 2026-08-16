@@ -102,15 +102,17 @@ versions are rejected before the open project is changed.
 
 For a GTA Vice City project with an attached TXD, choose **Export as → Windows
 installer…**. The profile editor requires `BelarusianLanguage.asi` and a
-SilentPatch set containing `SilentPatchVC.asi`; an x86 `dinput8.dll` is optional.
-Additional files and folders may retain editable paths relative to the game directory.
+complete SilentPatch distribution: `SilentPatchVC.asi`, `SilentPatchVC.ini`, and
+the eight supported IPL files. ASI Loaders and arbitrary additional files are not
+included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
-Inno Setup 7.0.2 x86 compiler. The installer writes `TEXT\BELARUS.GXT`, both TXD
-destinations, and the selected runtime files. Existing files and duplicate
-`BelarusianLanguage*.asi` plugins are backed up under ProgramData. Its uninstaller
-restores the first originals, removes files created by the localization, and saves
-post-install edits in a `conflicts` directory before restoring them. See
+Inno Setup 7.0.2 x86 compiler. The installer always writes `TEXT\BELARUS.GXT`,
+`MODELS\FONTS.TXD`, and `BelarusianLanguage.asi`; SilentPatch is a setup component
+that is selected by default. Original font/IPL files are mirrored under
+`_BelarusianModBackup\<ProductId>`, while transactional state remains under
+ProgramData. The selected directory is used verbatim and does not need to contain
+`gta-vc.exe`. See
 [Windows installer export](docs/windows-installer.md) for the exact contract.
 
 ## GXT features

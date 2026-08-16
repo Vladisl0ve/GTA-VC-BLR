@@ -3,7 +3,8 @@ AppId=@@APP_ID@@
 AppName=@@APP_NAME@@
 AppVersion=@@APP_VERSION@@
 @@PUBLISHER_DIRECTIVE@@
-DefaultDirName={code:GetDefaultGameDir}
+DefaultDirName={pf32}\Steam\steamapps\common\Grand Theft Auto Vice City
+AppendDefaultDirName=no
 DisableProgramGroupPage=yes
 DisableReadyMemo=no
 DisableWelcomePage=no
@@ -16,6 +17,7 @@ WizardStyle=modern dynamic
 ShowLanguageDialog=yes
 LanguageDetectionMethod=uilanguage
 UsePreviousAppDir=yes
+UsePreviousSetupType=no
 AllowNoIcons=yes
 CloseApplications=yes
 RestartApplications=no
@@ -29,11 +31,26 @@ SignedUninstaller=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "belarusian"; MessagesFile: "compiler:Default.isl,Belarusian.isl"
 
+[Types]
+Name: "full"; Description: "{cm:SetupTypeFull}"
+Name: "compact"; Description: "{cm:SetupTypeCore}"
+Name: "custom"; Description: "{cm:SetupTypeCustom}"; Flags: iscustom
+
+[Components]
+Name: "core"; Description: "{cm:ComponentCore}"; Types: full compact custom; Flags: fixed
+Name: "silentpatch"; Description: "{cm:ComponentSilentPatch}"; Types: full
+
 [CustomMessages]
-english.GameExeMissing=The selected folder does not contain gta-vc.exe. Select the classic Grand Theft Auto: Vice City folder.
-belarusian.GameExeMissing=У выбранай папцы няма gta-vc.exe. Выберыце папку класічнай Grand Theft Auto: Vice City.
-english.UnsafeGameDirectory=This folder cannot be used because it is a drive root or a protected Windows directory.
-belarusian.UnsafeGameDirectory=Гэтую папку нельга выкарыстоўваць, бо гэта корань дыска або абаронены каталог Windows.
+english.SetupTypeFull=Belarusian language and SilentPatch
+belarusian.SetupTypeFull=Беларуская мова і SilentPatch
+english.SetupTypeCore=Belarusian language only
+belarusian.SetupTypeCore=Толькі беларуская мова
+english.SetupTypeCustom=Custom installation
+belarusian.SetupTypeCustom=Выбарачнае ўсталяванне
+english.ComponentCore=Belarusian language
+belarusian.ComponentCore=Беларуская мова
+english.ComponentSilentPatch=SilentPatch (optional)
+belarusian.ComponentSilentPatch=SilentPatch (неабавязкова)
 english.BackupFailed=Setup could not create a backup of: %1
 belarusian.BackupFailed=Не ўдалося стварыць рэзервовую копію: %1
 english.FileChangedPrompt=The file "%1" was changed after installation.%n%nYes — save the changed file to the conflicts folder and restore the previous state.%nNo — keep the changed file and save the previous version to the conflicts folder.
@@ -42,15 +59,18 @@ english.ConflictsSaved=Changed or previous files were saved here:%n%1
 belarusian.ConflictsSaved=Змененыя або папярэднія файлы захаваныя тут:%n%1
 english.InvalidState=The installer backup state is damaged. Setup cannot continue safely.
 belarusian.InvalidState=Стан рэзервовых копій пашкоджаны. Бяспечна працягнуць усталяванне немагчыма.
-english.UnknownGameVersion=The gta-vc.exe version could not be identified. Setup can continue, but this game build may be incompatible with the localization files.
-belarusian.UnknownGameVersion=Не ўдалося вызначыць версію gta-vc.exe. Усталяванне можна працягнуць, але гэтая зборка гульні можа быць несумяшчальнай з файламі беларусізацыі.
+english.LegacyState=An older installation of this localization was detected. Uninstall it before running this setup.
+belarusian.LegacyState=Знойдзена старое ўсталяванне гэтай беларусізацыі. Выдаліце яго перад запускам гэтага інсталятара.
+english.DifferentGameDirectory=This localization is already installed in another folder. Uninstall it there before selecting a new folder.
+belarusian.DifferentGameDirectory=Гэтая беларусізацыя ўжо ўсталяваная ў іншай папцы. Выдаліце яе там, перш чым выбраць новую папку.
 
 [Files]
 @@FILE_ENTRIES@@
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\licenses"; Flags: ignoreversion
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\backup"
+Type: filesandordirs; Name: "{app}\_BelarusianModBackup\@@PRODUCT_ID@@"
+Type: dirifempty; Name: "{app}\_BelarusianModBackup"
 Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.ini"
 Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.index"
 Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\pending.index"
@@ -68,11 +88,16 @@ var
   InstallPrepared: Boolean;
   InstallCommitted: Boolean;
   HadConflicts: Boolean;
-  GameVersionWarningShown: Boolean;
+  HadPreviousState: Boolean;
 
 function SupportRoot: String;
 begin
   Result := ExpandConstant('{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@');
+end;
+
+function BackupRoot: String;
+begin
+  Result := ExpandConstant('{app}\_BelarusianModBackup\@@PRODUCT_ID@@');
 end;
 
 function StateFile: String;
@@ -128,7 +153,7 @@ end;
 
 function BackupFileFor(const RelativePath: String): String;
 begin
-  Result := AddBackslash(SupportRoot) + 'backup\' + SectionFor(RelativePath) + '.bak';
+  Result := AddBackslash(BackupRoot) + RelativePath;
 end;
 
 function PendingBackupFileFor(const RelativePath: String): String;
@@ -147,6 +172,11 @@ begin
     Result := UninstallSilent
   else
     Result := WizardSilent;
+end;
+
+function IsSilentPatchSelected: Boolean;
+begin
+  Result := WizardIsComponentSelected('silentpatch');
 end;
 
 function ArrayContains(const Values: TArrayOfString; const Value: String): Boolean;
@@ -205,7 +235,7 @@ begin
   AddLineUnique(PendingFile, RelativePath);
 end;
 
-procedure BackupTarget(const RelativePath, ManagedType: String);
+procedure BackupTarget(const RelativePath, ManagedType: String; PreserveOriginal: Boolean);
 var
   Section, Destination, Backup: String;
 begin
@@ -217,7 +247,7 @@ begin
   begin
     SetIniString(Section, 'Destination', RelativePath, ActiveStateFile);
     SetIniString(Section, 'ManagedType', ManagedType, ActiveStateFile);
-    if FileExists(Destination) then
+    if PreserveOriginal and FileExists(Destination) then
     begin
       ForceDirectories(ExtractFileDir(Backup));
       if not CopyFile(Destination, Backup, False) then
@@ -233,9 +263,9 @@ begin
   AddToPending(RelativePath);
 end;
 
-procedure BackupPayload(const RelativePath: String);
+procedure BackupPayload(const RelativePath: String; PreserveOriginal: Boolean);
 begin
-  BackupTarget(RelativePath, 'payload');
+  BackupTarget(RelativePath, 'payload', PreserveOriginal);
 end;
 
 procedure RecordPayload(const RelativePath, InstalledHash: String);
@@ -263,115 +293,6 @@ begin
   end;
 end;
 
-procedure DisableDuplicatesInDirectory(const Directory, RelativeBase: String);
-var
-  FindRec: TFindRec;
-  RelativePath, FullPath: String;
-begin
-  if not DirExists(Directory) then
-    Exit;
-  if FindFirst(AddBackslash(Directory) + 'BelarusianLanguage*.asi', FindRec) then
-  begin
-    try
-      repeat
-        if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
-        begin
-          if RelativeBase = '' then
-            RelativePath := FindRec.Name
-          else
-            RelativePath := RelativeBase + '\' + FindRec.Name;
-          if CompareText(RelativePath, 'BelarusianLanguage.asi') <> 0 then
-          begin
-            FullPath := DestinationFileFor(RelativePath);
-            BackupTarget(RelativePath, 'duplicate');
-            if FileExists(FullPath) and not DeleteFile(FullPath) then
-              RaiseException(FmtMessage(CustomMessage('BackupFailed'), [RelativePath]));
-          end;
-        end;
-      until not FindNext(FindRec);
-    finally
-      FindClose(FindRec);
-    end;
-  end;
-end;
-
-procedure DisableDuplicateAsiFiles;
-begin
-  DisableDuplicatesInDirectory(ExpandConstant('{app}'), '');
-  DisableDuplicatesInDirectory(ExpandConstant('{app}\scripts'), 'scripts');
-  DisableDuplicatesInDirectory(ExpandConstant('{app}\plugins'), 'plugins');
-end;
-
-function IsUnsafeGameDirectory(const Directory: String): Boolean;
-var
-  Normalized, DriveRoot: String;
-begin
-  Normalized := RemoveBackslashUnlessRoot(ExpandFileName(Directory));
-  DriveRoot := AddBackslash(ExtractFileDrive(Normalized));
-  Result := PathSame(Normalized, DriveRoot) or
-            PathStartsWith(Normalized, GetWinDir, True) or
-            PathStartsWith(Normalized, GetSystemDir, True) or
-            PathStartsWith(Normalized, ExpandConstant('{commonappdata}'), True);
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  Directory, Version: String;
-begin
-  Result := True;
-  if CurPageID <> wpSelectDir then
-    Exit;
-  Directory := WizardDirValue;
-  if IsUnsafeGameDirectory(Directory) then
-  begin
-    MsgBox(CustomMessage('UnsafeGameDirectory'), mbError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-  if not FileExists(AddBackslash(Directory) + 'gta-vc.exe') then
-  begin
-    MsgBox(CustomMessage('GameExeMissing'), mbError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-  if (not GameVersionWarningShown) and
-     (not GetVersionNumbersString(AddBackslash(Directory) + 'gta-vc.exe', Version)) then
-  begin
-    MsgBox(CustomMessage('UnknownGameVersion'), mbInformation, MB_OK);
-    GameVersionWarningShown := True;
-  end;
-end;
-
-function GetDefaultGameDir(Param: String): String;
-var
-  Candidate: String;
-begin
-  Candidate := ExpandConstant('{pf32}\Steam\steamapps\common\Grand Theft Auto Vice City');
-  if FileExists(AddBackslash(Candidate) + 'gta-vc.exe') then
-  begin
-    Result := Candidate;
-    Exit;
-  end;
-  Candidate := ExpandConstant('{pf32}\Rockstar Games\Grand Theft Auto Vice City');
-  if FileExists(AddBackslash(Candidate) + 'gta-vc.exe') then
-  begin
-    Result := Candidate;
-    Exit;
-  end;
-  Candidate := ExpandConstant('{pf32}\GOG Galaxy\Games\Grand Theft Auto Vice City');
-  if FileExists(AddBackslash(Candidate) + 'gta-vc.exe') then
-  begin
-    Result := Candidate;
-    Exit;
-  end;
-  Result := ExpandConstant('{pf32}\Steam\steamapps\common\Grand Theft Auto Vice City');
-end;
-
-procedure RegisterExtraCloseApplicationsResources;
-begin
-  RegisterExtraCloseApplicationsResource(ExpandConstant('{app}\gta-vc.exe'));
-end;
-
 procedure RecoverCommittedFile(const FinalName, RecoveryName: String);
 begin
   if (not FileExists(FinalName)) and FileExists(RecoveryName) then
@@ -388,6 +309,7 @@ procedure SavePreInstallState;
 begin
   ForceDirectories(SupportRoot);
   RecoverInterruptedCommit;
+  HadPreviousState := FileExists(StateFile);
   DeleteFile(WorkingStateFile);
   DeleteFile(WorkingIndexFile);
   DelTree(AddBackslash(SupportRoot) + 'pending', True, True, True);
@@ -396,6 +318,8 @@ begin
     RaiseException(CustomMessage('InvalidState'));
   if FileExists(IndexFile) and not CopyFile(IndexFile, WorkingIndexFile, False) then
     RaiseException(CustomMessage('InvalidState'));
+  SetIniInt('Installer', 'SchemaVersion', 2, WorkingStateFile);
+  SetIniString('Installer', 'AppDirectory', ExpandConstant('{app}'), WorkingStateFile);
   DeleteFile(PendingFile);
 end;
 
@@ -408,9 +332,27 @@ begin
     Result := CustomMessage('InvalidState');
     Exit;
   end;
+  if FileExists(StateFile) and
+     (GetIniString('Installer', 'SchemaVersion', '', StateFile) <> '2') then
+  begin
+    Result := CustomMessage('LegacyState');
+    Exit;
+  end;
+  if FileExists(StateFile) and
+     (not PathSame(
+       GetIniString('Installer', 'AppDirectory', '', StateFile),
+       ExpandConstant('{app}'))) then
+  begin
+    Result := CustomMessage('DifferentGameDirectory');
+    Exit;
+  end;
+  if (not FileExists(StateFile)) and DirExists(BackupRoot) then
+  begin
+    Result := CustomMessage('InvalidState');
+    Exit;
+  end;
   SavePreInstallState;
   ResetCurrentPayloadFlags;
-  DisableDuplicateAsiFiles;
   InstallPrepared := True;
 end;
 
@@ -606,6 +548,11 @@ begin
   DelTree(AddBackslash(SupportRoot) + 'pending', True, True, True);
   DeleteFile(StaleCleanupFile);
   DeleteFile(PendingFile);
+  if not HadPreviousState then
+  begin
+    DelTree(BackupRoot, True, True, True);
+    RemoveDir(ExpandConstant('{app}\_BelarusianModBackup'));
+  end;
 end;
 
 procedure DeinitializeSetup;
@@ -617,7 +564,8 @@ end;
 function InitializeUninstall: Boolean;
 begin
   RecoverInterruptedCommit;
-  Result := FileExists(StateFile) and FileExists(IndexFile);
+  Result := FileExists(StateFile) and FileExists(IndexFile) and
+            (GetIniString('Installer', 'SchemaVersion', '', StateFile) = '2');
   if not Result then
     MsgBox(CustomMessage('InvalidState'), mbError, MB_OK);
 end;

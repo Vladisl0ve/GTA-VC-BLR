@@ -11,18 +11,13 @@ public sealed class InstallerProfileValidatorTests
     public void Validate_CompleteProfile_NormalizesRelativePaths()
     {
         var profile = CreateValidProfile();
-        profile.Assets.Add(new InstallerAsset
-        {
-            Id = Guid.NewGuid(),
-            Role = InstallerAssetRole.Additional,
-            OriginalFileName = "settings.ini",
-            DestinationPath = "plugins/settings.ini",
-            Data = [1, 2, 3],
-        });
+        var hotel = profile.Assets.Single(asset =>
+            asset.DestinationPath.Equals("data\\maps\\hotel\\hotel.IPL", StringComparison.OrdinalIgnoreCase));
+        hotel.DestinationPath = "data/maps/hotel/hotel.IPL";
 
         InstallerProfileValidator.Validate(profile);
 
-        Assert.AreEqual("plugins\\settings.ini", profile.Assets[^1].DestinationPath);
+        Assert.AreEqual("data\\maps\\hotel\\hotel.IPL", hotel.DestinationPath);
     }
 
     [TestMethod]
@@ -59,7 +54,6 @@ public sealed class InstallerProfileValidatorTests
 
     [TestMethod]
     [DataRow("TEXT\\BELARUS.GXT")]
-    [DataRow("fontb.txd")]
     [DataRow("models\\fonts.txd")]
     public void Validate_AutomaticPayloadDestinationConflict_IsRejected(string destination)
     {
@@ -96,7 +90,7 @@ public sealed class InstallerProfileValidatorTests
     }
 
     [TestMethod]
-    public void Validate_MissingAsiLoader_IsAccepted()
+    public void Validate_CompleteProfileWithoutAsiLoader_IsAccepted()
     {
         var profile = CreateValidProfile();
 
@@ -104,21 +98,60 @@ public sealed class InstallerProfileValidatorTests
     }
 
     [TestMethod]
-    public void Validate_OptionalAsiLoader_IsAccepted()
+    public void Validate_AsiLoader_IsRejectedForExport()
     {
         var profile = CreateValidProfile();
         profile.Assets.Add(CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"));
 
-        InstallerProfileValidator.Validate(profile);
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
     }
 
     [TestMethod]
-    public void Validate_MissingRequiredResource_IsRejected()
+    public void Validate_MissingSilentPatchFile_IsRejected()
     {
         var profile = CreateValidProfile();
-        profile.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.SilentPatch);
+        profile.Assets.Remove(profile.Assets.Single(asset =>
+            asset.DestinationPath.Equals("SilentPatchVC.ini", StringComparison.OrdinalIgnoreCase)));
 
         Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_AdditionalFile_IsRejectedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(CreateAdditional("plugins\\settings.ini"));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void Validate_UnknownRole_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets[0] = new InstallerAsset
+        {
+            Id = Guid.NewGuid(),
+            Role = (InstallerAssetRole)999,
+            OriginalFileName = "unknown.bin",
+            DestinationPath = "unknown.bin",
+            Data = [1],
+        };
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_LegacyRolesRemainReadable()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.RemoveAll(asset =>
+            asset.Role == InstallerAssetRole.SilentPatch &&
+            !asset.DestinationPath.Equals("SilentPatchVC.asi", StringComparison.OrdinalIgnoreCase));
+        profile.Assets.Add(CreateBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"));
+        profile.Assets.Add(CreateAdditional("plugins\\settings.ini"));
+
+        InstallerProfileValidator.ValidateForStorage(profile);
     }
 
     [TestMethod]
@@ -149,8 +182,18 @@ public sealed class InstallerProfileValidatorTests
         OutputFileName = "Setup.exe",
         Assets =
         [
-            CreateBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
-            CreateBinary(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
+            CreateBinary(InstallerAssetRole.MainAsi, InstallerProfileValidator.MainAsiDestination),
+            .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
+                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                    ? CreateBinary(InstallerAssetRole.SilentPatch, destination)
+                    : new InstallerAsset
+                    {
+                        Id = Guid.NewGuid(),
+                        Role = InstallerAssetRole.SilentPatch,
+                        OriginalFileName = Path.GetFileName(destination),
+                        DestinationPath = destination,
+                        Data = [1, 2, 3],
+                    }),
         ],
     };
 

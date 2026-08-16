@@ -41,11 +41,7 @@
 
         <WrapPanel Grid.Row="1" Margin="0,16,0,12">
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.MainAsi}" Click="SelectMainAsi_OnClick" />
-            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.AsiLoader}" Click="SelectAsiLoader_OnClick" />
-            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.SilentPatchFiles}" Click="AddSilentPatchFiles_OnClick" />
-            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.SilentPatchFolder}" Click="AddSilentPatchFolder_OnClick" />
-            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.AddFiles}" Click="AddFiles_OnClick" />
-            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.AddFolder}" Click="AddFolder_OnClick" />
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.SilentPatchFolder}" Click="SelectSilentPatchFolder_OnClick" />
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Common.Remove}" Click="RemoveAsset_OnClick" />
         </WrapPanel>
 
@@ -59,7 +55,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Width="150" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Role}" Binding="{Binding RoleText}" />
                 <DataGridTextColumn Width="220" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Source}" Binding="{Binding OriginalFileName}" />
-                <DataGridTextColumn Width="*" Header="{loc:Translate Installer.Editor.Column.Destination}" Binding="{Binding DestinationPath, UpdateSourceTrigger=LostFocus}" />
+                <DataGridTextColumn Width="*" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Destination}" Binding="{Binding DestinationPath}" />
                 <DataGridTextColumn Width="100" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Size}" Binding="{Binding SizeText}" />
             </DataGrid.Columns>
         </DataGrid>

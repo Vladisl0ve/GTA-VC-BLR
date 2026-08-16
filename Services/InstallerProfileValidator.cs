@@ -8,9 +8,29 @@ public static class InstallerProfileValidator
 {
     public const int MaximumAssets = 512;
     public const long MaximumPayloadSize = 512L * 1024 * 1024;
+    public const string MainAsiDestination = "BelarusianLanguage.asi";
+
+    private static readonly string[] RequiredSilentPatchDestinations =
+    [
+        "SilentPatchVC.asi",
+        "SilentPatchVC.ini",
+        "data\\maps\\club\\CLUB.ipl",
+        "data\\maps\\hotel\\hotel.IPL",
+        "data\\maps\\littleha\\littleha.ipl",
+        "data\\maps\\mansion\\mansion.ipl",
+        "data\\maps\\oceandn\\oceandN.ipl",
+        "data\\maps\\oceandrv\\oceandrv.ipl",
+        "data\\maps\\stripclb\\stripclb.ipl",
+        "data\\maps\\washints\\washints.ipl",
+    ];
+
+    private static readonly IReadOnlyList<string> ReadOnlySilentPatchDestinations =
+        Array.AsReadOnly(RequiredSilentPatchDestinations);
+
+    public static IReadOnlyList<string> SilentPatchDestinations => ReadOnlySilentPatchDestinations;
 
     private static readonly HashSet<string> ReservedDestinations = new(
-        ["TEXT\\BELARUS.GXT", "FONTB.TXD", "MODELS\\FONTS.TXD"],
+        ["TEXT\\BELARUS.GXT", "MODELS\\FONTS.TXD"],
         StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> ReservedNames = new(
@@ -22,6 +42,64 @@ public static class InstallerProfileValidator
         StringComparer.OrdinalIgnoreCase);
 
     public static void Validate(InstallerProfile profile)
+    {
+        ValidateCommon(profile);
+
+        if (profile.Assets.Any(asset =>
+                asset.Role is not InstallerAssetRole.MainAsi and not InstallerAssetRole.SilentPatch))
+        {
+            Throw("Installer.Validation.UnsupportedRole");
+        }
+
+        var mainAsi = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.MainAsi).ToList();
+        if (mainAsi.Count != 1 ||
+            !string.Equals(mainAsi[0].DestinationPath, MainAsiDestination, StringComparison.OrdinalIgnoreCase))
+        {
+            Throw("Installer.Validation.MainAsi");
+        }
+
+        var silentPatch = profile.Assets
+            .Where(asset => asset.Role == InstallerAssetRole.SilentPatch)
+            .Select(asset => asset.DestinationPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (silentPatch.Count != RequiredSilentPatchDestinations.Length ||
+            RequiredSilentPatchDestinations.Any(path => !silentPatch.Contains(path)))
+        {
+            Throw("Installer.Validation.SilentPatch");
+        }
+    }
+
+    public static void ValidateForStorage(InstallerProfile profile)
+    {
+        ValidateCommon(profile);
+
+        var mainAsi = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.MainAsi).ToList();
+        if (mainAsi.Count != 1 ||
+            !string.Equals(mainAsi[0].DestinationPath, MainAsiDestination, StringComparison.OrdinalIgnoreCase))
+        {
+            Throw("Installer.Validation.MainAsi");
+        }
+
+        var loaders = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.AsiLoader).ToList();
+        if (loaders.Count > 1 ||
+            loaders.Count == 1 &&
+            !string.Equals(loaders[0].DestinationPath, "dinput8.dll", StringComparison.OrdinalIgnoreCase))
+        {
+            Throw("Installer.Validation.AsiLoader");
+        }
+
+        if (!profile.Assets.Any(asset =>
+                asset.Role == InstallerAssetRole.SilentPatch &&
+                string.Equals(
+                    Path.GetFileName(asset.DestinationPath),
+                    "SilentPatchVC.asi",
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            Throw("Installer.Validation.SilentPatch");
+        }
+    }
+
+    private static void ValidateCommon(InstallerProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
         if (profile.ProductId == Guid.Empty)
@@ -51,6 +129,11 @@ public static class InstallerProfileValidator
         long totalLength = 0;
         foreach (var asset in profile.Assets)
         {
+            if (!Enum.IsDefined(asset.Role))
+            {
+                Throw("Installer.Validation.AssetRole");
+            }
+
             if (asset.Id == Guid.Empty || !assetIds.Add(asset.Id))
             {
                 Throw("Installer.Validation.AssetId");
@@ -81,30 +164,6 @@ public static class InstallerProfileValidator
             Throw("Installer.Validation.PayloadSize");
         }
 
-        var mainAsi = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.MainAsi).ToList();
-        if (mainAsi.Count != 1 ||
-            !string.Equals(mainAsi[0].DestinationPath, "BelarusianLanguage.asi", StringComparison.OrdinalIgnoreCase))
-        {
-            Throw("Installer.Validation.MainAsi");
-        }
-
-        var loaders = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.AsiLoader).ToList();
-        if (loaders.Count > 1 ||
-            loaders.Count == 1 &&
-            !string.Equals(loaders[0].DestinationPath, "dinput8.dll", StringComparison.OrdinalIgnoreCase))
-        {
-            Throw("Installer.Validation.AsiLoader");
-        }
-
-        if (!profile.Assets.Any(asset =>
-                asset.Role == InstallerAssetRole.SilentPatch &&
-                string.Equals(
-                    Path.GetFileName(asset.DestinationPath),
-                    "SilentPatchVC.asi",
-                    StringComparison.OrdinalIgnoreCase)))
-        {
-            Throw("Installer.Validation.SilentPatch");
-        }
     }
 
     public static string NormalizeDestinationPath(string path)

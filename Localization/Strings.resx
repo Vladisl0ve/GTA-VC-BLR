@@ -418,14 +418,14 @@
   <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Select BelarusianLanguage.asi…</value></data>
   <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Select x86 dinput8.dll…</value></data>
   <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Add SilentPatch files…</value></data>
-  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Add SilentPatch folder…</value></data>
+  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Select SilentPatch folder…</value></data>
   <data name="Installer.Editor.AddFiles" xml:space="preserve"><value>Add files…</value></data>
   <data name="Installer.Editor.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
   <data name="Installer.Editor.Column.Role" xml:space="preserve"><value>Role</value></data>
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>The main ASI and SilentPatchVC.asi are required. The x86 ASI Loader is optional. Folder contents retain their relative structure. Destination paths may be edited in the table.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI and the SilentPatch distribution root. The complete SilentPatch set is bundled together and remains optional in the generated setup.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
@@ -441,13 +441,16 @@
   <data name="Installer.Validation.OutputName" xml:space="preserve"><value>Enter a plain output file name ending in .exe.</value></data>
   <data name="Installer.Validation.AssetCount" xml:space="preserve"><value>The installer may contain no more than 512 attached files.</value></data>
   <data name="Installer.Validation.AssetId" xml:space="preserve"><value>An attached installer file has an invalid or duplicate identifier.</value></data>
+  <data name="Installer.Validation.AssetRole" xml:space="preserve"><value>An attached installer file has an unsupported role.</value></data>
   <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Attached file “{0}” has an invalid source name.</value></data>
   <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>More than one file targets “{0}”. Destination paths are case-insensitive.</value></data>
   <data name="Installer.Validation.X86" xml:space="preserve"><value>“{0}” must be a valid x86 PE .asi or .dll file.</value></data>
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 512 MB limit.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Select exactly one x86 main ASI targeting BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>If selected, the x86 ASI Loader must target dinput8.dll.</value></data>
-  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>The SilentPatch set must contain x86 SilentPatchVC.asi.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Select the complete SilentPatch set: SilentPatchVC.asi, SilentPatchVC.ini, and all eight required IPL files.</value></data>
+  <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>The selected SilentPatch folder is missing these files:&#xA;{0}</value></data>
+  <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader and additional files are no longer supported. Remove them from the installer profile.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>“{0}” is not a safe path relative to the game folder.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>“{0}” is a source, archive, checksum, README or command file and cannot be placed in the game folder.</value></data>
 

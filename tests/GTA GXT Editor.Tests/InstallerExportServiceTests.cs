@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Text.Json.Nodes;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
@@ -42,25 +43,74 @@ public sealed class InstallerExportServiceTests
         Assert.IsFalse(compiler.ScriptBytes.AsSpan().StartsWith(Encoding.UTF8.Preamble));
         var script = Encoding.UTF8.GetString(compiler.ScriptBytes);
         StringAssert.Contains(script, "TEXT\\BELARUS.GXT");
-        StringAssert.Contains(script, "FONTB.TXD");
         StringAssert.Contains(script, "MODELS\\FONTS.TXD");
         StringAssert.Contains(script, "BelarusianLanguage.asi");
+        Assert.IsFalse(script.Contains("FONTB.TXD", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(script.Contains("dinput8.dll", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "SilentPatchVC.asi");
-        StringAssert.Contains(script, "plugins\\Tommy''s settings.ini");
+        StringAssert.Contains(script, "SilentPatchVC.ini");
+        StringAssert.Contains(script, "data\\maps\\washints\\washints.ipl");
+        StringAssert.Contains(script, "Name: \"silentpatch\"");
+        StringAssert.Contains(script, "AppendDefaultDirName=no");
+        StringAssert.Contains(script, "Check: not IsSilentPatchSelected");
+        StringAssert.Contains(script, "Check: IsSilentPatchSelected");
+        StringAssert.Contains(script, "BackupPayload('MODELS\\FONTS.TXD', True)");
+        StringAssert.Contains(script, "BackupPayload('SilentPatchVC.asi', False)");
+        StringAssert.Contains(script, "BackupPayload('data\\maps\\club\\CLUB.ipl', True)");
+        StringAssert.Contains(
+            script,
+            "{app}\\_BelarusianModBackup\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        Assert.IsFalse(script.Contains("gta-vc.exe", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "AppName=Belarusian %7 {{VC}");
         Assert.IsFalse(script.Contains("@@", StringComparison.Ordinal));
         CollectionAssert.AreEquivalent(
             new[]
             {
                 "asset-00000001000000000000000000000000.bin",
+                "asset-00000002000000000000000000000000.bin",
                 "asset-00000003000000000000000000000000.bin",
                 "asset-00000004000000000000000000000000.bin",
+                "asset-00000005000000000000000000000000.bin",
+                "asset-00000006000000000000000000000000.bin",
+                "asset-00000007000000000000000000000000.bin",
+                "asset-00000008000000000000000000000000.bin",
+                "asset-00000009000000000000000000000000.bin",
+                "asset-0000000a000000000000000000000000.bin",
+                "asset-0000000b000000000000000000000000.bin",
                 "generated-font-models.bin",
-                "generated-font-root.bin",
                 "generated-gxt.bin",
+                "manifest-core.json",
+                "manifest-full.json",
             },
             compiler.StagedFiles);
+
+        var coreManifest = JsonNode.Parse(compiler.StagedContents["manifest-core.json"])!.AsObject();
+        var fullManifest = JsonNode.Parse(compiler.StagedContents["manifest-full.json"])!.AsObject();
+        Assert.AreEqual(1, coreManifest["schemaVersion"]!.GetValue<int>());
+        Assert.AreEqual("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", coreManifest["installId"]!.GetValue<string>());
+        CollectionAssert.AreEqual(
+            new[] { "core" },
+            coreManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
+        Assert.HasCount(3, coreManifest["files"]!.AsArray());
+        CollectionAssert.AreEqual(
+            new[] { "core", "silentpatch" },
+            fullManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
+        Assert.HasCount(13, fullManifest["files"]!.AsArray());
+        var fullFiles = fullManifest["files"]!.AsArray()
+            .Select(value => value!.AsObject())
+            .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
+        Assert.IsTrue(fullFiles["MODELS\\FONTS.TXD"]["backupOriginal"]!.GetValue<bool>());
+        Assert.AreEqual(
+            "MODELS\\FONTS.TXD",
+            fullFiles["MODELS\\FONTS.TXD"]["backupPath"]!.GetValue<string>());
+        Assert.IsFalse(fullFiles["TEXT\\BELARUS.GXT"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsFalse(fullFiles["SilentPatchVC.asi"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsFalse(fullFiles["SilentPatchVC.ini"]["backupOriginal"]!.GetValue<bool>());
+        Assert.HasCount(
+            8,
+            fullFiles.Values.Where(value =>
+                value["component"]!.GetValue<string>() == "silentpatch" &&
+                value["backupOriginal"]!.GetValue<bool>()));
     }
 
     [TestMethod]
@@ -155,15 +205,8 @@ public sealed class InstallerExportServiceTests
                 Assets =
                 [
                     CreateBinary(1, InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
-                    CreateBinary(3, InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
-                    new InstallerAsset
-                    {
-                        Id = new Guid(4, 0, 0, new byte[8]),
-                        Role = InstallerAssetRole.Additional,
-                        OriginalFileName = "settings.ini",
-                        DestinationPath = "plugins\\Tommy's settings.ini",
-                        Data = "enabled=1"u8.ToArray(),
-                    },
+                    .. InstallerProfileValidator.SilentPatchDestinations.Select((destination, index) =>
+                        CreateSilentPatchAsset(index + 2, destination)),
                 ],
             },
         };
@@ -180,6 +223,18 @@ public sealed class InstallerExportServiceTests
         DestinationPath = destination,
         Data = CreateX86PeImage(),
     };
+
+    private static InstallerAsset CreateSilentPatchAsset(int id, string destination) =>
+        Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+            ? CreateBinary(id, InstallerAssetRole.SilentPatch, destination)
+            : new InstallerAsset
+            {
+                Id = new Guid(id, 0, 0, new byte[8]),
+                Role = InstallerAssetRole.SilentPatch,
+                OriginalFileName = Path.GetFileName(destination),
+                DestinationPath = destination,
+                Data = Encoding.UTF8.GetBytes(destination),
+            };
 
     private static byte[] CreateX86PeImage()
     {
@@ -200,6 +255,9 @@ public sealed class InstallerExportServiceTests
 
         public string[] StagedFiles { get; private set; } = [];
 
+        public Dictionary<string, byte[]> StagedContents { get; private set; } =
+            new(StringComparer.Ordinal);
+
         public Task<string> CompileAsync(
             string scriptPath,
             string outputDirectory,
@@ -212,6 +270,12 @@ public sealed class InstallerExportServiceTests
                 .Select(Path.GetFileName)
                 .Order(StringComparer.Ordinal)
                 .ToArray()!;
+            StagedContents = Directory.GetFiles(
+                    Path.Combine(Path.GetDirectoryName(scriptPath)!, "payload"))
+                .ToDictionary(
+                    path => Path.GetFileName(path)!,
+                    File.ReadAllBytes,
+                    StringComparer.Ordinal)!;
             Directory.CreateDirectory(outputDirectory);
             var output = Path.Combine(outputDirectory, $"{outputBaseName}.exe");
             File.WriteAllBytes(output, CompiledBytes);

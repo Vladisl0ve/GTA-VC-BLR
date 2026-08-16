@@ -165,7 +165,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[]? installerProfileData = null;
         if (installerProfile is not null)
         {
-            InstallerProfileValidator.Validate(installerProfile);
+            InstallerProfileValidator.ValidateForStorage(installerProfile);
             installerProfileData = JsonSerializer.SerializeToUtf8Bytes(
                 CreateInstallerProfileDocument(installerProfile),
                 JsonOptions);
@@ -410,7 +410,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             OutputFileName = document.OutputFileName,
             Assets = assets,
         };
-        InstallerProfileValidator.Validate(profile);
+        InstallerProfileValidator.ValidateForStorage(profile);
         return profile;
     }
 

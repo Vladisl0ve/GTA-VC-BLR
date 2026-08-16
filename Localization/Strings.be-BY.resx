@@ -418,14 +418,14 @@
   <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Выбраць BelarusianLanguage.asi…</value></data>
   <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Выбраць x86 dinput8.dll…</value></data>
   <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Дадаць файлы SilentPatch…</value></data>
-  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Дадаць папку SilentPatch…</value></data>
+  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Выбраць папку SilentPatch…</value></data>
   <data name="Installer.Editor.AddFiles" xml:space="preserve"><value>Дадаць файлы…</value></data>
   <data name="Installer.Editor.AddFolder" xml:space="preserve"><value>Дадаць папку…</value></data>
   <data name="Installer.Editor.Column.Role" xml:space="preserve"><value>Роля</value></data>
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Патрэбныя асноўны ASI і SilentPatchVC.asi. x86 ASI Loader неабавязковы. Адносная структура папак захоўваецца. Шляхі прызначэння можна змяняць у табліцы.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI і каранёвую папку дыстрыбутыва SilentPatch. Поўны набор SilentPatch дадаецца разам і застаецца неабавязковым у створаным інсталятары.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
@@ -441,13 +441,16 @@
   <data name="Installer.Validation.OutputName" xml:space="preserve"><value>Увядзіце простую назву выніковага файла з канчаткам .exe.</value></data>
   <data name="Installer.Validation.AssetCount" xml:space="preserve"><value>Інсталятар можа змяшчаць не больш за 512 далучаных файлаў.</value></data>
   <data name="Installer.Validation.AssetId" xml:space="preserve"><value>Далучаны файл інсталятара мае няправільны або паўторны ідэнтыфікатар.</value></data>
+  <data name="Installer.Validation.AssetRole" xml:space="preserve"><value>Далучаны файл інсталятара мае ролю, якая не падтрымліваецца.</value></data>
   <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Далучаны файл «{0}» мае няправільную зыходную назву.</value></data>
   <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>Некалькі файлаў прызначаныя ў «{0}». Рэгістр у шляхах не адрозніваецца.</value></data>
   <data name="Installer.Validation.X86" xml:space="preserve"><value>«{0}» мусіць быць сапраўдным x86 PE-файлам .asi або .dll.</value></data>
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 512 МБ.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Калі выбраны x86 ASI Loader, яго прызначэннем павінен быць dinput8.dll.</value></data>
-  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Набор SilentPatch мусіць змяшчаць x86 SilentPatchVC.asi.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Выберыце поўны набор SilentPatch: SilentPatchVC.asi, SilentPatchVC.ini і ўсе восем патрэбных файлаў IPL.</value></data>
+  <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>У выбранай папцы SilentPatch няма наступных файлаў:&#xA;{0}</value></data>
+  <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader і дадатковыя файлы больш не падтрымліваюцца. Выдаліце іх з профілю інсталятара.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>
 

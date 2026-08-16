@@ -36,22 +36,13 @@ public partial class InstallerProfileWindow : Window
     public InstallerProfileEditorResult? Result { get; private set; }
 
     private void SelectMainAsi_OnClick(object sender, RoutedEventArgs e) =>
-        SelectSingleBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi", "ASI (*.asi)|*.asi|All files (*.*)|*.*");
+        SelectSingleBinary(
+            InstallerAssetRole.MainAsi,
+            InstallerProfileValidator.MainAsiDestination,
+            "ASI (*.asi)|*.asi|All files (*.*)|*.*");
 
-    private void SelectAsiLoader_OnClick(object sender, RoutedEventArgs e) =>
-        SelectSingleBinary(InstallerAssetRole.AsiLoader, "dinput8.dll", "DLL (*.dll)|*.dll|All files (*.*)|*.*");
-
-    private void AddSilentPatchFiles_OnClick(object sender, RoutedEventArgs e) =>
-        AddSelectedFiles(InstallerAssetRole.SilentPatch, initialDirectory: _suggestedDirectory);
-
-    private void AddFiles_OnClick(object sender, RoutedEventArgs e) =>
-        AddSelectedFiles(InstallerAssetRole.Additional, initialDirectory: _suggestedDirectory);
-
-    private void AddSilentPatchFolder_OnClick(object sender, RoutedEventArgs e) =>
-        AddSelectedFolder(InstallerAssetRole.SilentPatch);
-
-    private void AddFolder_OnClick(object sender, RoutedEventArgs e) =>
-        AddSelectedFolder(InstallerAssetRole.Additional);
+    private void SelectSilentPatchFolder_OnClick(object sender, RoutedEventArgs e) =>
+        SelectSilentPatchFolder();
 
     private void SelectSingleBinary(InstallerAssetRole role, string destination, string filter)
     {
@@ -90,31 +81,7 @@ public partial class InstallerProfileWindow : Window
         AddAsset(dialog.FileName, destination, role);
     }
 
-    private void AddSelectedFiles(InstallerAssetRole role, string initialDirectory)
-    {
-        var dialog = new OpenFileDialog
-        {
-            Title = _localization.Get("Installer.Editor.SelectFiles"),
-            Filter = "All files (*.*)|*.*",
-            InitialDirectory = initialDirectory,
-            CheckFileExists = true,
-            Multiselect = true,
-        };
-        if (dialog.ShowDialog(this) != true)
-        {
-            return;
-        }
-
-        foreach (var path in dialog.FileNames.Where(IsPayloadCandidate))
-        {
-            if (!TryAddAsset(path, Path.GetFileName(path), role))
-            {
-                break;
-            }
-        }
-    }
-
-    private void AddSelectedFolder(InstallerAssetRole role)
+    private void SelectSilentPatchFolder()
     {
         var dialog = new OpenFolderDialog
         {
@@ -127,21 +94,75 @@ public partial class InstallerProfileWindow : Window
             return;
         }
 
-        var enumerationOptions = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.ReparsePoint,
-        };
-        foreach (var path in Directory.EnumerateFiles(dialog.FolderName, "*", enumerationOptions)
-                     .Where(IsPayloadCandidate))
-        {
-            if (!TryAddAsset(path, Path.GetRelativePath(dialog.FolderName, path), role))
+        var sources = InstallerProfileValidator.SilentPatchDestinations
+            .Select(destination => new
             {
-                break;
-            }
+                Destination = destination,
+                SourcePath = ToSourcePath(dialog.FolderName, destination),
+            })
+            .ToArray();
+        var missing = sources
+            .Where(source => !File.Exists(source.SourcePath))
+            .Select(source => source.Destination)
+            .ToArray();
+        if (missing.Length > 0)
+        {
+            MessageBox.Show(
+                this,
+                _localization.Format(
+                    "Installer.Validation.SilentPatchFolder",
+                    string.Join(Environment.NewLine, missing)),
+                _localization.Get("Common.Error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        var retainedSize = _assets
+            .Where(row => row.Asset.Role != InstallerAssetRole.SilentPatch)
+            .Sum(row => row.Asset.Data.LongLength);
+        if (sources.Sum(source => new FileInfo(source.SourcePath).Length) >
+            InstallerProfileValidator.MaximumPayloadSize - retainedSize)
+        {
+            ShowValidationError("Installer.Validation.PayloadSize");
+            return;
+        }
+
+        var replacement = sources
+            .Select(source =>
+            {
+                return new InstallerAsset
+                {
+                    Id = Guid.NewGuid(),
+                    Role = InstallerAssetRole.SilentPatch,
+                    OriginalFileName = Path.GetFileName(source.SourcePath),
+                    DestinationPath = source.Destination,
+                    Data = File.ReadAllBytes(source.SourcePath),
+                };
+            })
+            .ToArray();
+        var silentPatchAsi = replacement.Single(asset =>
+            asset.DestinationPath.Equals("SilentPatchVC.asi", StringComparison.OrdinalIgnoreCase));
+        if (!InstallerProfileValidator.IsX86PeImage(silentPatchAsi.Data))
+        {
+            MessageBox.Show(
+                this,
+                _localization.Format("Installer.Validation.X86", silentPatchAsi.OriginalFileName),
+                _localization.Get("Common.Error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        RemoveAssetsByRole(InstallerAssetRole.SilentPatch);
+        foreach (var asset in replacement)
+        {
+            _assets.Add(new InstallerAssetRow(asset, _localization));
         }
     }
+
+    private static string ToSourcePath(string root, string destination) =>
+        Path.Combine(root, destination.Replace('\\', Path.DirectorySeparatorChar));
 
     private void AddAsset(string sourcePath, string destination, InstallerAssetRole role) =>
         _ = TryAddAsset(sourcePath, destination, role);
@@ -183,9 +204,26 @@ public partial class InstallerProfileWindow : Window
 
     private void RemoveAsset_OnClick(object sender, RoutedEventArgs e)
     {
-        foreach (var row in AssetsGrid.SelectedItems.OfType<InstallerAssetRow>().ToArray())
+        var selected = AssetsGrid.SelectedItems.OfType<InstallerAssetRow>().ToArray();
+        if (selected.Any(row => row.Asset.Role == InstallerAssetRole.SilentPatch))
+        {
+            RemoveAssetsByRole(InstallerAssetRole.SilentPatch);
+        }
+
+        foreach (var row in selected.Where(row => row.Asset.Role != InstallerAssetRole.SilentPatch))
         {
             _assets.Remove(row);
+        }
+    }
+
+    private void RemoveAssetsByRole(InstallerAssetRole role)
+    {
+        for (var index = _assets.Count - 1; index >= 0; index--)
+        {
+            if (_assets[index].Asset.Role == role)
+            {
+                _assets.RemoveAt(index);
+            }
         }
     }
 
@@ -215,24 +253,6 @@ public partial class InstallerProfileWindow : Window
 
         Result = new InstallerProfileEditorResult(_profile.Clone());
         DialogResult = true;
-    }
-
-    private static bool IsPayloadCandidate(string path)
-    {
-        var name = Path.GetFileName(path);
-        var extension = Path.GetExtension(name);
-        return !name.StartsWith("README", StringComparison.OrdinalIgnoreCase) &&
-               !name.Contains("SHA256", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".md", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".rar", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".c", StringComparison.OrdinalIgnoreCase) &&
-               !extension.Equals(".cpp", StringComparison.OrdinalIgnoreCase) &&
-               !(name.StartsWith("APPLY_", StringComparison.OrdinalIgnoreCase) &&
-                 extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase)) &&
-               !(name.StartsWith("CLEAN_", StringComparison.OrdinalIgnoreCase) &&
-                 extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase));
     }
 
     public sealed class InstallerAssetRow
