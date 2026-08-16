@@ -1,5 +1,7 @@
+using System.Buffers.Binary;
 using System.Text;
 using GTA_GXT_Editor.Common;
+using GTA_GXT_Editor.Contracts;
 using GTA_GXT_Editor.Models;
 using GTA_GXT_Editor.Services;
 using GTA_GXT_Editor.Utils;
@@ -113,6 +115,120 @@ public sealed class GxtManagerTests
 
         Assert.AreEqual(GXTType.GtaIII, factory.DetectType(gtaIIIPath));
         Assert.AreEqual(GXTType.GtaViceCity, factory.DetectType(viceCityPath));
+    }
+
+    [TestMethod]
+    public void GtaIII_CorruptSizesAndOffsets_ThrowInvalidData()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "gta3-corrupt.gxt");
+        WriteGtaIIIFile(sourcePath, "HELLO", "Hello");
+        var seed = File.ReadAllBytes(sourcePath);
+        var mutations = new (int Offset, int Value)[]
+        {
+            (4, int.MaxValue),
+            (4, -12),
+            (8, -1),
+            (8, 2),
+            (24, -1),
+            (24, int.MaxValue),
+        };
+
+        foreach (var mutation in mutations)
+        {
+            var data = seed.ToArray();
+            BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(mutation.Offset), mutation.Value);
+
+            Assert.Throws<InvalidDataException>(() => OpenFromMemory(data, GXTType.GtaIII));
+        }
+    }
+
+    [TestMethod]
+    public void GtaIII_DuplicateOffsets_ThrowInvalidData()
+    {
+        using var stream = new MemoryStream();
+        stream.WriteString("TKEY");
+        stream.WriteInt(24);
+        stream.WriteInt(0);
+        stream.WriteString("FIRST\0\0\0");
+        stream.WriteInt(0);
+        stream.WriteString("SECOND\0\0");
+        stream.WriteString("TDAT");
+        stream.WriteInt(8);
+        stream.WriteBytes([65, 0, 0, 0, 66, 0, 0, 0]);
+
+        Assert.Throws<InvalidDataException>(() => OpenFromMemory(stream.ToArray(), GXTType.GtaIII));
+    }
+
+    [TestMethod]
+    public void ViceCity_CorruptSizesAndOffsets_ThrowInvalidData()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "vice-city-corrupt.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "HELLO", "Hello");
+        var seed = File.ReadAllBytes(sourcePath);
+        var mutations = new (int Offset, int Value)[]
+        {
+            (4, int.MaxValue),
+            (16, -1),
+            (16, seed.Length + 1),
+            (24, int.MaxValue),
+            (28, -1),
+            (28, 2),
+            (44, -1),
+            (44, int.MaxValue),
+        };
+
+        foreach (var mutation in mutations)
+        {
+            var data = seed.ToArray();
+            BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(mutation.Offset), mutation.Value);
+
+            Assert.Throws<InvalidDataException>(() => OpenFromMemory(data, GXTType.GtaViceCity));
+        }
+    }
+
+    [TestMethod]
+    public void ViceCity_TwoByteTablePadding_RoundTrips()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "vice-city-padding.gxt");
+        var outputPath = Path.Combine(_testDirectory, "vice-city-padding-output.gxt");
+        WriteViceCityFile(sourcePath, "MAIN", "HELLO", "Hello");
+        File.WriteAllBytes(sourcePath, [.. File.ReadAllBytes(sourcePath), 0, 0]);
+
+        var manager = new GTAVC.GXTManager(sourcePath, _dictionaryPath);
+        manager.SaveGXTChanges(outputPath);
+
+        Assert.AreEqual(File.ReadAllBytes(sourcePath).Length, File.ReadAllBytes(outputPath).Length);
+        Assert.HasCount(1, new GTAVC.GXTManager(outputPath, _dictionaryPath).GXTEntries);
+    }
+
+    [TestMethod]
+    public void GxtReaders_TruncationAtEveryByte_ThrowsInvalidData()
+    {
+        var gtaThirdPath = Path.Combine(_testDirectory, "gta3-truncated.gxt");
+        var viceCityPath = Path.Combine(_testDirectory, "vice-city-truncated.gxt");
+        WriteGtaIIIFile(gtaThirdPath, "HELLO", "Hello");
+        WriteViceCityFile(viceCityPath, "MAIN", "HELLO", "Hello");
+
+        AssertAllTruncationsFail(File.ReadAllBytes(gtaThirdPath), GXTType.GtaIII);
+        AssertAllTruncationsFail(File.ReadAllBytes(viceCityPath), GXTType.GtaViceCity);
+    }
+
+    [TestMethod]
+    public void Factory_OpenMemorySlice_ReadsOnlySelectedGxtBytes()
+    {
+        var sourcePath = Path.Combine(_testDirectory, "gta3-slice.gxt");
+        WriteGtaIIIFile(sourcePath, "HELLO", "Hello");
+        var seed = File.ReadAllBytes(sourcePath);
+        byte[] padded = [255, .. seed, 255];
+
+        var manager = new GxtManagerFactory().Open(
+            padded.AsMemory(1, seed.Length),
+            GXTType.GtaIII,
+            "slice.gxt",
+            GxtLanguage.English,
+            new CharacterMapProfile());
+
+        Assert.HasCount(1, manager.GXTEntries);
     }
 
     [TestMethod]
@@ -369,5 +485,22 @@ public sealed class GxtManagerTests
         }
 
         return bytes;
+    }
+
+    private static CommonGXTManager OpenFromMemory(byte[] data, GXTType type) =>
+        new GxtManagerFactory().Open(
+            data,
+            type,
+            type == GXTType.GtaIII ? "gta3.gxt" : "vice-city.gxt",
+            GxtLanguage.English,
+            new CharacterMapProfile());
+
+    private static void AssertAllTruncationsFail(byte[] data, GXTType type)
+    {
+        for (var length = 0; length < data.Length; length++)
+        {
+            Assert.Throws<InvalidDataException>(() => OpenFromMemory(data[..length], type),
+                $"A {type} document truncated to {length} bytes was accepted or leaked another exception.");
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -294,6 +295,55 @@ public sealed class ByxProjectSerializerTests
         }
 
         Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
+    public void Load_TruncatedZipAtStructuralBoundaries_ThrowsInvalidData()
+    {
+        var seedPath = SaveProject();
+        var seed = File.ReadAllBytes(seedPath);
+        var lengths = new[] { 0, 1, 4, seed.Length / 4, seed.Length / 2, seed.Length - 22, seed.Length - 1 };
+
+        foreach (var length in lengths.Distinct())
+        {
+            var path = Path.Combine(_testDirectory, $"truncated-{length}.byx");
+            File.WriteAllBytes(path, seed[..length]);
+
+            Assert.Throws<InvalidDataException>(() => _serializer.Load(path),
+                $"A BYX document truncated to {length} bytes leaked another exception.");
+        }
+    }
+
+    [TestMethod]
+    public void Load_CorruptCentralDirectoryCountsAndOffsets_ThrowInvalidData()
+    {
+        var seedPath = SaveProject();
+        var seed = File.ReadAllBytes(seedPath);
+        var endOfCentralDirectory = seed.Length - 22;
+        var mutations = new (int Offset, uint Value, int Width)[]
+        {
+            (endOfCentralDirectory + 10, ushort.MaxValue, sizeof(ushort)),
+            (endOfCentralDirectory + 16, uint.MaxValue, sizeof(uint)),
+        };
+
+        for (var index = 0; index < mutations.Length; index++)
+        {
+            var mutation = mutations[index];
+            var data = seed.ToArray();
+            if (mutation.Width == sizeof(ushort))
+            {
+                BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(mutation.Offset), (ushort)mutation.Value);
+            }
+            else
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(mutation.Offset), mutation.Value);
+            }
+
+            var path = Path.Combine(_testDirectory, $"central-directory-{index}.byx");
+            File.WriteAllBytes(path, data);
+            Assert.Throws<InvalidDataException>(() => _serializer.Load(path),
+                $"Central-directory mutation {index} was accepted.");
+        }
     }
 
     [TestMethod]

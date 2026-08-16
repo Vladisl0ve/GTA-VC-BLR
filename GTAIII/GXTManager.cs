@@ -149,84 +149,131 @@ namespace GTA_GXT_Editor.GTAIII
 
         public override List<GXTBase> ReadGXT(Stream stream, string sourceName)
         {
-            var fsStream = stream;
-            List<GXTEntry> localGXTEntries = new List<GXTEntry>();
-
-            ArgumentNullException.ThrowIfNull(fsStream);
-            if (!fsStream.CanRead || !fsStream.CanSeek)
+            ArgumentNullException.ThrowIfNull(stream);
+            if (!stream.CanRead || !stream.CanSeek)
             {
                 throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.ReadSeekRequired"), nameof(stream));
             }
 
-            var startPosition = fsStream.Position;
-                //TKEY
-                string tKeyString = fsStream.ReadString(4);
-                if (!string.Equals(tKeyString, "TKEY", StringComparison.Ordinal))
+            try
+            {
+                return ReadGxtCore(stream);
+            }
+            catch (InvalidDataException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is EndOfStreamException or OverflowException or ArgumentOutOfRangeException)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"), exception);
+            }
+        }
+
+        private static List<GXTBase> ReadGxtCore(Stream stream)
+        {
+            var startPosition = stream.Position;
+            var endPosition = stream.Length;
+            EnsureAvailable(startPosition, endPosition, 8);
+
+            if (!string.Equals(stream.ReadString(4), "TKEY", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeyMissing"));
+            }
+
+            var tKeyBlockSize = stream.ReadInt();
+            if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeySize"));
+            }
+
+            var tKeyEnd = startPosition + 8L + tKeyBlockSize;
+            EnsureAvailable(tKeyEnd, endPosition, 8);
+            var valueOffsets = new List<(int Offset, string Name)>(tKeyBlockSize / 12);
+            while (stream.Position < tKeyEnd)
+            {
+                valueOffsets.Add((stream.ReadInt(), stream.ReadString(8)));
+            }
+
+            if (stream.Position != tKeyEnd ||
+                !string.Equals(stream.ReadString(4), "TDAT", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatMissing"));
+            }
+
+            var tDatBlockSize = stream.ReadInt();
+            if (tDatBlockSize < 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
+            }
+
+            var tDatStart = stream.Position;
+            if (tDatStart + (long)tDatBlockSize != endPosition)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+            }
+
+            var orderedValues = ValidateOffsets(valueOffsets, tDatBlockSize);
+            var entries = new List<GXTEntry>(orderedValues.Count);
+            for (var index = 0; index < orderedValues.Count; index++)
+            {
+                var current = orderedValues[index];
+                var nextOffset = index + 1 < orderedValues.Count
+                    ? orderedValues[index + 1].Offset
+                    : tDatBlockSize;
+                var readLength = nextOffset - current.Offset;
+                stream.Position = tDatStart + current.Offset;
+                var value = stream.ReadBytes(readLength);
+                if (!value.GXTValueIsValid())
                 {
-                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeyMissing"));
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
 
-                //Size of TKEY
-                int tKeyBlockSize = fsStream.ReadInt();
-                if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+                entries.Add(new GXTEntry { DatName = current.Name, Value = value });
+            }
+
+            stream.Position = endPosition;
+            return entries.Cast<GXTBase>().ToList();
+        }
+
+        private static List<(int Offset, string Name)> ValidateOffsets(
+            List<(int Offset, string Name)> values,
+            int dataLength)
+        {
+            if (values.Count == 0)
+            {
+                if (dataLength != 0)
                 {
-                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TkeySize"));
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
 
-                //TKEY Entries
-                List<KeyValuePair<int, string>> valueOffsets = new List<KeyValuePair<int, string>>();
-                int readedBytes = 0;
-                while (readedBytes < tKeyBlockSize)
+                return values;
+            }
+
+            var ordered = values.OrderBy(value => value.Offset).ToList();
+            if (ordered[0].Offset != 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
+            }
+
+            for (var index = 0; index < ordered.Count; index++)
+            {
+                var offset = ordered[index].Offset;
+                if (offset < 0 || offset >= dataLength ||
+                    index > 0 && offset == ordered[index - 1].Offset)
                 {
-                    int tDatOffset = fsStream.ReadInt();
-                    string tDatName = fsStream.ReadString(8);
-
-                    valueOffsets.Add(new KeyValuePair<int, string>(tDatOffset, tDatName));
-
-                    readedBytes += 12;
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
                 }
+            }
 
-                //TDAT
-                tKeyString = fsStream.ReadString(4);
-                if (!string.Equals(tKeyString, "TDAT", StringComparison.Ordinal))
-                {
-                    throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatMissing"));
-                }
+            return ordered;
+        }
 
-                //Size of TDAT
-                int tDatBlockSize = fsStream.ReadInt();
-
-                //TDAT Entries                                
-                var orderedOffsets = valueOffsets.Select(x => x.Key).OrderBy(x => x).ToList();
-                for (var orderedOffsetsIndex = 0; orderedOffsetsIndex < orderedOffsets.Count; orderedOffsetsIndex++)
-                {
-                    int readLength = 0;
-
-                    if (orderedOffsetsIndex != orderedOffsets.Count - 1)
-                    {
-                        readLength = orderedOffsets[orderedOffsetsIndex + 1] - orderedOffsets[orderedOffsetsIndex];
-                    }
-                    else
-                    {
-                        readLength = (int)fsStream.Length - 16 - tKeyBlockSize - orderedOffsets[orderedOffsetsIndex];
-                    }
-
-                    fsStream.Seek(startPosition + 16 + tKeyBlockSize + orderedOffsets[orderedOffsetsIndex], SeekOrigin.Begin);
-
-                    var valueName = valueOffsets.First(x => x.Key == orderedOffsets[orderedOffsetsIndex]).Value;
-                    var valueBlock = fsStream.ReadBytes(readLength);
-
-                    localGXTEntries.Add(new GXTEntry { DatName = valueName, Value = valueBlock });
-                    if (!valueBlock.GXTValueIsValid())
-                    {
-                        throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.TdatInvalid"));
-                    }
-                }
-                if (startPosition + tKeyBlockSize + tDatBlockSize + 16 == fsStream.Length)
-                {
-                    return localGXTEntries.Cast<GXTBase>().ToList();
-                }
-            throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+        private static void EnsureAvailable(long position, long end, long count)
+        {
+            if (position < 0 || position > end || count < 0 || position > end - count)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+            }
         }
 
         public override void WriteGXT(Stream stream)

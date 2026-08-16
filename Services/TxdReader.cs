@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using BCnEncoder.Decoder;
 using BCnEncoder.Shared;
@@ -18,16 +19,33 @@ public sealed class TxdReader : ITxdReader
     private const uint Palette4Flag = 0x4000;
     private const int MaxTextureDimension = 8192;
     private const int MaxTextureCount = 4096;
+    private const long MaxDecodedPixelBytes = 256L * 1024 * 1024;
 
     public TxdDocument Read(ReadOnlyMemory<byte> data, string sourceName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
+        try
+        {
+            return ReadCore(data, sourceName);
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is EndOfStreamException or OverflowException or ArgumentOutOfRangeException)
+        {
+            throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.UnexpectedEnd"), exception);
+        }
+    }
+
+    private static TxdDocument ReadCore(ReadOnlyMemory<byte> data, string sourceName)
+    {
         if (data.Length < 16)
         {
             throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TooSmall"));
         }
 
-        using var stream = new MemoryStream(data.ToArray(), writable: false);
+        using var stream = CreateReadStream(data);
         using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
         var dictionary = ReadChunk(reader, stream.Length, sourceName);
         if (dictionary.Type != TextureDictionaryChunk || dictionary.End != stream.Length)
@@ -36,7 +54,8 @@ public sealed class TxdReader : ITxdReader
         }
 
         var textureCount = -1;
-        var textures = new List<TxdTexture>();
+        var rawTextures = new List<RawTexture>();
+        long decodedPixelBytes = 0;
         while (stream.Position < dictionary.End)
         {
             var child = ReadChunk(reader, dictionary.End, sourceName);
@@ -62,7 +81,20 @@ public sealed class TxdReader : ITxdReader
                         throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.DictionaryOrder"));
                     }
 
-                    textures.Add(ReadTexture(reader, child, sourceName));
+                    if (rawTextures.Count >= textureCount)
+                    {
+                        throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TextureCount"));
+                    }
+
+                    var rawTexture = ReadTexture(reader, child, sourceName);
+                    var decodedLength = (long)rawTexture.Width * rawTexture.Height * 4;
+                    if (decodedLength > MaxDecodedPixelBytes - decodedPixelBytes)
+                    {
+                        throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.DecodedTooLarge"));
+                    }
+
+                    decodedPixelBytes += decodedLength;
+                    rawTextures.Add(rawTexture);
                     break;
                 case ExtensionChunk:
                     break;
@@ -71,11 +103,20 @@ public sealed class TxdReader : ITxdReader
             stream.Position = child.End;
         }
 
-        if (textureCount < 0 || textureCount != textures.Count)
+        if (textureCount < 0 || textureCount != rawTextures.Count)
         {
             throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.TextureCount"));
         }
 
+        ValidateDecodedBudget(rawTextures, decodedPixelBytes, sourceName);
+        foreach (var rawTexture in rawTextures)
+        {
+            ValidatePixelData(rawTexture, sourceName);
+        }
+
+        var textures = rawTextures
+            .Select(rawTexture => DecodeTexture(rawTexture, sourceName))
+            .ToList();
         ApplyMasks(textures);
         return new TxdDocument
         {
@@ -84,7 +125,22 @@ public sealed class TxdReader : ITxdReader
         };
     }
 
-    private static TxdTexture ReadTexture(BinaryReader reader, Chunk textureChunk, string sourceName)
+    private static MemoryStream CreateReadStream(ReadOnlyMemory<byte> data)
+    {
+        if (MemoryMarshal.TryGetArray(data, out var segment) && segment.Array is not null)
+        {
+            return new MemoryStream(
+                segment.Array,
+                segment.Offset,
+                segment.Count,
+                writable: false,
+                publiclyVisible: true);
+        }
+
+        return new MemoryStream(data.ToArray(), writable: false);
+    }
+
+    private static RawTexture ReadTexture(BinaryReader reader, Chunk textureChunk, string sourceName)
     {
         var stream = reader.BaseStream;
         var structure = ReadChunk(reader, textureChunk.End, sourceName);
@@ -143,8 +199,15 @@ public sealed class TxdReader : ITxdReader
                 throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.MipmapTooLarge", name));
             }
 
-            var mipmap = ReadBytes(reader, (int)size, structure.End, sourceName);
-            firstMipmap ??= mipmap;
+            if (firstMipmap is null)
+            {
+                firstMipmap = ReadBytes(reader, (int)size, structure.End, sourceName);
+            }
+            else
+            {
+                EnsureAvailable(stream, structure.End, size, sourceName);
+                stream.Position += size;
+            }
         }
 
         if (firstMipmap is null)
@@ -152,31 +215,76 @@ public sealed class TxdReader : ITxdReader
             throw Invalid(sourceName, LocalizationProvider.Current.Format("TxdError.NoImage", name));
         }
 
-        var pixels = DecodePixels(
-            firstMipmap,
-            palette,
+        return new RawTexture(
+            name,
+            maskName,
+            platform,
             width,
             height,
             depth,
+            mipmapCount,
             rasterFormat,
             compression,
+            hasAlpha,
+            palette,
+            firstMipmap);
+    }
+
+    private static TxdTexture DecodeTexture(RawTexture texture, string sourceName)
+    {
+        var pixels = DecodePixels(
+            texture.FirstMipmap,
+            texture.Palette,
+            texture.Width,
+            texture.Height,
+            texture.Depth,
+            texture.RasterFormat,
+            texture.Compression,
             sourceName,
-            name);
+            texture.Name);
         return new TxdTexture
         {
-            Name = name,
-            MaskName = maskName,
-            Platform = platform,
-            Width = width,
-            Height = height,
-            Depth = depth,
-            MipmapCount = mipmapCount,
-            RasterFormat = rasterFormat,
-            Compression = compression,
-            HasAlpha = hasAlpha || ContainsTransparency(pixels),
+            Name = texture.Name,
+            MaskName = texture.MaskName,
+            Platform = texture.Platform,
+            Width = texture.Width,
+            Height = texture.Height,
+            Depth = texture.Depth,
+            MipmapCount = texture.MipmapCount,
+            RasterFormat = texture.RasterFormat,
+            Compression = texture.Compression,
+            HasAlpha = texture.HasAlpha || ContainsTransparency(pixels),
             PixelsBgra32 = pixels,
-            PreviewPixelsBgra32 = pixels.ToArray(),
+            PreviewPixelsBgra32 = pixels,
         };
+    }
+
+    private static void ValidateDecodedBudget(
+        List<RawTexture> textures,
+        long basePixelBytes,
+        string sourceName)
+    {
+        var byName = textures
+            .GroupBy(texture => texture.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var retainedPixelBytes = basePixelBytes;
+        foreach (var texture in textures)
+        {
+            if (string.IsNullOrWhiteSpace(texture.MaskName) ||
+                !byName.TryGetValue(texture.MaskName, out var mask) ||
+                mask.Width != texture.Width || mask.Height != texture.Height)
+            {
+                continue;
+            }
+
+            var previewLength = (long)texture.Width * texture.Height * 4;
+            if (previewLength > MaxDecodedPixelBytes - retainedPixelBytes)
+            {
+                throw Invalid(sourceName, LocalizationProvider.Current.Get("TxdError.DecodedTooLarge"));
+            }
+
+            retainedPixelBytes += previewLength;
+        }
     }
 
     private static TxdCompression DetectCompression(
@@ -210,6 +318,76 @@ public sealed class TxdReader : ITxdReader
         };
     }
 
+    private static void ValidatePixelData(RawTexture texture, string sourceName)
+    {
+        var pixelCount = (long)texture.Width * texture.Height;
+        long requiredLength;
+        if (texture.Compression != TxdCompression.None)
+        {
+            requiredLength = GetCompressedLength(
+                texture.Width,
+                texture.Height,
+                texture.Compression);
+        }
+        else if (texture.Palette is not null)
+        {
+            requiredLength = (texture.RasterFormat & Palette4Flag) != 0
+                ? (pixelCount + 1) / 2
+                : pixelCount;
+        }
+        else
+        {
+            var bytesPerPixel = texture.Depth switch
+            {
+                32 => 4,
+                24 => 3,
+                16 => 2,
+                8 => 1,
+                _ => throw Invalid(
+                    sourceName,
+                    LocalizationProvider.Current.Format("TxdError.Depth", texture.Depth, texture.Name)),
+            };
+            if (!IsSupportedUncompressedFormat(texture.RasterFormat & RasterFormatMask, texture.Depth))
+            {
+                throw Invalid(
+                    sourceName,
+                    LocalizationProvider.Current.Format(
+                        "TxdError.Format",
+                        texture.RasterFormat & RasterFormatMask,
+                        texture.Depth,
+                        texture.Name));
+            }
+
+            requiredLength = pixelCount * bytesPerPixel;
+        }
+
+        if (texture.FirstMipmap.LongLength < requiredLength)
+        {
+            throw Invalid(
+                sourceName,
+                texture.Palette is not null
+                    ? LocalizationProvider.Current.Format("TxdError.PaletteIncomplete", texture.Name)
+                    : LocalizationProvider.Current.Format("TxdError.DataIncomplete", texture.Name));
+        }
+    }
+
+    private static long GetCompressedLength(int width, int height, TxdCompression compression)
+    {
+        var blockWidth = (width + 3L) / 4;
+        var blockHeight = (height + 3L) / 4;
+        return blockWidth * blockHeight * (compression == TxdCompression.Dxt1 ? 8 : 16);
+    }
+
+    private static bool IsSupportedUncompressedFormat(uint format, int depth) =>
+        (format, depth) is
+            (0x0500, 32) or
+            (0x0600, 24) or
+            (0x0400, 8) or
+            (0x0100, 16) or
+            (0x0200, 16) or
+            (0x0300, 16) or
+            (0x0A00, 16);
+
     private static byte[] DecodePixels(
         byte[] data,
         byte[]? palette,
@@ -226,7 +404,30 @@ public sealed class TxdReader : ITxdReader
             var format = compression == TxdCompression.Dxt1
                 ? CompressionFormat.Bc1WithAlpha
                 : CompressionFormat.Bc2;
-            var colors = new BcDecoder().DecodeRaw(data, width, height, format);
+            var compressedLength = checked((int)GetCompressedLength(width, height, compression));
+            var compressedData = data.Length == compressedLength
+                ? data
+                : data[..compressedLength];
+            ColorRgba32[] colors;
+            try
+            {
+                colors = new BcDecoder().DecodeRaw(compressedData, width, height, format);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                throw Invalid(
+                    sourceName,
+                    LocalizationProvider.Current.Format("TxdError.DecodeFailed", textureName),
+                    exception);
+            }
+
+            if (colors.Length != checked(width * height))
+            {
+                throw Invalid(
+                    sourceName,
+                    LocalizationProvider.Current.Format("TxdError.DecodeFailed", textureName));
+            }
+
             var result = new byte[checked(width * height * 4)];
             for (var index = 0; index < colors.Length; index++)
             {
@@ -476,11 +677,30 @@ public sealed class TxdReader : ITxdReader
         return new Chunk(type, length, version, end);
     }
 
-    private static InvalidDataException Invalid(string sourceName, string reason) =>
-        new(LocalizationProvider.Current.Format(
-            "TxdError.Invalid",
-            Path.GetFileName(sourceName),
-            reason));
+    private static InvalidDataException Invalid(
+        string sourceName,
+        string reason,
+        Exception? innerException = null) =>
+        new(
+            LocalizationProvider.Current.Format(
+                "TxdError.Invalid",
+                Path.GetFileName(sourceName),
+                reason),
+            innerException);
+
+    private sealed record RawTexture(
+        string Name,
+        string MaskName,
+        TxdPlatform Platform,
+        int Width,
+        int Height,
+        int Depth,
+        int MipmapCount,
+        uint RasterFormat,
+        TxdCompression Compression,
+        bool HasAlpha,
+        byte[]? Palette,
+        byte[] FirstMipmap);
 
     private readonly record struct Chunk(uint Type, uint Length, uint Version, long End);
 }

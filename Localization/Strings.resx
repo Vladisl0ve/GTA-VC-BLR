@@ -281,6 +281,7 @@
   <data name="TxdError.RootMissing" xml:space="preserve"><value>root texture dictionary is missing</value></data>
   <data name="TxdError.HeaderCorrupt" xml:space="preserve"><value>dictionary header is corrupt</value></data>
   <data name="TxdError.TooManyTextures" xml:space="preserve"><value>too many textures</value></data>
+  <data name="TxdError.DecodedTooLarge" xml:space="preserve"><value>decoded texture pixels exceed the 256 MiB limit</value></data>
   <data name="TxdError.DictionaryOrder" xml:space="preserve"><value>dictionary structure must precede textures</value></data>
   <data name="TxdError.TextureCount" xml:space="preserve"><value>texture count does not match the header</value></data>
   <data name="TxdError.TextureCorrupt" xml:space="preserve"><value>texture structure is corrupt</value></data>
@@ -293,6 +294,7 @@
   <data name="TxdError.PaletteIncomplete" xml:space="preserve"><value>palette data for texture '{0}' is incomplete</value></data>
   <data name="TxdError.Depth" xml:space="preserve"><value>depth {0} for texture '{1}' is not supported</value></data>
   <data name="TxdError.DataIncomplete" xml:space="preserve"><value>data for texture '{0}' is incomplete</value></data>
+  <data name="TxdError.DecodeFailed" xml:space="preserve"><value>texture '{0}' could not be decoded</value></data>
   <data name="TxdError.Format" xml:space="preserve"><value>format 0x{0:X4}/{1} for texture '{2}' is not supported</value></data>
   <data name="TxdError.UnexpectedEnd" xml:space="preserve"><value>file ended unexpectedly</value></data>
   <data name="TxdError.ChunkBounds" xml:space="preserve"><value>chunk size extends beyond the file</value></data>

@@ -58,6 +58,22 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TooLarge"));
         }
 
+        try
+        {
+            return LoadCore(path);
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is EndOfStreamException or OverflowException or ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"), exception);
+        }
+    }
+
+    private EditorProject LoadCore(string path)
+    {
         using var stream = File.OpenRead(path);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
         ValidateArchive(archive);

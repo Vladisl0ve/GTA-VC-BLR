@@ -183,168 +183,222 @@ namespace GTA_GXT_Editor.GTAVC
 
         public override List<GXTBase> ReadGXT(Stream stream, string sourceName)
         {
-            var fsStream = stream;
-            ArgumentNullException.ThrowIfNull(fsStream);
-            if (!fsStream.CanRead || !fsStream.CanSeek)
+            ArgumentNullException.ThrowIfNull(stream);
+            if (!stream.CanRead || !stream.CanSeek)
             {
                 throw new ArgumentException(LocalizationProvider.Current.Get("GtaThird.ReadSeekRequired"), nameof(stream));
             }
 
-            _emptyBlockKeySetsList.Clear();
-            var startPosition = fsStream.Position;
-                //Читаем идентификатор блока - "TABL"
-                string tablIdentifier = fsStream.ReadString(4);
-                if (!string.Equals(tablIdentifier, "TABL", StringComparison.Ordinal))
-                {
-                    throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
-                }
-
-                //Читаем полный размер блока "TABL"
-                int tablBlockSize = fsStream.ReadInt();
-                if (tablBlockSize <= 0 || tablBlockSize % 12 != 0)
-                {
-                    throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TablSize"));
-                }
-
-                //Читаем наборы ключей
-                List<KeyValuePair<int, string>> keySets = new List<KeyValuePair<int, string>>();
-                int readedBytes = 0;
-                while (readedBytes < tablBlockSize)
-                {
-                    //Читаем название набора ключей
-                    string keySetName = fsStream.ReadString(8);
-
-                    //Читаем cдвиг набора ключей
-                    int keySetOffset = fsStream.ReadInt();
-
-                    //Записываем в словарь для дальшейшего использования
-                    keySets.Add(new KeyValuePair<int, string>(keySetOffset, keySetName));
-                    readedBytes += 12;
-                }
-
-                //Проходимся по всем наборам ключей
-                List<GXTEntry> localGXTEntries = new List<GXTEntry>();
-                for (int keySetIndex = 0; keySetIndex < keySets.Count; keySetIndex++)
-                {
-                    //В некоторых GXT файлах после блока набора ключей стоят 2 пустых байта. 
-                    //Зачем они там и влияют ли на работоспособность - неизвестно, но на всякий случай я их тоже записываю в список
-                    //При сохранении GXT эти байты будут дописаны к соответствующим блокам
-                    if (keySetIndex > 0 && fsStream.Position != keySets[keySetIndex].Key)
-                    {
-                        //Console.WriteLine($"Обнаружен пустой блок длиною в {keySets[keySetIndex].Key - fsStream.Position} после набора ключей '{keySets[keySetIndex - 1].Value}'.");
-                        _emptyBlockKeySetsList.Add(keySets[keySetIndex - 1].Value);
-                    }
-
-                    //Двигаемся к началу блока ключей
-                    fsStream.Seek(startPosition + keySets[keySetIndex].Key, SeekOrigin.Begin);
-
-                    //Устанавливаем сдвиг для текущего набора ключей
-                    var gxtEntriesShift = localGXTEntries.Count;
-
-                    //Читаем название набора ключей
-                    //Примечание: Для набора "MAIN" название в файл не записывается - он всегда идёт первым
-                    string keySetName;
-                    if (keySetIndex != 0)
-                    {
-                        keySetName = fsStream.ReadString(8);
-                    }
-                    else
-                    {
-                        keySetName = string.Empty;
-                    }
-
-                    //Читаем идентификатор блока - "TKEY"
-                    string tKeyIdentifier = fsStream.ReadString(4);
-                    if (!string.Equals(tKeyIdentifier, "TKEY", StringComparison.Ordinal))
-                    {
-                        throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
-                    }
-
-                    //Читаем полный размер блока "TKEY"
-                    int tKeyBlockSize = fsStream.ReadInt();
-                    if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
-                    {
-                        throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TkeySize"));
-                    }
-
-                    //Считываем все названия текстовых данных и их сдвиги
-                    List<KeyValuePair<int, string>> valueOffsets = new List<KeyValuePair<int, string>>();
-                    readedBytes = 0;
-                    while (readedBytes < tKeyBlockSize)
-                    {
-                        //Читаем cдвиг текстовых данных
-                        int tDatOffset = fsStream.ReadInt();
-
-                        //Читаем название текстовых данных
-                        string tDatName = fsStream.ReadString(8);
-
-                        //Записываем в список для дальшейшего использования
-                        valueOffsets.Add(new KeyValuePair<int, string>(tDatOffset, tDatName));
-
-                        readedBytes += 12;
-                    }
-
-                    //Читаем идентификатор блока - "TDAT"
-                    var tDatIdentifier = fsStream.ReadString(4);
-                    if (!string.Equals(tDatIdentifier, "TDAT", StringComparison.Ordinal))
-                    {
-                        throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
-                    }
-
-                    //Читаем полный размер блока "TDAT"
-                    int tDatBlockSize = fsStream.ReadInt();
-
-                    //Создаём отсортированный список сдвигов текстовых данных текущего набора ключей
-                    var orderedOffsets = valueOffsets.Select(x => x.Key).OrderBy(x => x).ToList();
-
-                    //Считываем все текстовые данные
-                    readedBytes = 0;
-                    for (var orderedOffsetsIndex = 0; orderedOffsetsIndex < orderedOffsets.Count; orderedOffsetsIndex++)
-                    {
-                        //Инициализируем переменную длины считываемого блока текстовых данных
-                        int readLength = 0;
-
-                        //Высчитываем длину считываемого блока текстовых данных
-                        if (orderedOffsetsIndex != orderedOffsets.Count - 1)
-                        {
-                            readLength = orderedOffsets[orderedOffsetsIndex + 1] - orderedOffsets[orderedOffsetsIndex];
-                        }
-                        else
-                        {
-                            readLength = tDatBlockSize - readedBytes;
-                        }
-
-                        //Высчитываем позицию, в которой находится блок текстовых данных
-                        var tDatPosition = startPosition + 16 + (keySetIndex == 0 ? 0 : 8) + keySets[keySetIndex].Key + tKeyBlockSize + readedBytes;
-
-                        //Позиция должна соответствовать текущей позиции считывания в файле
-                        if (tDatPosition != fsStream.Position)
-                        {
-                            throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.Sequence", Path.GetFileName(sourceName)));
-                        }
-
-                        //Записываем в элемент блок текстовых данных
-                        var valueName = valueOffsets.First(x => x.Key == orderedOffsets[orderedOffsetsIndex]).Value;
-                        var valueBlock = fsStream.ReadBytes(readLength);
-
-                        localGXTEntries.Add(new GXTEntry { DatName = valueName, Value = valueBlock, TableName = keySets[keySetIndex].Value });
-
-                        //Проверяем правильность блока текстовых данных. Два нулевых байта должны быть строго в конце блока
-                        if (!localGXTEntries.Last().Value.GXTValueIsValid())
-                        {
-                            throw new InvalidDataException(LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)));
-                        }
-
-                        readedBytes += readLength;
-                    }
-                }
-
-                if (fsStream.Position == fsStream.Length)
-                {
-                    return localGXTEntries.Cast<GXTBase>().ToList();
-                }
-            throw new InvalidDataException(LocalizationProvider.Current.Get("GtaThird.ReadError"));
+            try
+            {
+                return ReadGxtCore(stream, sourceName);
+            }
+            catch (InvalidDataException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is EndOfStreamException or OverflowException or ArgumentOutOfRangeException)
+            {
+                throw InvalidFile(sourceName, exception);
+            }
         }
+
+        private List<GXTBase> ReadGxtCore(Stream stream, string sourceName)
+        {
+            var startPosition = stream.Position;
+            var endPosition = stream.Length;
+            EnsureAvailable(startPosition, endPosition, 8, sourceName);
+            if (!string.Equals(stream.ReadString(4), "TABL", StringComparison.Ordinal))
+            {
+                throw InvalidFile(sourceName);
+            }
+
+            var tablBlockSize = stream.ReadInt();
+            if (tablBlockSize <= 0 || tablBlockSize % 12 != 0)
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TablSize"));
+            }
+
+            var tableDataStart = startPosition + 8L + tablBlockSize;
+            EnsureAvailable(tableDataStart, endPosition, 1, sourceName);
+            var keySets = new List<(int Offset, string Name)>(tablBlockSize / 12);
+            while (stream.Position < tableDataStart)
+            {
+                var name = stream.ReadString(8);
+                var offset = stream.ReadInt();
+                keySets.Add((offset, name));
+            }
+
+            ValidateTableOffsets(keySets, tableDataStart - startPosition, endPosition - startPosition, sourceName);
+            var entries = new List<GXTEntry>();
+            var paddedTables = new List<string>();
+            for (var tableIndex = 0; tableIndex < keySets.Count; tableIndex++)
+            {
+                var keySet = keySets[tableIndex];
+                var tableStart = startPosition + keySet.Offset;
+                var tableEnd = tableIndex + 1 < keySets.Count
+                    ? startPosition + keySets[tableIndex + 1].Offset
+                    : endPosition;
+                stream.Position = tableStart;
+
+                if (tableIndex > 0)
+                {
+                    EnsureAvailable(stream.Position, tableEnd, 8, sourceName);
+                    if (!string.Equals(stream.ReadString(8), keySet.Name, StringComparison.Ordinal))
+                    {
+                        throw InvalidFile(sourceName);
+                    }
+                }
+
+                EnsureAvailable(stream.Position, tableEnd, 8, sourceName);
+                if (!string.Equals(stream.ReadString(4), "TKEY", StringComparison.Ordinal))
+                {
+                    throw InvalidFile(sourceName);
+                }
+
+                var tKeyBlockSize = stream.ReadInt();
+                if (tKeyBlockSize < 0 || tKeyBlockSize % 12 != 0)
+                {
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("ViceCity.TkeySize"));
+                }
+
+                var tKeyEnd = stream.Position + (long)tKeyBlockSize;
+                EnsureAvailable(tKeyEnd, tableEnd, 8, sourceName);
+                var valueOffsets = new List<(int Offset, string Name)>(tKeyBlockSize / 12);
+                while (stream.Position < tKeyEnd)
+                {
+                    valueOffsets.Add((stream.ReadInt(), stream.ReadString(8)));
+                }
+
+                if (stream.Position != tKeyEnd ||
+                    !string.Equals(stream.ReadString(4), "TDAT", StringComparison.Ordinal))
+                {
+                    throw InvalidFile(sourceName);
+                }
+
+                var tDatBlockSize = stream.ReadInt();
+                if (tDatBlockSize < 0)
+                {
+                    throw InvalidFile(sourceName);
+                }
+
+                var tDatStart = stream.Position;
+                var tDatEnd = tDatStart + (long)tDatBlockSize;
+                if (tDatEnd > tableEnd)
+                {
+                    throw InvalidFile(sourceName);
+                }
+
+                var orderedValues = ValidateValueOffsets(valueOffsets, tDatBlockSize, sourceName);
+                for (var index = 0; index < orderedValues.Count; index++)
+                {
+                    var current = orderedValues[index];
+                    var nextOffset = index + 1 < orderedValues.Count
+                        ? orderedValues[index + 1].Offset
+                        : tDatBlockSize;
+                    stream.Position = tDatStart + current.Offset;
+                    var value = stream.ReadBytes(nextOffset - current.Offset);
+                    if (!value.GXTValueIsValid())
+                    {
+                        throw InvalidFile(sourceName);
+                    }
+
+                    entries.Add(new GXTEntry
+                    {
+                        DatName = current.Name,
+                        Value = value,
+                        TableName = keySet.Name,
+                    });
+                }
+
+                stream.Position = tDatEnd;
+                var paddingLength = tableEnd - tDatEnd;
+                if (paddingLength == 2)
+                {
+                    var padding = stream.ReadBytes(2);
+                    if (padding[0] != 0 || padding[1] != 0)
+                    {
+                        throw InvalidFile(sourceName);
+                    }
+
+                    paddedTables.Add(keySet.Name);
+                }
+                else if (paddingLength != 0)
+                {
+                    throw InvalidFile(sourceName);
+                }
+            }
+
+            _emptyBlockKeySetsList.Clear();
+            _emptyBlockKeySetsList.AddRange(paddedTables);
+            stream.Position = endPosition;
+            return entries.Cast<GXTBase>().ToList();
+        }
+
+        private static void ValidateTableOffsets(
+            List<(int Offset, string Name)> keySets,
+            long firstTableOffset,
+            long documentLength,
+            string sourceName)
+        {
+            for (var index = 0; index < keySets.Count; index++)
+            {
+                var offset = keySets[index].Offset;
+                if (offset < firstTableOffset || offset >= documentLength ||
+                    index == 0 && offset != firstTableOffset ||
+                    index > 0 && offset <= keySets[index - 1].Offset)
+                {
+                    throw InvalidFile(sourceName);
+                }
+            }
+        }
+
+        private static List<(int Offset, string Name)> ValidateValueOffsets(
+            List<(int Offset, string Name)> values,
+            int dataLength,
+            string sourceName)
+        {
+            if (values.Count == 0)
+            {
+                if (dataLength != 0)
+                {
+                    throw InvalidFile(sourceName);
+                }
+
+                return values;
+            }
+
+            var ordered = values.OrderBy(value => value.Offset).ToList();
+            if (ordered[0].Offset != 0)
+            {
+                throw InvalidFile(sourceName);
+            }
+
+            for (var index = 0; index < ordered.Count; index++)
+            {
+                var offset = ordered[index].Offset;
+                if (offset < 0 || offset >= dataLength ||
+                    index > 0 && offset == ordered[index - 1].Offset)
+                {
+                    throw InvalidFile(sourceName);
+                }
+            }
+
+            return ordered;
+        }
+
+        private static void EnsureAvailable(long position, long end, long count, string sourceName)
+        {
+            if (position < 0 || position > end || count < 0 || position > end - count)
+            {
+                throw InvalidFile(sourceName);
+            }
+        }
+
+        private static InvalidDataException InvalidFile(string sourceName, Exception? innerException = null) =>
+            new(
+                LocalizationProvider.Current.Format("ViceCity.InvalidFile", Path.GetFileName(sourceName)),
+                innerException);
 
         public override void WriteGXT(Stream stream)
         {

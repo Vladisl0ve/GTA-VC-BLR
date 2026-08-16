@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using GTA_GXT_Editor.Common;
 using GTA_GXT_Editor.Contracts;
@@ -56,7 +57,7 @@ public sealed class GxtManagerFactory
         CharacterMapProfile? characterMap = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
-        using var stream = new MemoryStream(data.ToArray(), writable: false);
+        using var stream = CreateReadStream(data);
         return type switch
         {
             GXTType.GtaIII => new GTAIII.GXTManager(
@@ -74,6 +75,21 @@ public sealed class GxtManagerFactory
                 type,
                 LocalizationProvider.Current.Get("Gxt.UnsupportedType")),
         };
+    }
+
+    private static MemoryStream CreateReadStream(ReadOnlyMemory<byte> data)
+    {
+        if (MemoryMarshal.TryGetArray(data, out var segment) && segment.Array is not null)
+        {
+            return new MemoryStream(
+                segment.Array,
+                segment.Offset,
+                segment.Count,
+                writable: false,
+                publiclyVisible: true);
+        }
+
+        return new MemoryStream(data.ToArray(), writable: false);
     }
 
     public static CommonGXTManager Create(
