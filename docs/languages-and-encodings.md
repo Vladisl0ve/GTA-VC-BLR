@@ -274,7 +274,7 @@ separately, save the profile alongside them and distribute all files together.
 One profile applies to the `font1`, `font2`, and `pager` atlases in the attached
 TXD: the code is shared, while only the glyph image differs.
 
-BYX v3 stores a custom profile inside the project as
+BYX v4 stores a custom profile inside the project as
 `mapping/characters.json`, links it to the GXT/TXD through the manifest, and
 restores it the next time the project is opened.
 
@@ -285,4 +285,3 @@ restores it the next time the project is opened.
 - GTA III behavior: [`GTAIII/GXTManager.cs`](../GTAIII/GXTManager.cs);
 - Vice City profiles and detector: [`GTAVC/ViceCityTextEncodingProfile.cs`](../GTAVC/ViceCityTextEncodingProfile.cs);
 - custom mapping loading and validation: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs).
-

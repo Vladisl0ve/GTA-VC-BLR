@@ -40,7 +40,7 @@
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Захаваць бягучы</value></data>
   <data name="Main.SaveProjectAs" xml:space="preserve"><value>Праект BYX як…</value></data>
   <data name="Main.ExportAs" xml:space="preserve"><value>Экспартаваць як</value></data>
-  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя ў JSON, GXT або TXD</value></data>
+  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя або стварыць інсталятар Windows</value></data>
   <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
   <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
   <data name="Main.ExportComments" xml:space="preserve"><value>Каментарыі…</value></data>
@@ -400,4 +400,69 @@
   <data name="Status.NoFile" xml:space="preserve"><value>Файл не адкрыты</value></data>
   <data name="Status.OpenPrompt" xml:space="preserve"><value>Адкрыйце файл GXT GTA III або Vice City</value></data>
   <data name="Status.Cancelled" xml:space="preserve"><value>Аперацыя скасаваная</value></data>
+
+  <data name="Common.OK" xml:space="preserve"><value>Добра</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Выдаліць</value></data>
+  <data name="Main.ExportInstaller" xml:space="preserve"><value>Інсталятар Windows…</value></data>
+  <data name="Filter.Installer" xml:space="preserve"><value>Інсталятар Windows (*.exe)|*.exe</value></data>
+  <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Экспартаваць інсталятар Windows</value></data>
+  <data name="Busy.ExportInstaller" xml:space="preserve"><value>Стварэнне інсталятара Windows…</value></data>
+  <data name="Status.InstallerExported" xml:space="preserve"><value>Інсталятар экспартаваны: {0}</value></data>
+  <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Не ўдалося стварыць інсталятар: {0}</value></data>
+
+  <data name="Installer.Editor.Title" xml:space="preserve"><value>Профіль інсталятара Windows</value></data>
+  <data name="Installer.Editor.Name" xml:space="preserve"><value>Назва прадукту</value></data>
+  <data name="Installer.Editor.Version" xml:space="preserve"><value>Версія</value></data>
+  <data name="Installer.Editor.Publisher" xml:space="preserve"><value>Выдавец</value></data>
+  <data name="Installer.Editor.OutputName" xml:space="preserve"><value>Назва выніковага EXE</value></data>
+  <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Выбраць BelarusianLanguage.asi…</value></data>
+  <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Выбраць x86 dinput8.dll…</value></data>
+  <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Дадаць файлы SilentPatch…</value></data>
+  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Дадаць папку SilentPatch…</value></data>
+  <data name="Installer.Editor.AddFiles" xml:space="preserve"><value>Дадаць файлы…</value></data>
+  <data name="Installer.Editor.AddFolder" xml:space="preserve"><value>Дадаць папку…</value></data>
+  <data name="Installer.Editor.Column.Role" xml:space="preserve"><value>Роля</value></data>
+  <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
+  <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
+  <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Патрэбныя асноўны ASI, x86 ASI Loader і SilentPatchVC.asi. Адносная структура папак захоўваецца. Шляхі прызначэння можна змяняць у табліцы.</value></data>
+  <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
+  <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
+  <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
+  <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Асноўны ASI</value></data>
+  <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
+  <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
+  <data name="Installer.Role.Additional" xml:space="preserve"><value>Дадатковы</value></data>
+
+  <data name="Installer.Validation.ProductId" xml:space="preserve"><value>ProductId інсталятара няправільны.</value></data>
+  <data name="Installer.Validation.Name" xml:space="preserve"><value>Увядзіце назву прадукту.</value></data>
+  <data name="Installer.Validation.Version" xml:space="preserve"><value>Увядзіце версію.</value></data>
+  <data name="Installer.Validation.Publisher" xml:space="preserve"><value>Увядзіце выдаўца.</value></data>
+  <data name="Installer.Validation.OutputName" xml:space="preserve"><value>Увядзіце простую назву выніковага файла з канчаткам .exe.</value></data>
+  <data name="Installer.Validation.AssetCount" xml:space="preserve"><value>Інсталятар можа змяшчаць не больш за 512 далучаных файлаў.</value></data>
+  <data name="Installer.Validation.AssetId" xml:space="preserve"><value>Далучаны файл інсталятара мае няправільны або паўторны ідэнтыфікатар.</value></data>
+  <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Далучаны файл «{0}» мае няправільную зыходную назву.</value></data>
+  <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>Некалькі файлаў прызначаныя ў «{0}». Рэгістр у шляхах не адрозніваецца.</value></data>
+  <data name="Installer.Validation.X86" xml:space="preserve"><value>«{0}» мусіць быць сапраўдным x86 PE-файлам .asi або .dll.</value></data>
+  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 512 МБ.</value></data>
+  <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
+  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Выберыце роўна адзін x86 ASI Loader з прызначэннем dinput8.dll.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Набор SilentPatch мусіць змяшчаць x86 SilentPatchVC.asi.</value></data>
+  <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
+  <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>
+
+  <data name="Installer.CompilerMissing" xml:space="preserve"><value>Убудаваны кампілятар Inno Setup не знойдзены: {0}</value></data>
+  <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Не ўдалося запусціць убудаваны кампілятар Inno Setup.</value></data>
+  <data name="Installer.CompilerFailed" xml:space="preserve"><value>Кампіляцыя Inno Setup скончылася памылкай (код {0}): {1}</value></data>
+  <data name="Installer.CompilerNoOutput" xml:space="preserve"><value>Inno Setup не стварыў чаканы выніковы файл.</value></data>
+  <data name="Installer.ViceCityProjectRequired" xml:space="preserve"><value>Экспарт інсталятара Windows даступны толькі для праектаў GTA Vice City з далучаным TXD.</value></data>
+  <data name="Installer.TargetDirectoryUnknown" xml:space="preserve"><value>Выбраная выніковая папка недаступная.</value></data>
+  <data name="Installer.AssetMissing" xml:space="preserve"><value>Адсутнічае патрэбны ўбудаваны рэсурс інсталятара: {0}</value></data>
+
+  <data name="Byx.InstallerViceCityOnly" xml:space="preserve"><value>Профілі інсталятара падтрымліваюцца толькі для праектаў GTA Vice City.</value></data>
+  <data name="Byx.InstallerProfileInvalid" xml:space="preserve"><value>Профіль інсталятара ў BYX пашкоджаны.</value></data>
+  <data name="Byx.InstallerAssetsMismatch" xml:space="preserve"><value>Профіль інсталятара BYX не адпавядае далучаным файлам.</value></data>
+  <data name="Byx.AttachmentInstaller" xml:space="preserve"><value>профіль інсталятара</value></data>
+  <data name="Byx.InstallerAssetInvalid" xml:space="preserve"><value>Далучаны файл інсталятара BYX пашкоджаны.</value></data>
+  <data name="Byx.AttachmentInstallerAsset" xml:space="preserve"><value>файл інсталятара</value></data>
 </root>

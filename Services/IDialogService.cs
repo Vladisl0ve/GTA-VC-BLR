@@ -21,6 +21,8 @@ public interface IDialogService
     UnsavedChangesChoice ConfirmUnsavedChanges() => UnsavedChangesChoice.Discard;
 
     CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request) => null;
+
+    InstallerProfileEditorResult? EditInstallerProfile(InstallerProfileEditorRequest request) => null;
 }
 
 public enum UnsavedChangesChoice

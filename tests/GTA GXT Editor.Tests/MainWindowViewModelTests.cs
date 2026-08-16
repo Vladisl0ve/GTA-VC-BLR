@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
 using GTA_GXT_Editor.Common;
@@ -310,6 +311,87 @@ public sealed class MainWindowViewModelTests
         dialogs.OpenFileResults.Enqueue(viceCityPath);
         await viewModel.OpenFileCommand.ExecuteAsync(null);
         Assert.IsTrue(viewModel.AddTxdCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ExportInstaller_IsEnabledOnlyForViceCityWithTxd()
+    {
+        var gtaIIIPath = CreateGxt("gta3.gxt");
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var dialogs = new FakeDialogService();
+        var viewModel = CreateViewModel(dialogs);
+
+        viewModel.OpenFromCommandLine(gtaIIIPath);
+        Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        viewModel.OpenFromCommandLine(viceCityPath);
+        Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.ExportInstallerCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ExportInstaller_CancelledProfile_DoesNotChangeSavedProject()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.InstallerProfileResults.Enqueue(null);
+        var exporter = new RecordingInstallerExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            installerExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+        Assert.IsFalse(viewModel.IsProjectDirty);
+
+        await viewModel.ExportInstallerCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        Assert.AreEqual(0, exporter.CallCount);
+        Assert.HasCount(1, dialogs.InstallerProfileRequests);
+        var reopened = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsNull(reopened.InstallerProfile);
+    }
+
+    [TestMethod]
+    public async Task ExportInstaller_ConfirmedProfileMarksDirtyAndExportsSnapshot()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var installerPath = Path.Combine(_testDirectory, "Setup.exe");
+        var profile = CreateInstallerProfile();
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.SaveFileResults.Enqueue(installerPath);
+        dialogs.InstallerProfileResults.Enqueue(new InstallerProfileEditorResult(profile));
+        var exporter = new RecordingInstallerExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            installerExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        await viewModel.ExportInstallerCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.AreEqual(1, exporter.CallCount);
+        Assert.AreEqual(installerPath, exporter.TargetPath);
+        Assert.IsNotNull(exporter.Snapshot);
+        Assert.AreEqual(profile.ProductId, exporter.Snapshot.InstallerProfile!.ProductId);
+        Assert.IsNotNull(exporter.Snapshot.AttachedTxd);
+        Assert.AreNotSame(profile, exporter.Snapshot.InstallerProfile);
     }
 
     [TestMethod]
@@ -963,6 +1045,43 @@ public sealed class MainWindowViewModelTests
         File.WriteAllLines(_dictionaryPath, lines, Encoding.GetEncoding(1251));
     }
 
+    private static InstallerProfile CreateInstallerProfile() => new()
+    {
+        ProductId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+        Name = "Беларусізатар",
+        Version = "1.0.0",
+        Publisher = "Belarusian Games",
+        OutputFileName = "Setup.exe",
+        Assets =
+        [
+            CreateInstallerBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
+            CreateInstallerBinary(InstallerAssetRole.AsiLoader, "dinput8.dll"),
+            CreateInstallerBinary(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi"),
+        ],
+    };
+
+    private static InstallerAsset CreateInstallerBinary(
+        InstallerAssetRole role,
+        string destination) => new()
+    {
+        Id = Guid.NewGuid(),
+        Role = role,
+        OriginalFileName = destination,
+        DestinationPath = destination,
+        Data = CreateX86PeImage(),
+    };
+
+    private static byte[] CreateX86PeImage()
+    {
+        var data = new byte[128];
+        data[0] = (byte)'M';
+        data[1] = (byte)'Z';
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(0x3C, 4), 0x40);
+        "PE\0\0"u8.CopyTo(data.AsSpan(0x40));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(0x44, 2), 0x014C);
+        return data;
+    }
+
     private sealed class FakeDialogService : IDialogService
     {
         public Queue<string?> OpenFileResults { get; } = new();
@@ -973,6 +1092,8 @@ public sealed class MainWindowViewModelTests
 
         public Queue<EntryEditorResult?> EditEntryResults { get; } = new();
 
+        public Queue<InstallerProfileEditorResult?> InstallerProfileResults { get; } = new();
+
         public List<(string Title, string Filter)> OpenFileCalls { get; } = [];
 
         public List<(string Title, string Filter)> OpenFilesCalls { get; } = [];
@@ -980,6 +1101,8 @@ public sealed class MainWindowViewModelTests
         public List<(string Title, string Filter, string SuggestedPath)> SaveFileCalls { get; } = [];
 
         public List<EntryEditorRequest> EntryEditorRequests { get; } = [];
+
+        public List<InstallerProfileEditorRequest> InstallerProfileRequests { get; } = [];
 
         public List<(string Message, string Title)> InfoMessages { get; } = [];
 
@@ -1049,6 +1172,32 @@ public sealed class MainWindowViewModelTests
         {
             CharacterMapRequest = request;
             return null;
+        }
+
+        public InstallerProfileEditorResult? EditInstallerProfile(InstallerProfileEditorRequest request)
+        {
+            InstallerProfileRequests.Add(request);
+            return InstallerProfileResults.Count > 0 ? InstallerProfileResults.Dequeue() : null;
+        }
+    }
+
+    private sealed class RecordingInstallerExportService : IInstallerExportService
+    {
+        public int CallCount { get; private set; }
+
+        public EditorProject? Snapshot { get; private set; }
+
+        public string? TargetPath { get; private set; }
+
+        public Task BuildAsync(
+            EditorProject projectSnapshot,
+            string targetPath,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            Snapshot = projectSnapshot;
+            TargetPath = targetPath;
+            return Task.CompletedTask;
         }
     }
 

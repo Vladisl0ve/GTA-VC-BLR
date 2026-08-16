@@ -40,7 +40,7 @@
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Save current</value></data>
   <data name="Main.SaveProjectAs" xml:space="preserve"><value>BYX project as…</value></data>
   <data name="Main.ExportAs" xml:space="preserve"><value>Export as</value></data>
-  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Export data to JSON, GXT, or TXD</value></data>
+  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Export data or build a Windows installer</value></data>
   <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
   <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
   <data name="Main.ExportComments" xml:space="preserve"><value>Comments…</value></data>
@@ -400,4 +400,69 @@
   <data name="Status.NoFile" xml:space="preserve"><value>No file open</value></data>
   <data name="Status.OpenPrompt" xml:space="preserve"><value>Open a GTA III or Vice City GXT file</value></data>
   <data name="Status.Cancelled" xml:space="preserve"><value>Operation cancelled</value></data>
+
+  <data name="Common.OK" xml:space="preserve"><value>OK</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Main.ExportInstaller" xml:space="preserve"><value>Windows installer…</value></data>
+  <data name="Filter.Installer" xml:space="preserve"><value>Windows installer (*.exe)|*.exe</value></data>
+  <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Export Windows installer</value></data>
+  <data name="Busy.ExportInstaller" xml:space="preserve"><value>Building Windows installer…</value></data>
+  <data name="Status.InstallerExported" xml:space="preserve"><value>Installer exported: {0}</value></data>
+  <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Could not build the installer: {0}</value></data>
+
+  <data name="Installer.Editor.Title" xml:space="preserve"><value>Windows installer profile</value></data>
+  <data name="Installer.Editor.Name" xml:space="preserve"><value>Product name</value></data>
+  <data name="Installer.Editor.Version" xml:space="preserve"><value>Version</value></data>
+  <data name="Installer.Editor.Publisher" xml:space="preserve"><value>Publisher</value></data>
+  <data name="Installer.Editor.OutputName" xml:space="preserve"><value>Output EXE name</value></data>
+  <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Select BelarusianLanguage.asi…</value></data>
+  <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Select x86 dinput8.dll…</value></data>
+  <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Add SilentPatch files…</value></data>
+  <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Add SilentPatch folder…</value></data>
+  <data name="Installer.Editor.AddFiles" xml:space="preserve"><value>Add files…</value></data>
+  <data name="Installer.Editor.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
+  <data name="Installer.Editor.Column.Role" xml:space="preserve"><value>Role</value></data>
+  <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
+  <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
+  <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>The main ASI, x86 ASI Loader and SilentPatchVC.asi are required. Folder contents retain their relative structure. Destination paths may be edited in the table.</value></data>
+  <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
+  <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
+  <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
+  <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Main ASI</value></data>
+  <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
+  <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
+  <data name="Installer.Role.Additional" xml:space="preserve"><value>Additional</value></data>
+
+  <data name="Installer.Validation.ProductId" xml:space="preserve"><value>The installer ProductId is invalid.</value></data>
+  <data name="Installer.Validation.Name" xml:space="preserve"><value>Enter a product name.</value></data>
+  <data name="Installer.Validation.Version" xml:space="preserve"><value>Enter a version.</value></data>
+  <data name="Installer.Validation.Publisher" xml:space="preserve"><value>Enter a publisher.</value></data>
+  <data name="Installer.Validation.OutputName" xml:space="preserve"><value>Enter a plain output file name ending in .exe.</value></data>
+  <data name="Installer.Validation.AssetCount" xml:space="preserve"><value>The installer may contain no more than 512 attached files.</value></data>
+  <data name="Installer.Validation.AssetId" xml:space="preserve"><value>An attached installer file has an invalid or duplicate identifier.</value></data>
+  <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Attached file “{0}” has an invalid source name.</value></data>
+  <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>More than one file targets “{0}”. Destination paths are case-insensitive.</value></data>
+  <data name="Installer.Validation.X86" xml:space="preserve"><value>“{0}” must be a valid x86 PE .asi or .dll file.</value></data>
+  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 512 MB limit.</value></data>
+  <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Select exactly one x86 main ASI targeting BelarusianLanguage.asi.</value></data>
+  <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Select exactly one x86 ASI Loader targeting dinput8.dll.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>The SilentPatch set must contain x86 SilentPatchVC.asi.</value></data>
+  <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>“{0}” is not a safe path relative to the game folder.</value></data>
+  <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>“{0}” is a source, archive, checksum, README or command file and cannot be placed in the game folder.</value></data>
+
+  <data name="Installer.CompilerMissing" xml:space="preserve"><value>The bundled Inno Setup compiler was not found: {0}</value></data>
+  <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Could not start the bundled Inno Setup compiler.</value></data>
+  <data name="Installer.CompilerFailed" xml:space="preserve"><value>Inno Setup compilation failed (exit code {0}): {1}</value></data>
+  <data name="Installer.CompilerNoOutput" xml:space="preserve"><value>Inno Setup did not create the expected output file.</value></data>
+  <data name="Installer.ViceCityProjectRequired" xml:space="preserve"><value>Windows installer export is available only for GTA Vice City projects with an attached TXD.</value></data>
+  <data name="Installer.TargetDirectoryUnknown" xml:space="preserve"><value>The selected output directory is unavailable.</value></data>
+  <data name="Installer.AssetMissing" xml:space="preserve"><value>A required bundled installer resource is missing: {0}</value></data>
+
+  <data name="Byx.InstallerViceCityOnly" xml:space="preserve"><value>Installer profiles are supported only for GTA Vice City projects.</value></data>
+  <data name="Byx.InstallerProfileInvalid" xml:space="preserve"><value>The BYX installer profile is invalid.</value></data>
+  <data name="Byx.InstallerAssetsMismatch" xml:space="preserve"><value>The BYX installer profile and its attached files do not match.</value></data>
+  <data name="Byx.AttachmentInstaller" xml:space="preserve"><value>installer profile</value></data>
+  <data name="Byx.InstallerAssetInvalid" xml:space="preserve"><value>An attached BYX installer file is invalid.</value></data>
+  <data name="Byx.AttachmentInstallerAsset" xml:space="preserve"><value>installer file</value></data>
 </root>

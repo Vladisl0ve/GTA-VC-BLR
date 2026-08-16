@@ -1,0 +1,8 @@
+Inno Setup 7.0.2 x86
+Release: https://github.com/jrsoftware/issrc/releases/tag/is-7_0_2
+Installer: https://github.com/jrsoftware/issrc/releases/download/is-7_0_2/innosetup-7.0.2-x86.exe
+Installer SHA-256: 2B8734490A83F1ED074022B85D46C5CE9C3E2FBE9B63A45C28A74B478AC3A94F
+Authenticode verification: Valid; publisher Pyrsys B.V.
+
+This directory was produced using the official installer's /PORTABLE=1 mode.
+See license.txt for the Inno Setup license.

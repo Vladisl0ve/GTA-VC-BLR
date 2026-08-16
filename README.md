@@ -84,16 +84,34 @@ removing a TXD leaves it active as the custom GXT encoding.
 
 ## BYX projects
 
-BYX v3 is a self-contained ZIP container with a GXT, an optional single TXD, the
-pair's profile, translator metadata, and SHA-256 checksums. The manifest stores the
-TXD as a single object and links it to the mapping through the `characterMap` field.
+BYX v4 is a self-contained ZIP container with a GXT, an optional single TXD, the
+pair's profile, translator metadata, and SHA-256 checksums. A Vice City project may
+also contain a Windows-installer profile and its binary resources under safe,
+GUID-derived archive names. The combined unpacked size is limited to 512 MB and an
+installer profile may contain at most 512 files.
 
-Older BYX versions are no longer supported and are rejected when opened. Newer
-versions are also rejected until the application is updated.
+BYX v3 projects remain readable. They open with an empty installer profile and are
+written as v4 the next time they are saved. BYX v1/v2 and versions newer than v4 are
+rejected.
 
 RenderWare D3D8/D3D9 PC TXD files are supported: PAL4/PAL8, common
 8/16/24/32-bit rasters, DXT1, and DXT3. TXD files for PS2, Xbox, and mobile
 versions are rejected before the open project is changed.
+
+## Windows installer export
+
+For a GTA Vice City project with an attached TXD, choose **Export as → Windows
+installer…**. The profile editor requires `BelarusianLanguage.asi`, an x86
+`dinput8.dll`, and a SilentPatch set containing `SilentPatchVC.asi`; additional
+files and folders may retain editable paths relative to the game directory.
+
+Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
+Inno Setup 7.0.2 x86 compiler. The installer writes `TEXT\BELARUS.GXT`, both TXD
+destinations, and the selected runtime files. Existing files and duplicate
+`BelarusianLanguage*.asi` plugins are backed up under ProgramData. Its uninstaller
+restores the first originals, removes files created by the localization, and saves
+post-install edits in a `conflicts` directory before restoring them. See
+[Windows installer export](docs/windows-installer.md) for the exact contract.
 
 ## GXT features
 

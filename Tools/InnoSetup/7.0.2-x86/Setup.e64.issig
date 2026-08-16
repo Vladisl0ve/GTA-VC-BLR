@@ -1,0 +1,8 @@
+format issig-v2
+file-name "Setup.e64"
+file-size 6884864
+file-hash 50f495b014584e5e0a3b4382acb8cf0d7879bf90e929b904c14b1519a1bb5f38
+file-tag ""
+key-id def020edee3c4835fd54d85eff8b66d4d899b22a777353ca4a114b652e5e7a28
+sig-r 0e8e0c1a9cced137a0b140929e718a5e5ffad0716763aaabccf49ee1dd8db193
+sig-s 5bf6428489e39f9c0c04f6a338053bb401b41dd780689216be302edea5d44a22

@@ -117,5 +117,7 @@ public sealed class EditorProject
 
     public ProjectMetadata Metadata { get; set; } = new();
 
+    public InstallerProfile? InstallerProfile { get; set; }
+
     public bool IsDirty { get; set; }
 }

@@ -136,6 +136,9 @@
                                       Header="{loc:Translate Main.ExportGxt}"
                                       Command="{Binding ExportGxtCommand}" />
                             <MenuItem Style="{StaticResource CommandMenuItemStyle}"
+                                      Header="{loc:Translate Main.ExportInstaller}"
+                                      Command="{Binding ExportInstallerCommand}" />
+                            <MenuItem Style="{StaticResource CommandMenuItemStyle}"
                                       Header="{loc:Translate Main.ExportComments}"
                                       Command="{Binding ExportCommentsCommand}" />
                             <Separator />

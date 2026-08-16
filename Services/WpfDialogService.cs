@@ -127,6 +127,15 @@ public sealed class WpfDialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Result : null;
     }
 
+    public InstallerProfileEditorResult? EditInstallerProfile(InstallerProfileEditorRequest request)
+    {
+        var dialog = new InstallerProfileWindow(request, _localization)
+        {
+            Owner = GetOwner(),
+        };
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
     private static Window? GetOwner() => Application.Current.Windows
         .OfType<Window>()
         .FirstOrDefault(window => window.IsActive) ??

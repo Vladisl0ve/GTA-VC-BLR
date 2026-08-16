@@ -37,7 +37,7 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void SaveAndLoad_FullV3Project_PreservesEveryProjectPart()
+    public void SaveAndLoad_FullV4Project_PreservesEveryProjectPart()
     {
         var project = CreateProject();
         var path = Path.Combine(_testDirectory, "translation.byx");
@@ -88,7 +88,8 @@ public sealed class ByxProjectSerializerTests
             archive.Entries.Select(entry => entry.FullName).ToArray());
 
         var manifest = ReadJsonObject(archive, "manifest.json");
-        Assert.AreEqual(3, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(4, manifest["version"]!.GetValue<int>());
+        Assert.IsNull(manifest["installer"]);
         Assert.AreEqual("txd/fonts.txd", manifest["txd"]!["entry"]!.GetValue<string>());
         Assert.AreEqual(
             "mapping/characters.json",
@@ -222,11 +223,99 @@ public sealed class ByxProjectSerializerTests
     public void Load_NewerManifestVersion_IsRejected()
     {
         var path = SaveProject();
-        MutateManifest(path, manifest => manifest["version"] = 4);
+        MutateManifest(path, manifest => manifest["version"] = 5);
 
         var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
 
         StringAssert.Contains(exception.Message, "not supported yet");
+    }
+
+    [TestMethod]
+    public void Load_V3Project_MigratesWithEmptyInstallerProfileOnNextSave()
+    {
+        var path = SaveProject();
+        MutateManifest(path, manifest =>
+        {
+            manifest["version"] = 3;
+            manifest.Remove("installer");
+        });
+
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNull(loaded.InstallerProfile);
+        var migratedPath = Path.Combine(_testDirectory, "migrated.byx");
+        _serializer.Save(migratedPath, loaded);
+        using var archive = ZipFile.OpenRead(migratedPath);
+        var manifest = ReadJsonObject(archive, "manifest.json");
+        Assert.AreEqual(4, manifest["version"]!.GetValue<int>());
+        Assert.IsNull(manifest["installer"]);
+    }
+
+    [TestMethod]
+    public void SaveAndLoad_InstallerProfile_PreservesMetadataAssetsAndHashes()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "installer-profile.byx");
+
+        _serializer.Save(path, project);
+        var loaded = _serializer.Load(path);
+
+        var profile = loaded.InstallerProfile;
+        Assert.IsNotNull(profile);
+        Assert.AreEqual(project.InstallerProfile.ProductId, profile.ProductId);
+        Assert.AreEqual("1.2.3", profile.Version);
+        Assert.AreEqual("Belarusian Games", profile.Publisher);
+        Assert.HasCount(4, profile.Assets);
+        for (var index = 0; index < profile.Assets.Count; index++)
+        {
+            Assert.AreEqual(project.InstallerProfile.Assets[index].Id, profile.Assets[index].Id);
+            Assert.AreEqual(project.InstallerProfile.Assets[index].Role, profile.Assets[index].Role);
+            Assert.AreEqual(project.InstallerProfile.Assets[index].DestinationPath, profile.Assets[index].DestinationPath);
+            CollectionAssert.AreEqual(project.InstallerProfile.Assets[index].Data, profile.Assets[index].Data);
+        }
+
+        using var archive = ZipFile.OpenRead(path);
+        var manifest = ReadJsonObject(archive, "manifest.json");
+        Assert.IsNotNull(manifest["installer"]);
+        AssertManifestHashMatches(archive, manifest, "installer");
+        foreach (var asset in project.InstallerProfile.Assets)
+        {
+            var entryName = $"installer/assets/{asset.Id:N}.bin";
+            Assert.IsNotNull(archive.GetEntry(entryName));
+            var manifestAsset = manifest["installer"]!["assets"]!.AsArray()
+                .Single(item => item!["id"]!.GetValue<Guid>() == asset.Id)!;
+            Assert.AreEqual(entryName, manifestAsset["entry"]!.GetValue<string>());
+            AssertManifestHashMatches(archive, manifestAsset.AsObject());
+        }
+    }
+
+    [TestMethod]
+    public void Load_InstallerAssetWithWrongHash_IsRejected()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "corrupt-installer.byx");
+        _serializer.Save(path, project);
+        var asset = project.InstallerProfile.Assets[0];
+
+        ReplaceEntry(path, $"installer/assets/{asset.Id:N}.bin", [1, 2, 3]);
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
+    public void Load_MissingInstallerAsset_IsRejected()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "missing-installer.byx");
+        _serializer.Save(path, project);
+        var asset = project.InstallerProfile.Assets[0];
+
+        DeleteEntry(path, $"installer/assets/{asset.Id:N}.bin");
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
     }
 
     [TestMethod]
@@ -554,6 +643,53 @@ public sealed class ByxProjectSerializerTests
         };
     }
 
+    private static InstallerProfile CreateInstallerProfile() => new()
+    {
+        ProductId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+        Name = "GTA Vice City — Беларусізатар",
+        Version = "1.2.3",
+        Publisher = "Belarusian Games",
+        OutputFileName = "Belarusian_Setup.exe",
+        Assets =
+        [
+            CreateInstallerAsset(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi", "main.asi", 1),
+            CreateInstallerAsset(InstallerAssetRole.AsiLoader, "dinput8.dll", "dinput8.dll", 2),
+            CreateInstallerAsset(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi", "SilentPatchVC.asi", 3),
+            new InstallerAsset
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000004"),
+                Role = InstallerAssetRole.Additional,
+                OriginalFileName = "config.ini",
+                DestinationPath = "plugins\\config.ini",
+                Data = "enabled=1"u8.ToArray(),
+            },
+        ],
+    };
+
+    private static InstallerAsset CreateInstallerAsset(
+        InstallerAssetRole role,
+        string destination,
+        string sourceName,
+        int id) => new()
+    {
+        Id = new Guid(id, 0, 0, new byte[8]),
+        Role = role,
+        OriginalFileName = sourceName,
+        DestinationPath = destination,
+        Data = CreateX86PeImage(),
+    };
+
+    private static byte[] CreateX86PeImage()
+    {
+        var data = new byte[128];
+        data[0] = (byte)'M';
+        data[1] = (byte)'Z';
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(0x3C, 4), 0x40);
+        "PE\0\0"u8.CopyTo(data.AsSpan(0x40));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(0x44, 2), 0x014C);
+        return data;
+    }
+
     private static JsonObject ReadJsonObject(ZipArchive archive, string entryName)
     {
         using var reader = new StreamReader(archive.GetEntry(entryName)!.Open());
@@ -566,6 +702,17 @@ public sealed class ByxProjectSerializerTests
         string propertyName)
     {
         var item = manifest[propertyName]!;
+        var entryName = item["entry"]!.GetValue<string>();
+        using var stream = archive.GetEntry(entryName)!.Open();
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        Assert.AreEqual(
+            item["sha256"]!.GetValue<string>(),
+            Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray())));
+    }
+
+    private static void AssertManifestHashMatches(ZipArchive archive, JsonObject item)
+    {
         var entryName = item["entry"]!.GetValue<string>();
         using var stream = archive.GetEntry(entryName)!.Open();
         using var buffer = new MemoryStream();

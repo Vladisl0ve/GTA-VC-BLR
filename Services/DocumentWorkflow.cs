@@ -96,6 +96,7 @@ public sealed class DocumentWorkflow(
             AttachedTxd = attachment,
             CharacterMap = project.CharacterMap?.Clone(),
             Metadata = metadata,
+            InstallerProfile = project.InstallerProfile?.Clone(),
             IsDirty = project.IsDirty,
         };
     }

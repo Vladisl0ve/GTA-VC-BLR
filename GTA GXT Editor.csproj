@@ -36,6 +36,12 @@
     <Content Include="Assets\ViceCity\vice-city-pc.reference-entries.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Installer\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Tools\InnoSetup\7.0.2-x86\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
     <Content Include="russian_chars.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="russian_chars_vc.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

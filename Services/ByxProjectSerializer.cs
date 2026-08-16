@@ -10,17 +10,19 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class ByxProjectSerializer : IProjectSerializer
 {
-    private const int CurrentVersion = 3;
+    private const int CurrentVersion = 4;
+    private const int LegacyVersion = 3;
     private const string ManifestEntryName = "manifest.json";
     private const string GxtEntryName = "gxt/main.gxt";
     private const string TxdEntryName = "txd/fonts.txd";
     private const string CharacterMapEntryName = "mapping/characters.json";
     private const string MetadataEntryName = "metadata/entries.json";
+    private const string InstallerProfileEntryName = "installer/profile.json";
     private const long MaximumArchiveSize = 512L * 1024 * 1024;
     private const long MaximumManifestSize = 1024 * 1024;
     private const long MaximumCharacterMapSize = 4L * 1024 * 1024;
     private const long MaximumMetadataSize = 64L * 1024 * 1024;
-    private const int MaximumEntries = 64;
+    private const int MaximumEntries = 520;
 
     private static readonly JsonSerializerOptions HeaderJsonOptions = new()
     {
@@ -85,7 +87,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"));
         }
 
-        if (header.Version != CurrentVersion)
+        if (header.Version is not (LegacyVersion or CurrentVersion))
         {
             throw new InvalidDataException(LocalizationProvider.Current.Format(
                 header.Version > CurrentVersion ? "Byx.VersionNew" : "Byx.VersionOld",
@@ -115,6 +117,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var attachment = manifest.Txd is null || txdData is null
             ? null
             : LoadTxd(manifest.Txd, txdData, gameType);
+        var installerProfile = manifest.Installer is null
+            ? null
+            : LoadInstallerProfile(archive, manifest.Installer);
 
         return new EditorProject
         {
@@ -127,6 +132,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             AttachedTxd = attachment,
             CharacterMap = characterMap,
             Metadata = metadata,
+            InstallerProfile = installerProfile,
             IsDirty = false,
         };
     }
@@ -155,6 +161,15 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             project.Metadata,
             project.GameType);
         var txdData = project.AttachedTxd?.Data;
+        var installerProfile = project.InstallerProfile?.Clone();
+        byte[]? installerProfileData = null;
+        if (installerProfile is not null)
+        {
+            InstallerProfileValidator.Validate(installerProfile);
+            installerProfileData = JsonSerializer.SerializeToUtf8Bytes(
+                CreateInstallerProfileDocument(installerProfile),
+                JsonOptions);
+        }
 
         var manifest = new ByxManifest
         {
@@ -191,6 +206,20 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 Entry = MetadataEntryName,
                 Sha256 = ComputeHash(metadataData),
             },
+            Installer = installerProfile is null || installerProfileData is null
+                ? null
+                : new ByxInstallerItem
+                {
+                    Entry = InstallerProfileEntryName,
+                    Sha256 = ComputeHash(installerProfileData),
+                    Assets = installerProfile.Assets.Select(asset => new ByxInstallerAssetItem
+                    {
+                        Id = asset.Id,
+                        OriginalFileName = SanitizeFileName(asset.OriginalFileName, $"{asset.Id:N}.bin"),
+                        Entry = GetInstallerAssetEntryName(asset.Id),
+                        Sha256 = ComputeHash(asset.Data),
+                    }).ToList(),
+                },
         };
         var manifestData = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
         ValidateSaveLimits(
@@ -198,7 +227,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             gxtData,
             txdData,
             characterMapData,
-            metadataData);
+            metadataData,
+            installerProfileData,
+            installerProfile?.Assets);
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath)
@@ -233,6 +264,23 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 }
 
                 WriteEntry(archive, MetadataEntryName, metadataData, CompressionLevel.Optimal);
+                if (installerProfileData is not null && installerProfile is not null)
+                {
+                    WriteEntry(
+                        archive,
+                        InstallerProfileEntryName,
+                        installerProfileData,
+                        CompressionLevel.Optimal);
+                    foreach (var asset in installerProfile.Assets)
+                    {
+                        WriteEntry(
+                            archive,
+                            GetInstallerAssetEntryName(asset.Id),
+                            asset.Data,
+                            CompressionLevel.Optimal);
+                    }
+                }
+
                 WriteEntry(archive, ManifestEntryName, manifestData, CompressionLevel.Optimal);
             }
 
@@ -258,6 +306,11 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         {
             throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.TxdViceCityOnly"));
         }
+
+        if (project.GameType != GXTType.GtaViceCity && project.InstallerProfile is not null)
+        {
+            throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.InstallerViceCityOnly"));
+        }
     }
 
     private static void ValidateSaveLimits(
@@ -265,23 +318,100 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[] gxtData,
         byte[]? txdData,
         byte[]? characterMapData,
-        byte[] metadataData)
+        byte[] metadataData,
+        byte[]? installerProfileData,
+        List<InstallerAsset>? installerAssets)
     {
-        var entryCount = 3 + (txdData is null ? 0 : 1) + (characterMapData is null ? 0 : 1);
+        var entryCount = 3 +
+                         (txdData is null ? 0 : 1) +
+                         (characterMapData is null ? 0 : 1) +
+                         (installerProfileData is null ? 0 : 1) +
+                         (installerAssets?.Count ?? 0);
+        var installerAssetsLength = installerAssets?.Sum(asset => asset.Data.LongLength) ?? 0;
         var totalLength = checked(
             manifestData.LongLength +
             gxtData.LongLength +
             (txdData?.LongLength ?? 0) +
             (characterMapData?.LongLength ?? 0) +
-            metadataData.LongLength);
+            metadataData.LongLength +
+            (installerProfileData?.LongLength ?? 0) +
+            installerAssetsLength);
         if (entryCount > MaximumEntries ||
             manifestData.LongLength > MaximumManifestSize ||
             (characterMapData?.LongLength ?? 0) > MaximumCharacterMapSize ||
             metadataData.LongLength > MaximumMetadataSize ||
+            (installerProfileData?.LongLength ?? 0) > MaximumManifestSize ||
             totalLength > MaximumArchiveSize)
         {
             throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.Limits"));
         }
+    }
+
+    private static ByxInstallerProfileDocument CreateInstallerProfileDocument(
+        InstallerProfile profile) => new()
+    {
+        ProductId = profile.ProductId,
+        Name = profile.Name,
+        InstallerVersion = profile.Version,
+        Publisher = profile.Publisher,
+        OutputFileName = profile.OutputFileName,
+        Assets = profile.Assets.Select(asset => new ByxInstallerProfileAsset
+        {
+            Id = asset.Id,
+            Role = asset.Role,
+            DestinationPath = asset.DestinationPath,
+        }).ToList(),
+    };
+
+    private static InstallerProfile LoadInstallerProfile(
+        ZipArchive archive,
+        ByxInstallerItem item)
+    {
+        var profileData = ReadValidatedEntry(archive, item, MaximumManifestSize);
+        var document = Deserialize<ByxInstallerProfileDocument>(profileData, JsonOptions);
+        if (!string.Equals(document.Format, "BYX_INSTALLER_PROFILE", StringComparison.Ordinal) ||
+            document.Version != ByxInstallerProfileDocument.CurrentVersion)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerProfileInvalid"));
+        }
+
+        var manifestAssets = item.Assets.ToDictionary(asset => asset.Id);
+        if (manifestAssets.Count != item.Assets.Count ||
+            document.Assets.Count != item.Assets.Count ||
+            document.Assets.Select(asset => asset.Id).Distinct().Count() != document.Assets.Count)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
+        }
+
+        var assets = new List<InstallerAsset>(document.Assets.Count);
+        foreach (var profileAsset in document.Assets)
+        {
+            if (!manifestAssets.TryGetValue(profileAsset.Id, out var manifestAsset))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
+            }
+
+            assets.Add(new InstallerAsset
+            {
+                Id = profileAsset.Id,
+                Role = profileAsset.Role,
+                OriginalFileName = manifestAsset.OriginalFileName,
+                DestinationPath = profileAsset.DestinationPath,
+                Data = ReadValidatedEntry(archive, manifestAsset, MaximumArchiveSize),
+            });
+        }
+
+        var profile = new InstallerProfile
+        {
+            ProductId = document.ProductId,
+            Name = document.Name,
+            Version = document.InstallerVersion,
+            Publisher = document.Publisher,
+            OutputFileName = document.OutputFileName,
+            Assets = assets,
+        };
+        InstallerProfileValidator.Validate(profile);
+        return profile;
     }
 
     private static CharacterMapProfile LoadCharacterMap(
@@ -323,7 +453,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     private static void ValidateManifest(ByxManifest manifest)
     {
         if (!string.Equals(manifest.Format, "BYX", StringComparison.Ordinal) ||
-            manifest.Version != CurrentVersion || manifest.Gxt is null || manifest.Metadata is null)
+            manifest.Version is not (LegacyVersion or CurrentVersion) ||
+            manifest.Gxt is null || manifest.Metadata is null ||
+            manifest.Version == LegacyVersion && manifest.Installer is not null)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.ManifestIncomplete"));
         }
@@ -340,6 +472,37 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (manifest.CharacterMap is not null)
         {
             ValidateArchiveItem(manifest.CharacterMap, CharacterMapEntryName, LocalizationProvider.Current.Get("Byx.AttachmentMapping"));
+        }
+
+        if (manifest.Installer is not null)
+        {
+            ValidateInstallerItem(manifest.Installer);
+        }
+    }
+
+    private static void ValidateInstallerItem(ByxInstallerItem item)
+    {
+        ValidateArchiveItem(
+            item,
+            InstallerProfileEntryName,
+            LocalizationProvider.Current.Get("Byx.AttachmentInstaller"));
+        if (item.Assets.Count > InstallerProfileValidator.MaximumAssets)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TooManyEntries"));
+        }
+
+        var ids = new HashSet<Guid>();
+        foreach (var asset in item.Assets)
+        {
+            if (asset.Id == Guid.Empty || !ids.Add(asset.Id) || !IsFileNameOnly(asset.OriginalFileName))
+            {
+                throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetInvalid"));
+            }
+
+            ValidateArchiveItem(
+                asset,
+                GetInstallerAssetEntryName(asset.Id),
+                LocalizationProvider.Current.Get("Byx.AttachmentInstallerAsset"));
         }
     }
 
@@ -391,7 +554,10 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             manifest.Metadata.Entry,
         };
         if (manifest.Txd is not null && !expected.Add(manifest.Txd.Entry) ||
-            manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry))
+            manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry) ||
+            manifest.Installer is not null && !expected.Add(manifest.Installer.Entry) ||
+            manifest.Installer is not null &&
+            manifest.Installer.Assets.Any(asset => !expected.Add(asset.Entry)))
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.DuplicatePaths"));
         }
@@ -521,6 +687,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     }
 
     private static string ComputeHash(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
+
+    private static string GetInstallerAssetEntryName(Guid id) =>
+        $"installer/assets/{id:N}.bin";
 
     private static bool IsSha256(string? value) =>
         value is { Length: 64 } && value.All(Uri.IsHexDigit);

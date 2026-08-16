@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly EditorSession _session;
     private readonly ILocalizationService _localization;
     private readonly IAppSettingsStore _appSettings;
+    private readonly IInstallerExportService _installerExportService;
 
     private string DocumentFileFilter => _localization.Get("Filter.Document");
     private string GxtFileFilter => _localization.Get("Filter.Gxt");
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string JsonFileFilter => _localization.Get("Filter.Json");
     private string CharacterMapFileFilter => _localization.Get("Filter.CharacterMap");
     private string CommentsFileFilter => _localization.Get("Filter.Comments");
+    private string InstallerFileFilter => _localization.Get("Filter.Installer");
 
     private CommonGXTManager? _manager => _session.Manager;
     private EditorProject? _project => _session.Project;
@@ -54,11 +56,13 @@ public partial class MainWindowViewModel : ObservableObject
         ICharacterMapWorkflow? characterMapWorkflow = null,
         EditorSession? session = null,
         ILocalizationService? localization = null,
-        IAppSettingsStore? appSettings = null)
+        IAppSettingsStore? appSettings = null,
+        IInstallerExportService? installerExportService = null)
     {
         _dialogs = dialogs;
         _localization = localization ?? LocalizationProvider.Current;
         _appSettings = appSettings ?? new JsonAppSettingsStore();
+        _installerExportService = installerExportService ?? new InnoInstallerExportService();
         var resolvedTxdReader = txdReader ?? new TxdReader();
         var resolvedProjectSerializer = projectSerializer ??
             new ByxProjectSerializer(managerFactory, resolvedTxdReader);
@@ -196,6 +200,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ExportGxtCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleReviewedCommand))]
     private bool isDocumentLoaded;
 
@@ -208,6 +213,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportTxdCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
     private TxdAttachment? attachedTxd;
 
     [ObservableProperty]
@@ -615,6 +621,53 @@ public partial class MainWindowViewModel : ObservableObject
     private Task ExportGxtAsync() => RunBusyAsync(
         "Busy.ExportGxt",
         async token => _ = await SaveGxtAsAsync(markProjectSaved: false, token));
+
+    [RelayCommand(CanExecute = nameof(CanExportInstaller))]
+    private Task ExportInstallerAsync()
+    {
+        if (_project is null || _project.AttachedTxd is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var sourcePath = _project.ProjectPath ?? _project.GxtSourcePath ?? GxtPath;
+        var directory = Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
+        var profile = _project.InstallerProfile?.Clone() ?? new InstallerProfile();
+        var result = _dialogs.EditInstallerProfile(new InstallerProfileEditorRequest(profile, directory));
+        if (result is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _project.InstallerProfile = result.Profile.Clone();
+        SetDirty(true);
+        var targetPath = _dialogs.SaveFile(
+            _localization.Get("Dialog.ExportInstaller"),
+            InstallerFileFilter,
+            Path.Combine(directory, result.Profile.OutputFileName));
+        if (targetPath is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunBusyAsync("Busy.ExportInstaller", async token =>
+        {
+            try
+            {
+                var snapshot = await _documentWorkflow.CreateSnapshotAsync(_project, token);
+                await _installerExportService.BuildAsync(snapshot, targetPath, token);
+                SetStatus("Status.InstallerExported", targetPath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError(_localization.Format("Message.ExportInstallerFailed", exception.Message));
+            }
+        });
+    }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
     private Task SaveProjectAsAsync() => RunBusyAsync(
@@ -1683,6 +1736,7 @@ public partial class MainWindowViewModel : ObservableObject
         ReloadCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         ExportGxtCommand.NotifyCanExecuteChanged();
+        ExportInstallerCommand.NotifyCanExecuteChanged();
         SaveProjectAsCommand.NotifyCanExecuteChanged();
         AddEntryCommand.NotifyCanExecuteChanged();
         EditEntryCommand.NotifyCanExecuteChanged();
@@ -1707,6 +1761,9 @@ public partial class MainWindowViewModel : ObservableObject
     private bool CanStartOperation() => !IsBusy;
 
     private bool CanUseDocument() => !IsBusy && IsDocumentLoaded && _manager is not null;
+
+    private bool CanExportInstaller() =>
+        CanUseDocument() && _loadedType == GXTType.GtaViceCity && AttachedTxd is not null;
 
     private bool CanAddTxd() => !IsBusy && CanAttachTxd;
 

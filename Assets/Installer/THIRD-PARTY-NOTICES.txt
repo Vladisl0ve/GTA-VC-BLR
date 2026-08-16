@@ -1,0 +1,18 @@
+GTA GXT Editor installer export — third-party notices
+
+Inno Setup
+Copyright (C) 1997-2026 Jordan Russell.
+Portions Copyright (C) 2000-2026 Martijn Laan.
+Distributed under the Inno Setup License:
+https://jrsoftware.org/files/is/license.txt
+
+SilentPatch
+Copyright (c) CookiePLMonster and contributors.
+Source and license: https://github.com/CookiePLMonster/SilentPatch
+
+Ultimate ASI Loader
+Copyright (c) ThirteenAG and contributors.
+Source and MIT license: https://github.com/ThirteenAG/Ultimate-ASI-Loader
+
+The SilentPatch and Ultimate ASI Loader binaries embedded into a generated installer
+are supplied by the project author through the GTA GXT Editor installer profile.

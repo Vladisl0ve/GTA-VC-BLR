@@ -144,7 +144,7 @@ public sealed class BinaryContractTests
     {
         var sourcePath = FixturePath("project.byx", ByxHash);
         var originalArchive = ReadArchiveEntries(sourcePath);
-        AssertByxManifestAndHashes(originalArchive);
+        AssertByxManifestAndHashes(originalArchive, expectedVersion: 3);
         CollectionAssert.AreEqual(
             File.ReadAllBytes(FixturePath("vice-city-original.gxt", ViceCityOriginalHash)),
             originalArchive["gxt/main.gxt"]);
@@ -178,7 +178,7 @@ public sealed class BinaryContractTests
         _byxSerializer.Save(outputPath, project);
 
         var outputArchive = ReadArchiveEntries(outputPath);
-        AssertByxManifestAndHashes(outputArchive);
+        AssertByxManifestAndHashes(outputArchive, expectedVersion: 4);
         CollectionAssert.AreEqual(
             File.ReadAllBytes(FixturePath("vice-city-edited.gxt", ViceCityEditedHash)),
             outputArchive["gxt/main.gxt"]);
@@ -237,7 +237,8 @@ public sealed class BinaryContractTests
     }
 
     private static void AssertByxManifestAndHashes(
-        IReadOnlyDictionary<string, byte[]> entries)
+        IReadOnlyDictionary<string, byte[]> entries,
+        int expectedVersion)
     {
         CollectionAssert.AreEquivalent(
             new[]
@@ -251,11 +252,22 @@ public sealed class BinaryContractTests
             entries.Keys.ToArray());
 
         var manifest = ParseJson(entries["manifest.json"]);
-        AssertObjectProperties(
-            manifest,
-            "format", "version", "game", "language", "gxt", "txd", "characterMap", "metadata");
+        var expectedProperties = new List<string>
+        {
+            "format", "version", "game", "language", "gxt", "txd", "characterMap", "metadata",
+        };
+        if (expectedVersion >= 4)
+        {
+            expectedProperties.Add("installer");
+        }
+
+        AssertObjectProperties(manifest, expectedProperties.ToArray());
         Assert.AreEqual("BYX", manifest["format"]!.GetValue<string>());
-        Assert.AreEqual(3, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(expectedVersion, manifest["version"]!.GetValue<int>());
+        if (expectedVersion >= 4)
+        {
+            Assert.IsNull(manifest["installer"]);
+        }
         Assert.AreEqual("GTA Vice City", manifest["game"]!.GetValue<string>());
         Assert.AreEqual("en", manifest["language"]!.GetValue<string>());
 

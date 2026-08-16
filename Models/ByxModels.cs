@@ -26,6 +26,8 @@ public sealed class ByxManifest
     public ByxCharacterMapItem? CharacterMap { get; set; }
 
     public ByxArchiveItem Metadata { get; set; } = null!;
+
+    public ByxInstallerItem? Installer { get; set; }
 }
 
 public sealed class ByxGxtItem
@@ -56,6 +58,48 @@ public class ByxArchiveItem
 public sealed class ByxCharacterMapItem : ByxArchiveItem
 {
     public bool IsVerified { get; set; }
+}
+
+public sealed class ByxInstallerItem : ByxArchiveItem
+{
+    public List<ByxInstallerAssetItem> Assets { get; set; } = [];
+}
+
+public sealed class ByxInstallerAssetItem : ByxArchiveItem
+{
+    public Guid Id { get; set; }
+
+    public string OriginalFileName { get; set; } = string.Empty;
+}
+
+public sealed class ByxInstallerProfileDocument
+{
+    public const int CurrentVersion = 1;
+
+    public string Format { get; set; } = "BYX_INSTALLER_PROFILE";
+
+    public int Version { get; set; } = CurrentVersion;
+
+    public Guid ProductId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string InstallerVersion { get; set; } = string.Empty;
+
+    public string Publisher { get; set; } = string.Empty;
+
+    public string OutputFileName { get; set; } = string.Empty;
+
+    public List<ByxInstallerProfileAsset> Assets { get; set; } = [];
+}
+
+public sealed class ByxInstallerProfileAsset
+{
+    public Guid Id { get; set; }
+
+    public InstallerAssetRole Role { get; set; }
+
+    public string DestinationPath { get; set; } = string.Empty;
 }
 
 public sealed class ProjectMetadata
