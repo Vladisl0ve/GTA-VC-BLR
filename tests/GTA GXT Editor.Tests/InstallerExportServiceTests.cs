@@ -52,6 +52,8 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "data\\maps\\washints\\washints.ipl");
         StringAssert.Contains(script, "Name: \"silentpatch\"");
         StringAssert.Contains(script, "AppendDefaultDirName=no");
+        StringAssert.Contains(script, "DisableDirPage=no");
+        StringAssert.Contains(script, "UsePreviousAppDir=yes");
         StringAssert.Contains(script, "Check: not IsSilentPatchSelected");
         StringAssert.Contains(script, "Check: IsSilentPatchSelected");
         StringAssert.Contains(script, "BackupPayload('MODELS\\FONTS.TXD', True)");
