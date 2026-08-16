@@ -24,7 +24,7 @@ AllowNoIcons=yes
 CloseApplications=yes
 RestartApplications=no
 Uninstallable=yes
-UninstallFilesDir={commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\uninstall
+UninstallFilesDir={app}\_BelarusianMod\@@PRODUCT_ID@@\uninstall
 UninstallDisplayName=@@APP_NAME@@ @@APP_VERSION@@
 SetupLogging=yes
 SignedUninstaller=no
@@ -68,22 +68,24 @@ belarusian.DifferentGameDirectory=Гэтая беларусізацыя ўжо �
 
 [Files]
 @@FILE_ENTRIES@@
-Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\licenses"; Flags: ignoreversion
+Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\_BelarusianMod\@@PRODUCT_ID@@\licenses"; Flags: ignoreversion
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_BelarusianModBackup\@@PRODUCT_ID@@"
 Type: dirifempty; Name: "{app}\_BelarusianModBackup"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.ini"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.index"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\pending.index"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.pending.ini"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\index.pending"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\state.previous.ini"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\index.previous"
-Type: files; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\stale-cleanup.index"
-Type: filesandordirs; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\pending"
-Type: dirifempty; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@\licenses"
-Type: dirifempty; Name: "{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\state.ini"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\state.index"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\pending.index"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\state.pending.ini"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\index.pending"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\state.previous.ini"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\index.previous"
+Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\stale-cleanup.index"
+Type: filesandordirs; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\pending"
+Type: dirifempty; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\licenses"
+Type: dirifempty; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\uninstall"
+Type: dirifempty; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@"
+Type: dirifempty; Name: "{app}\_BelarusianMod"
 
 [Code]
 var
@@ -93,6 +95,11 @@ var
   HadPreviousState: Boolean;
 
 function SupportRoot: String;
+begin
+  Result := ExpandConstant('{app}\_BelarusianMod\@@PRODUCT_ID@@');
+end;
+
+function LegacySupportRoot: String;
 begin
   Result := ExpandConstant('{commonappdata}\GTA GXT Editor\Installations\@@PRODUCT_ID@@');
 end;
@@ -325,10 +332,22 @@ begin
   DeleteFile(PendingFile);
 end;
 
+function HasLegacyProgramDataState: Boolean;
+begin
+  Result := FileExists(AddBackslash(LegacySupportRoot) + 'state.ini') or
+            FileExists(AddBackslash(LegacySupportRoot) + 'state.index') or
+            DirExists(AddBackslash(LegacySupportRoot) + 'uninstall');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
   RecoverInterruptedCommit;
+  if HasLegacyProgramDataState then
+  begin
+    Result := CustomMessage('LegacyState');
+    Exit;
+  end;
   if FileExists(StateFile) <> FileExists(IndexFile) then
   begin
     Result := CustomMessage('InvalidState');
@@ -554,6 +573,9 @@ begin
   begin
     DelTree(BackupRoot, True, True, True);
     RemoveDir(ExpandConstant('{app}\_BelarusianModBackup'));
+    RemoveDir(AddBackslash(SupportRoot) + 'licenses');
+    RemoveDir(SupportRoot);
+    RemoveDir(ExpandConstant('{app}\_BelarusianMod'));
   end;
 end;
 

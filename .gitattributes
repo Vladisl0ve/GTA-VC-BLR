@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# Keep the Inno pin file in CRLF so its SHA-256 matches the Windows inventory.
+Tools/InnoSetup/7.0.2-x86/PINNED-VERSION.txt text eol=crlf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

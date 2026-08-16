@@ -63,6 +63,24 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(
             script,
             "{app}\\_BelarusianModBackup\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        StringAssert.Contains(
+            script,
+            "UninstallFilesDir={app}\\_BelarusianMod\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\\uninstall");
+        StringAssert.Contains(
+            script,
+            "{app}\\_BelarusianMod\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\\licenses");
+        StringAssert.Contains(
+            script,
+            "Result := ExpandConstant('{app}\\_BelarusianMod\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')");
+        Assert.IsFalse(
+            script.Contains(
+                "UninstallFilesDir={commonappdata}\\GTA GXT Editor\\Installations",
+                StringComparison.Ordinal));
+        StringAssert.Contains(script, "HasLegacyProgramDataState");
+        Assert.IsFalse(
+            script.Contains(
+                "Type: filesandordirs; Name: \"{app}\\_BelarusianMod\\aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\\conflicts\"",
+                StringComparison.Ordinal));
         Assert.IsFalse(script.Contains("gta-vc.exe", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "AppName=Belarusian %7 {{VC}");
         Assert.IsFalse(script.Contains("@@", StringComparison.Ordinal));

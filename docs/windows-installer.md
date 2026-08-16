@@ -76,19 +76,23 @@ Original `MODELS\FONTS.TXD` and, when SilentPatch is selected, the eight IPL fil
 are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
 Existing GXT/ASI/INI payloads are mod-owned and overwritten without an original
 backup. Transaction state, licenses, conflicts, and the uninstaller stay under
-`%ProgramData%\GTA GXT Editor\Installations\<ProductId>`. A failed or cancelled
-attempt restores its pending pre-attempt snapshots and does not commit new state.
+`_BelarusianMod\<ProductId>` in the game folder. Uninstall removes that directory
+except for `conflicts`, which is kept when a managed file changed after
+installation. A failed or cancelled attempt restores its pending pre-attempt
+snapshots and does not commit new state.
 An update must use the same game directory recorded by the first successful
 installation; moving the installation requires uninstalling it first.
 
 Updates keep the first original backup and update installed hashes. Reinstalling
 without SilentPatch restores the IPL originals and removes its ASI/INI. Uninstall
 restores the font/IPL originals, deletes mod-owned payloads, then removes the
-ProductId backup directory. State created by the previous installer schema is
+ProductId backup directory. State created by the previous installer schema, or an
+older ProgramData-based installation of the same ProductId, is
 rejected with an instruction to uninstall that version first.
 
 If a managed file changed after installation, interactive uninstall asks per file:
 restore it (archive the changed copy, then restore/delete) or leave it (archive the
 original backup and keep the current file). Silent uninstall uses the safe restore
-choice automatically. Conflict copies remain under the support directory and the
+choice automatically. Conflict copies remain under
+`_BelarusianMod\<ProductId>\conflicts` and the
 interactive uninstaller displays their location.
