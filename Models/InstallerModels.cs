@@ -55,8 +55,15 @@ public sealed class InstallerProfile
     };
 }
 
+public enum InstallerProfileEditorMode
+{
+    Configure,
+    Export,
+}
+
 public sealed record InstallerProfileEditorRequest(
     InstallerProfile Profile,
-    string SuggestedDirectory);
+    string SuggestedDirectory,
+    InstallerProfileEditorMode Mode);
 
 public sealed record InstallerProfileEditorResult(InstallerProfile Profile);

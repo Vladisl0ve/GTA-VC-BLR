@@ -74,7 +74,8 @@ public static class InstallerProfileValidator
         ValidateCommon(profile);
 
         var mainAsi = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.MainAsi).ToList();
-        if (mainAsi.Count != 1 ||
+        if (mainAsi.Count > 1 ||
+            mainAsi.Count == 1 &&
             !string.Equals(mainAsi[0].DestinationPath, MainAsiDestination, StringComparison.OrdinalIgnoreCase))
         {
             Throw("Installer.Validation.MainAsi");
@@ -86,16 +87,6 @@ public static class InstallerProfileValidator
             !string.Equals(loaders[0].DestinationPath, "dinput8.dll", StringComparison.OrdinalIgnoreCase))
         {
             Throw("Installer.Validation.AsiLoader");
-        }
-
-        if (!profile.Assets.Any(asset =>
-                asset.Role == InstallerAssetRole.SilentPatch &&
-                string.Equals(
-                    Path.GetFileName(asset.DestinationPath),
-                    "SilentPatchVC.asi",
-                    StringComparison.OrdinalIgnoreCase)))
-        {
-            Throw("Installer.Validation.SilentPatch");
         }
     }
 

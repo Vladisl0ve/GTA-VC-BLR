@@ -12,6 +12,7 @@ public partial class InstallerProfileWindow : Window
     private readonly InstallerProfile _profile;
     private readonly ILocalizationService _localization;
     private readonly string _suggestedDirectory;
+    private readonly InstallerProfileEditorMode _mode;
     private readonly ObservableCollection<InstallerAssetRow> _assets;
 
     public InstallerProfileWindow(
@@ -23,6 +24,7 @@ public partial class InstallerProfileWindow : Window
         _suggestedDirectory = Directory.Exists(request.SuggestedDirectory)
             ? request.SuggestedDirectory
             : Environment.CurrentDirectory;
+        _mode = request.Mode;
         _profile = request.Profile.Clone();
         _assets = new ObservableCollection<InstallerAssetRow>(
             _profile.Assets.Select(asset => new InstallerAssetRow(asset, localization)));
@@ -238,7 +240,14 @@ public partial class InstallerProfileWindow : Window
         _profile.Assets = _assets.Select(row => row.Asset.Clone()).ToList();
         try
         {
-            InstallerProfileValidator.Validate(_profile);
+            if (_mode == InstallerProfileEditorMode.Export)
+            {
+                InstallerProfileValidator.Validate(_profile);
+            }
+            else
+            {
+                InstallerProfileValidator.ValidateForStorage(_profile);
+            }
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {

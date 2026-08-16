@@ -6,14 +6,17 @@
 project with an attached TXD. GTA III and Definitive Edition are not supported.
 The **Windows installer** panel below the TXD controls opens the same profile
 editor without starting an export. Confirming the dialog attaches the selected
-`BelarusianLanguage.asi` and complete SilentPatch set to the current project and
-marks it dirty. Use the normal **Save** command to persist the profile and binary
-attachments in BYX v4. For a plain GXT document with an attached TXD, saving
-prompts for a new BYX project path.
+files to the current project and marks it dirty. An incomplete draft, including
+one with no attached installer files, can be confirmed here. Use the normal
+**Save** command to persist the profile and its remaining binary attachments in
+BYX v4. For a plain GXT document with an attached TXD, saving prompts for a new
+BYX project path.
 
 Export still opens the profile editor so its product metadata can be reviewed,
 but files already stored in the BYX project are preselected and do not need to be
-read from disk again.
+read from disk again. In export mode, confirming requires
+`BelarusianLanguage.asi` and the complete SilentPatch set; an incomplete draft
+cannot be exported.
 
 ## BYX v4 installer data
 
@@ -22,7 +25,8 @@ array of binary attachments. Each attachment is stored as
 `installer/assets/<guid>.bin` and has an ID, original file name, destination,
 role, bytes, and SHA-256 in the profile/manifest pair. Legacy profiles may still
 store the ASI Loader and additional-file roles, so existing BYX projects remain
-readable. New exports accept only the main ASI and the exact SilentPatch set.
+readable. A stored profile may contain a partial or empty attachment list. New
+exports accept only the main ASI and the exact SilentPatch set.
 
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,

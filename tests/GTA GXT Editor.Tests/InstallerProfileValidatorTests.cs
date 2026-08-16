@@ -142,6 +142,46 @@ public sealed class InstallerProfileValidatorTests
     }
 
     [TestMethod]
+    public void ValidateForStorage_EmptyDraft_IsAccepted()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Clear();
+
+        InstallerProfileValidator.ValidateForStorage(profile);
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_MissingMainAsiOrSilentPatch_IsAccepted()
+    {
+        var withoutMainAsi = CreateValidProfile();
+        withoutMainAsi.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.MainAsi);
+        var withoutSilentPatch = CreateValidProfile();
+        withoutSilentPatch.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.SilentPatch);
+
+        InstallerProfileValidator.ValidateForStorage(withoutMainAsi);
+        InstallerProfileValidator.ValidateForStorage(withoutSilentPatch);
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_PresentMainAsiWithWrongDestination_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        var mainAsi = profile.Assets.Single(asset => asset.Role == InstallerAssetRole.MainAsi);
+        mainAsi.DestinationPath = "plugins\\BelarusianLanguage.asi";
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_EmptyDraft_IsRejectedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Clear();
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
     public void ValidateForStorage_LegacyRolesRemainReadable()
     {
         var profile = CreateValidProfile();

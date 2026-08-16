@@ -291,6 +291,30 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
+    public void SaveAndLoad_EmptyInstallerProfile_PreservesDraftWithoutAssetEntries()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        project.InstallerProfile.Assets.Clear();
+        var path = Path.Combine(_testDirectory, "empty-installer-profile.byx");
+
+        _serializer.Save(path, project);
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.InstallerProfile);
+        Assert.AreEqual(project.InstallerProfile.ProductId, loaded.InstallerProfile.ProductId);
+        Assert.AreEqual(project.InstallerProfile.Name, loaded.InstallerProfile.Name);
+        Assert.HasCount(0, loaded.InstallerProfile.Assets);
+        using var archive = ZipFile.OpenRead(path);
+        var manifest = ReadJsonObject(archive, "manifest.json");
+        Assert.IsNotNull(manifest["installer"]);
+        Assert.HasCount(0, manifest["installer"]!["assets"]!.AsArray());
+        Assert.IsNotNull(archive.GetEntry("installer/profile.json"));
+        Assert.IsFalse(archive.Entries.Any(entry =>
+            entry.FullName.StartsWith("installer/assets/", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public void Load_InstallerAssetWithWrongHash_IsRejected()
     {
         var project = CreateProject();

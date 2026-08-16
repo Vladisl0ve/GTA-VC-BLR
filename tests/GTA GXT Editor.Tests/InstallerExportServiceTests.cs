@@ -117,6 +117,22 @@ public sealed class InstallerExportServiceTests
     }
 
     [TestMethod]
+    public async Task BuildAsync_EmptyInstallerDraft_IsRejected()
+    {
+        var compiler = new InspectingCompiler();
+        var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
+        var project = CreateProject();
+        project.InstallerProfile!.Assets.Clear();
+        var target = Path.Combine(_testDirectory, "incomplete.exe");
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => service.BuildAsync(project, target, CancellationToken.None));
+
+        Assert.IsFalse(File.Exists(target));
+        Assert.IsNull(compiler.ScriptBytes);
+    }
+
+    [TestMethod]
     public async Task BuildAsync_CompilerFailure_PreservesExistingTargetAndCleansStaging()
     {
         var compiler = new FailingCompiler();

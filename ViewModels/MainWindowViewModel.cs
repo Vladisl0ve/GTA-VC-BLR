@@ -642,7 +642,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var directory = GetProjectDirectory();
-        var result = EditInstallerProfile(directory);
+        var result = EditInstallerProfile(directory, InstallerProfileEditorMode.Export);
         if (result is null)
         {
             return Task.CompletedTask;
@@ -685,7 +685,9 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var result = EditInstallerProfile(GetProjectDirectory());
+        var result = EditInstallerProfile(
+            GetProjectDirectory(),
+            InstallerProfileEditorMode.Configure);
         if (result is null)
         {
             return;
@@ -701,11 +703,13 @@ public partial class MainWindowViewModel : ObservableObject
         return Path.GetDirectoryName(sourcePath) ?? Environment.CurrentDirectory;
     }
 
-    private InstallerProfileEditorResult? EditInstallerProfile(string suggestedDirectory)
+    private InstallerProfileEditorResult? EditInstallerProfile(
+        string suggestedDirectory,
+        InstallerProfileEditorMode mode)
     {
         var profile = _project?.InstallerProfile?.Clone() ?? new InstallerProfile();
         return _dialogs.EditInstallerProfile(
-            new InstallerProfileEditorRequest(profile, suggestedDirectory));
+            new InstallerProfileEditorRequest(profile, suggestedDirectory, mode));
     }
 
     private void ApplyInstallerProfile(InstallerProfile profile)

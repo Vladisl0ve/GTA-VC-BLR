@@ -361,6 +361,9 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual(0, viewModel.InstallerAssetCount);
         Assert.AreEqual(0, exporter.CallCount);
         Assert.HasCount(1, dialogs.InstallerProfileRequests);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.Configure,
+            dialogs.InstallerProfileRequests[0].Mode);
         Assert.HasCount(1, dialogs.SaveFileCalls);
         var reopened = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
         Assert.IsNull(reopened.InstallerProfile);
@@ -393,6 +396,9 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual(profile.Assets.Count, viewModel.InstallerAssetCount);
         StringAssert.Contains(viewModel.InstallerProfileStatus, profile.Assets.Count.ToString());
         Assert.AreEqual(0, exporter.CallCount);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.Configure,
+            dialogs.InstallerProfileRequests[0].Mode);
         Assert.HasCount(1, dialogs.SaveFileCalls);
 
         await viewModel.SaveCommand.ExecuteAsync(null);
@@ -413,6 +419,9 @@ public sealed class MainWindowViewModelTests
         dialogs.InstallerProfileResults.Enqueue(null);
         await viewModel.ExportInstallerCommand.ExecuteAsync(null);
         Assert.HasCount(2, dialogs.InstallerProfileRequests);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.Export,
+            dialogs.InstallerProfileRequests[1].Mode);
         var exportProfile = dialogs.InstallerProfileRequests[1].Profile;
         Assert.AreEqual(profile.ProductId, exportProfile.ProductId);
         Assert.AreEqual(profile.Assets.Count, exportProfile.Assets.Count);
@@ -423,6 +432,37 @@ public sealed class MainWindowViewModelTests
         reopenedViewModel.OpenFromCommandLine(byxPath);
         Assert.IsTrue(reopenedViewModel.HasInstallerProfile);
         Assert.AreEqual(profile.Assets.Count, reopenedViewModel.InstallerAssetCount);
+    }
+
+    [TestMethod]
+    public async Task ConfigureInstaller_EmptyProfileIsSavedAndRestoredFromByx()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "empty-installer-profile.byx");
+        var profile = CreateInstallerProfile();
+        profile.Assets.Clear();
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.InstallerProfileResults.Enqueue(new InstallerProfileEditorResult(profile));
+        var viewModel = CreateViewModel(dialogs);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        viewModel.ConfigureInstallerCommand.Execute(null);
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.IsTrue(viewModel.HasInstallerProfile);
+        Assert.AreEqual(0, viewModel.InstallerAssetCount);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        var stored = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsNotNull(stored.InstallerProfile);
+        Assert.AreEqual(profile.ProductId, stored.InstallerProfile.ProductId);
+        Assert.HasCount(0, stored.InstallerProfile.Assets);
     }
 
     [TestMethod]
@@ -450,6 +490,9 @@ public sealed class MainWindowViewModelTests
         Assert.IsFalse(viewModel.IsProjectDirty);
         Assert.AreEqual(0, exporter.CallCount);
         Assert.HasCount(1, dialogs.InstallerProfileRequests);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.Export,
+            dialogs.InstallerProfileRequests[0].Mode);
         var reopened = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
         Assert.IsNull(reopened.InstallerProfile);
     }
@@ -480,6 +523,9 @@ public sealed class MainWindowViewModelTests
 
         Assert.IsTrue(viewModel.IsProjectDirty);
         Assert.AreEqual(1, exporter.CallCount);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.Export,
+            dialogs.InstallerProfileRequests[0].Mode);
         Assert.AreEqual(installerPath, exporter.TargetPath);
         Assert.IsNotNull(exporter.Snapshot);
         Assert.AreEqual(profile.ProductId, exporter.Snapshot.InstallerProfile!.ProductId);
