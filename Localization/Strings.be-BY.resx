@@ -34,7 +34,7 @@
   <data name="Main.ImportJson.ToolTip" xml:space="preserve"><value>Пераўтварыць JSON у GXT з аўтаматычным вызначэннем кадзіроўкі (Ctrl+Shift+I)</value></data>
   <data name="Main.ImportJson.More" xml:space="preserve"><value>Дадатковыя варыянты пераўтварэння</value></data>
   <data name="Main.ImportJson.WithMapping" xml:space="preserve"><value>JSON → GXT з мапінгам…</value></data>
-  <data name="Main.ImportComments" xml:space="preserve"><value>Імпартаваць каментарыі…</value></data>
+  <data name="Main.ImportComments" xml:space="preserve"><value>Імпартаваць каментары…</value></data>
   <data name="Main.SaveAs" xml:space="preserve"><value>Захаваць як</value></data>
   <data name="Main.SaveAs.ToolTip" xml:space="preserve"><value>Захаваць бягучы дакумент або стварыць новы файл праекта BYX</value></data>
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Захаваць бягучы</value></data>
@@ -43,7 +43,7 @@
   <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя або стварыць інсталятар Windows</value></data>
   <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
   <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
-  <data name="Main.ExportComments" xml:space="preserve"><value>Каментарыі…</value></data>
+  <data name="Main.ExportComments" xml:space="preserve"><value>Каментары…</value></data>
   <data name="Main.ExportTxd" xml:space="preserve"><value>TXD…</value></data>
   <data name="Main.GxtFile" xml:space="preserve"><value>Файл GXT</value></data>
   <data name="Main.Reload" xml:space="preserve"><value>Перазагрузіць</value></data>
@@ -73,14 +73,14 @@
   <data name="Main.Key" xml:space="preserve"><value>Ключ</value></data>
   <data name="Main.Translation" xml:space="preserve"><value>Пераклад</value></data>
   <data name="Main.Encounter" xml:space="preserve"><value>Уваходжанне</value></data>
-  <data name="Main.Comment" xml:space="preserve"><value>Каментарый</value></data>
+  <data name="Main.Comment" xml:space="preserve"><value>Каментар</value></data>
   <data name="Main.Reviewed" xml:space="preserve"><value>Праверана</value></data>
   <data name="Main.Table" xml:space="preserve"><value>Табліца</value></data>
   <data name="Main.EnglishSource" xml:space="preserve"><value>Англійская крыніца</value></data>
   <data name="Main.Occurrences" xml:space="preserve"><value>Уваходжанні</value></data>
   <data name="Main.Context" xml:space="preserve"><value>Кантэкст</value></data>
   <data name="Main.Source" xml:space="preserve"><value>Крыніца</value></data>
-  <data name="Main.TranslatorComment" xml:space="preserve"><value>Каментарый перакладчыка</value></data>
+  <data name="Main.TranslatorComment" xml:space="preserve"><value>Каментар перакладчыка</value></data>
   <data name="Main.Comparison" xml:space="preserve"><value>Крыніца/параўнанне…</value></data>
   <data name="Main.AddFromGxt" xml:space="preserve"><value>Дадаць з іншага GXT…</value></data>
   <data name="Main.ConvertMapping" xml:space="preserve"><value>Пераўтварыць мапінг…</value></data>
@@ -125,7 +125,7 @@
   <data name="Filter.Byx" xml:space="preserve"><value>Праект BYX (*.byx)|*.byx|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.Json" xml:space="preserve"><value>JSON (*.json)|*.json|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.CharacterMap" xml:space="preserve"><value>Мапінг сімвалаў (*.gxtmap.json;*.json;*.txt)|*.gxtmap.json;*.json;*.txt|Мапінг JSON (*.gxtmap.json;*.json)|*.gxtmap.json;*.json|Стары слоўнік (*.txt)|*.txt|Усе файлы (*.*)|*.*</value></data>
-  <data name="Filter.Comments" xml:space="preserve"><value>Каментарыі GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.Comments" xml:space="preserve"><value>Каментар GXT (*.comments.json)|*.comments.json|JSON (*.json)|*.json|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.GameGxt" xml:space="preserve"><value>{0} GXT (*.gxt)|*.gxt|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.GxtTxdMapping" xml:space="preserve"><value>Мапінг GXT/TXD (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json</value></data>
 
@@ -140,8 +140,8 @@
   <data name="Busy.ReadTxd" xml:space="preserve"><value>Чытанне TXD…</value></data>
   <data name="Busy.ExportTxd" xml:space="preserve"><value>Экспарт TXD…</value></data>
   <data name="Busy.ExportJson" xml:space="preserve"><value>Экспарт JSON…</value></data>
-  <data name="Busy.ImportComments" xml:space="preserve"><value>Імпарт каментарыяў…</value></data>
-  <data name="Busy.ExportComments" xml:space="preserve"><value>Экспарт каментарыяў…</value></data>
+  <data name="Busy.ImportComments" xml:space="preserve"><value>Імпарт каментароў…</value></data>
+  <data name="Busy.ExportComments" xml:space="preserve"><value>Экспарт каментароў…</value></data>
   <data name="Busy.ConvertJson" xml:space="preserve"><value>Пераўтварэнне JSON у GXT…</value></data>
   <data name="Busy.ReadSourceGxt" xml:space="preserve"><value>Чытанне зыходнага GXT…</value></data>
   <data name="Busy.ConvertMapping" xml:space="preserve"><value>Пераўтварэнне мапінга…</value></data>
@@ -156,8 +156,8 @@
   <data name="Dialog.AttachTxd" xml:space="preserve"><value>Далучыць або замяніць TXD GTA Vice City</value></data>
   <data name="Dialog.ExportTxd" xml:space="preserve"><value>Экспартаваць TXD</value></data>
   <data name="Dialog.ExportJson" xml:space="preserve"><value>Экспартаваць GXT у JSON</value></data>
-  <data name="Dialog.ImportComments" xml:space="preserve"><value>Імпартаваць каментарыі</value></data>
-  <data name="Dialog.ExportComments" xml:space="preserve"><value>Экспартаваць каментарыі</value></data>
+  <data name="Dialog.ImportComments" xml:space="preserve"><value>Імпартаваць каментары</value></data>
+  <data name="Dialog.ExportComments" xml:space="preserve"><value>Экспартаваць каментары</value></data>
   <data name="Dialog.ConvertJson" xml:space="preserve"><value>Пераўтварыць JSON у GXT</value></data>
   <data name="Dialog.SaveConvertedGxt" xml:space="preserve"><value>Захаваць пераўтвораны GXT</value></data>
   <data name="Dialog.AddMissing" xml:space="preserve"><value>Дадаць адсутныя ключы з {0}</value></data>
@@ -167,8 +167,8 @@
   <data name="Status.ComparisonsLoaded" xml:space="preserve"><value>Загружана файлаў параўнання: {0}; усяго: {1}</value></data>
   <data name="Status.EntryAdded" xml:space="preserve"><value>Дададзены ключ {0}</value></data>
   <data name="Status.EntryChanged" xml:space="preserve"><value>Зменены ключ {0}</value></data>
-  <data name="Status.CommentSaved" xml:space="preserve"><value>Каментарый для {0} захаваны</value></data>
-  <data name="Status.CommentCleared" xml:space="preserve"><value>Каментарый для {0} выдалены</value></data>
+  <data name="Status.CommentSaved" xml:space="preserve"><value>Каментар для {0} захаваны</value></data>
+  <data name="Status.CommentCleared" xml:space="preserve"><value>Каментар для {0} выдалены</value></data>
   <data name="Status.EntryDeleted" xml:space="preserve"><value>Выдалены ключ {0}</value></data>
   <data name="Status.Saved" xml:space="preserve"><value>Захавана: {0}</value></data>
   <data name="Status.ProjectSaved" xml:space="preserve"><value>Праект захаваны: {0}</value></data>
@@ -178,8 +178,8 @@
   <data name="Status.MappingApplied" xml:space="preserve"><value>Мапінг ужыты без змянення байтаў GXT</value></data>
   <data name="Status.GxtReencoded" xml:space="preserve"><value>GXT перакадзіраваны для TXD: зменена байтаў: {0}</value></data>
   <data name="Status.JsonExported" xml:space="preserve"><value>Экспартавана ў JSON: {0}</value></data>
-  <data name="Status.CommentsImported" xml:space="preserve"><value>Імпарт каментарыяў завершаны — {0}</value></data>
-  <data name="Status.CommentsExported" xml:space="preserve"><value>Каментарыі экспартаваныя: {0}</value></data>
+  <data name="Status.CommentsImported" xml:space="preserve"><value>Імпарт каментароў завершаны — {0}</value></data>
+  <data name="Status.CommentsExported" xml:space="preserve"><value>Каментары экспартаваныя: {0}</value></data>
   <data name="Status.JsonConverted" xml:space="preserve"><value>JSON пераўтвораны ў GXT {0}: ключоў: {1}</value></data>
   <data name="Status.Opened" xml:space="preserve"><value>Адкрыты {0} — ключоў: {1}</value></data>
   <data name="Status.ProjectOpened" xml:space="preserve"><value>Адкрыты праект {0} — ключоў: {1}, {2}</value></data>
@@ -215,8 +215,8 @@
   <data name="Message.ApplyMappingFailed" xml:space="preserve"><value>Не ўдалося ўжыць мапінг.&#xA;&#xA;{0}</value></data>
   <data name="Message.ExportJsonFailed" xml:space="preserve"><value>Не ўдалося экспартаваць JSON.&#xA;&#xA;{0}</value></data>
   <data name="Message.CommentsSummary" xml:space="preserve"><value>Абноўлена: {0}; выдалена: {1}; без змен: {2}; няма ў GXT: {3}; тэкст адрозніваецца: {4}.</value></data>
-  <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Не ўдалося імпартаваць каментарыі.&#xA;&#xA;{0}</value></data>
-  <data name="Message.ExportCommentsFailed" xml:space="preserve"><value>Не ўдалося экспартаваць каментарыі.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Не ўдалося імпартаваць каментары.&#xA;&#xA;{0}</value></data>
+  <data name="Message.ExportCommentsFailed" xml:space="preserve"><value>Не ўдалося экспартаваць каментары.&#xA;&#xA;{0}</value></data>
   <data name="Message.ConvertJsonFailed" xml:space="preserve"><value>Не ўдалося пераўтварыць JSON у GXT.&#xA;&#xA;{0}</value></data>
   <data name="Message.SelectedGxtTypeMismatch" xml:space="preserve"><value>Тып выбранага файла GXT не адпавядае адкрытаму файлу.</value></data>
   <data name="Message.MissingEntriesAdded" xml:space="preserve"><value>Дададзена адсутных ключоў: {0}.</value></data>
@@ -316,18 +316,18 @@
   <data name="Metadata.ViceCityTableMissing" xml:space="preserve"><value>Для запісу Vice City '{0}' не зададзеная табліца.</value></data>
   <data name="Metadata.GtaThirdTableInvalid" xml:space="preserve"><value>Запіс GTA III '{0}' не павінен змяшчаць табліцу.</value></data>
 
-  <data name="Comments.Context" xml:space="preserve"><value>файле каментарыяў</value></data>
-  <data name="Comments.GameMismatch" xml:space="preserve"><value>Файл каментарыяў прызначаны для {0}, а адкрыты праект {1}.</value></data>
-  <data name="Comments.NoDocument" xml:space="preserve"><value>JSON каментарыяў не змяшчае дакумента.</value></data>
-  <data name="Comments.InvalidFormat" xml:space="preserve"><value>Некарэктны фармат каментарыяў: чакаецца '{0}'.</value></data>
-  <data name="Comments.UnsupportedVersion" xml:space="preserve"><value>Версія файла каментарыяў {0} не падтрымліваецца.</value></data>
-  <data name="Comments.EntriesMissing" xml:space="preserve"><value>У JSON каментарыяў няма абавязковага масіва 'entries'.</value></data>
-  <data name="Comments.InvalidJson" xml:space="preserve"><value>Некарэктны JSON каментарыяў: {0}</value></data>
-  <data name="Comments.KeyMissing" xml:space="preserve"><value>Запіс каментарыяў {0} не мае непустога поля 'key'.</value></data>
-  <data name="Comments.TableMissing" xml:space="preserve"><value>Запіс каментарыяў {0} не мае непустога поля 'table'.</value></data>
-  <data name="Comments.Duplicate" xml:space="preserve"><value>Запіс каментарыяў {0} паўтарае '{1}'.</value></data>
-  <data name="Comments.NameTooLong" xml:space="preserve"><value>{0} запісу каментарыяў {1} можа змяшчаць не больш за {2} сімвалаў.</value></data>
-  <data name="Comments.NameNonAscii" xml:space="preserve"><value>{0} запісу каментарыяў {1} павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
+  <data name="Comments.Context" xml:space="preserve"><value>файле каментароў</value></data>
+  <data name="Comments.GameMismatch" xml:space="preserve"><value>Файл каментароў прызначаны для {0}, а адкрыты праект {1}.</value></data>
+  <data name="Comments.NoDocument" xml:space="preserve"><value>JSON каментароў не змяшчае дакумента.</value></data>
+  <data name="Comments.InvalidFormat" xml:space="preserve"><value>Некарэктны фармат каментароў: чакаецца '{0}'.</value></data>
+  <data name="Comments.UnsupportedVersion" xml:space="preserve"><value>Версія файла каментароў {0} не падтрымліваецца.</value></data>
+  <data name="Comments.EntriesMissing" xml:space="preserve"><value>У JSON каментароў няма абавязковага масіва 'entries'.</value></data>
+  <data name="Comments.InvalidJson" xml:space="preserve"><value>Некарэктны JSON каментароў: {0}</value></data>
+  <data name="Comments.KeyMissing" xml:space="preserve"><value>Запіс каментароў {0} не мае непустога поля 'key'.</value></data>
+  <data name="Comments.TableMissing" xml:space="preserve"><value>Запіс каментароў {0} не мае непустога поля 'table'.</value></data>
+  <data name="Comments.Duplicate" xml:space="preserve"><value>Запіс каментароў {0} паўтарае '{1}'.</value></data>
+  <data name="Comments.NameTooLong" xml:space="preserve"><value>{0} запісу каментароў {1} можа змяшчаць не больш за {2} сімвалаў.</value></data>
+  <data name="Comments.NameNonAscii" xml:space="preserve"><value>{0} запісу каментароў {1} павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
 
   <data name="Byx.NotFound" xml:space="preserve"><value>Файл праекта не знойдзены.</value></data>
   <data name="Byx.TooLarge" xml:space="preserve"><value>Праект BYX перавышае ліміт памеру 512 МБ.</value></data>
@@ -385,7 +385,7 @@
   <data name="Options.Search.Comparison" xml:space="preserve"><value>Файлы параўнання</value></data>
   <data name="Options.Search.Table" xml:space="preserve"><value>Табліца</value></data>
   <data name="Options.Search.Metadata" xml:space="preserve"><value>Блок і кантэкст</value></data>
-  <data name="Options.Search.Comment" xml:space="preserve"><value>Каментарый</value></data>
+  <data name="Options.Search.Comment" xml:space="preserve"><value>Каментары</value></data>
   <data name="Options.Metadata.AllTypes" xml:space="preserve"><value>Усе тыпы</value></data>
   <data name="Options.Metadata.AllBlocks" xml:space="preserve"><value>Усе блокі</value></data>
   <data name="Options.Metadata.Story" xml:space="preserve"><value>Сюжэт</value></data>
