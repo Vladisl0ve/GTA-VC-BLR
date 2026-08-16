@@ -404,6 +404,9 @@
   <data name="Options.Metadata.Misc" xml:space="preserve"><value>Іншае</value></data>
   <data name="Options.Sort.Encounter" xml:space="preserve"><value>Парадак праходжання</value></data>
   <data name="Options.Sort.Gxt" xml:space="preserve"><value>Парадак GXT</value></data>
+  <data name="Options.Reviewed.All" xml:space="preserve"><value>Усе статусы</value></data>
+  <data name="Options.Reviewed.Reviewed" xml:space="preserve"><value>Толькі правераныя</value></data>
+  <data name="Options.Reviewed.Unreviewed" xml:space="preserve"><value>Толькі неправераныя</value></data>
   <data name="Options.Apply.Interpret" xml:space="preserve"><value>Інтэрпрэтаваць зыходныя байты</value></data>
   <data name="Options.Apply.Reencode" xml:space="preserve"><value>Перакадзіраваць бягучы тэкст</value></data>
   <data name="Comparison.EnglishPrefix" xml:space="preserve"><value>Англійская крыніца — </value></data>

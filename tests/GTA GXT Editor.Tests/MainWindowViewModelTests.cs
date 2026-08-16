@@ -1131,6 +1131,36 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public void ReviewedFilter_ShowsOnlyMatchingEntriesAndClearSearchRestoresAll()
+    {
+        var path = CreateViceCityGxtWithEntries(
+            "reviewed-filter.gxt",
+            ("MAIN", "LAW_1", "The Party"),
+            ("MAIN", "ITBEG", "In the beginning..."));
+        var viewModel = CreateViewModel(new FakeDialogService());
+        viewModel.OpenFromCommandLine(path);
+        viewModel.ToggleReviewedCommand.Execute(
+            viewModel.Entries.Single(entry => entry.Name == "LAW_1"));
+
+        viewModel.SelectedReviewedFilter = viewModel.ReviewedFilterOptions.Single(option =>
+            option.Mode == ReviewedFilterMode.ReviewedOnly);
+
+        Assert.AreEqual(1, viewModel.FilteredEntryCount);
+        Assert.AreEqual("LAW_1", viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+
+        viewModel.SelectedReviewedFilter = viewModel.ReviewedFilterOptions.Single(option =>
+            option.Mode == ReviewedFilterMode.UnreviewedOnly);
+
+        Assert.AreEqual(1, viewModel.FilteredEntryCount);
+        Assert.AreEqual("ITBEG", viewModel.EntriesView.Cast<GxtEntryRow>().Single().Name);
+
+        viewModel.ClearSearchCommand.Execute(null);
+
+        Assert.AreEqual(ReviewedFilterMode.All, viewModel.SelectedReviewedFilter.Mode);
+        Assert.AreEqual(2, viewModel.FilteredEntryCount);
+    }
+
+    [TestMethod]
     public async Task CommentOnPlainGxtSavesAsSparseByxMetadata()
     {
         var gxtPath = CreateViceCityGxtWithEntries(

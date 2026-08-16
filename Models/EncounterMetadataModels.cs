@@ -14,7 +14,16 @@ public enum EntrySortMode
     GxtOrder,
 }
 
+public enum ReviewedFilterMode
+{
+    All,
+    ReviewedOnly,
+    UnreviewedOnly,
+}
+
 public sealed record EntrySortOption(EntrySortMode Mode, string Name);
+
+public sealed record ReviewedFilterOption(ReviewedFilterMode Mode, string Name);
 
 public sealed record MetadataTypeFilterOption(string? Type, string Name);
 

@@ -33,6 +33,8 @@ public partial class EntryListViewModel : ObservableObject
 
         SortOptions = CreateSortOptions();
         selectedSortOption = SortOptions[1];
+        ReviewedFilterOptions = CreateReviewedFilterOptions();
+        selectedReviewedFilter = ReviewedFilterOptions[0];
         _localization.LanguageChanged += OnLanguageChanged;
     }
 
@@ -49,6 +51,8 @@ public partial class EntryListViewModel : ObservableObject
     public IReadOnlyList<MetadataTypeFilterOption> MetadataTypeOptions { get; private set; }
 
     public IReadOnlyList<EntrySortOption> SortOptions { get; private set; }
+
+    public IReadOnlyList<ReviewedFilterOption> ReviewedFilterOptions { get; private set; }
 
     public bool HasEncounterMetadata => Entries.Any(entry => entry.Occurrences.Count > 0);
 
@@ -73,6 +77,9 @@ public partial class EntryListViewModel : ObservableObject
 
     [ObservableProperty]
     private EntrySortOption selectedSortOption;
+
+    [ObservableProperty]
+    private ReviewedFilterOption selectedReviewedFilter;
 
     [ObservableProperty]
     private string commentDraft = string.Empty;
@@ -149,6 +156,14 @@ public partial class EntryListViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedReviewedFilterChanged(ReviewedFilterOption value)
+    {
+        if (value is not null)
+        {
+            ApplyFilter();
+        }
+    }
+
     partial void OnSelectedEntryChanged(GxtEntryRow? value)
     {
         CommentDraft = value?.Comment ?? string.Empty;
@@ -167,6 +182,7 @@ public partial class EntryListViewModel : ObservableObject
         SelectedSearchColumn = SearchColumns[0];
         SelectedMetadataType = MetadataTypeOptions[0];
         SelectedMetadataBlock = MetadataBlockOptions[0];
+        SelectedReviewedFilter = ReviewedFilterOptions[0];
         ApplyFilter();
     }
 
@@ -404,19 +420,23 @@ public partial class EntryListViewModel : ObservableObject
         var searchColumn = SelectedSearchColumn?.Column ?? SearchColumn.All;
         var metadataType = SelectedMetadataType?.Type;
         var sortMode = SelectedSortOption?.Mode ?? EntrySortMode.GxtOrder;
+        var reviewedFilter = SelectedReviewedFilter?.Mode ?? ReviewedFilterMode.All;
         var selectedName = SelectedEntry?.Name;
         var selectedTable = SelectedEntry?.RawTableName;
 
         SearchColumns = CreateSearchColumns();
         MetadataTypeOptions = CreateMetadataTypeOptions();
         SortOptions = CreateSortOptions();
+        ReviewedFilterOptions = CreateReviewedFilterOptions();
         OnPropertyChanged(nameof(SearchColumns));
         OnPropertyChanged(nameof(MetadataTypeOptions));
         OnPropertyChanged(nameof(SortOptions));
+        OnPropertyChanged(nameof(ReviewedFilterOptions));
 
         SelectedSearchColumn = SearchColumns.First(option => option.Column == searchColumn);
         SelectedMetadataType = MetadataTypeOptions.First(option => option.Type == metadataType);
         SelectedSortOption = SortOptions.First(option => option.Mode == sortMode);
+        SelectedReviewedFilter = ReviewedFilterOptions.First(option => option.Mode == reviewedFilter);
         RebuildComparisonColumns();
 
         if (_session.Manager is null)
@@ -458,6 +478,13 @@ public partial class EntryListViewModel : ObservableObject
     [
         new(EntrySortMode.EncounterOrder, _localization.Get("Options.Sort.Encounter")),
         new(EntrySortMode.GxtOrder, _localization.Get("Options.Sort.Gxt")),
+    ];
+
+    private ReviewedFilterOption[] CreateReviewedFilterOptions() =>
+    [
+        new(ReviewedFilterMode.All, _localization.Get("Options.Reviewed.All")),
+        new(ReviewedFilterMode.ReviewedOnly, _localization.Get("Options.Reviewed.Reviewed")),
+        new(ReviewedFilterMode.UnreviewedOnly, _localization.Get("Options.Reviewed.Unreviewed")),
     ];
 
     private MetadataBlockFilterOption CreateAllBlocksOption() =>
@@ -597,6 +624,16 @@ public partial class EntryListViewModel : ObservableObject
         if (SelectedMetadataBlock?.Id is { } selectedBlockId &&
             !entry.Occurrences.Any(occurrence =>
                 string.Equals(occurrence.BlockId, selectedBlockId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (SelectedReviewedFilter?.Mode == ReviewedFilterMode.ReviewedOnly && !entry.IsReviewed)
+        {
+            return false;
+        }
+
+        if (SelectedReviewedFilter?.Mode == ReviewedFilterMode.UnreviewedOnly && entry.IsReviewed)
         {
             return false;
         }

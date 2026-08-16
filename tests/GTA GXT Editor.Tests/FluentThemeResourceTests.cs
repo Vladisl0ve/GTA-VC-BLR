@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 
 namespace GTA_GXT_Editor.Tests;
@@ -33,6 +34,38 @@ public sealed class FluentThemeResourceTests
         {
             application.Resources.Remove("CheckBoxBackground");
             application.Resources.Remove("CheckBoxBorderBrush");
+            application.Resources.MergedDictionaries.Remove(fluent);
+        }
+    }
+
+    [TestMethod]
+    public void ReviewedCheckBoxStyle_ResolvesFromMainWindowCommandStyles()
+    {
+        var application = EnsureApplication();
+        var fluent = new ResourceDictionary
+        {
+            Source = new Uri(
+                "pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml",
+                UriKind.Absolute)
+        };
+        application.Resources.MergedDictionaries.Add(fluent);
+        var commandStyles = new ResourceDictionary
+        {
+            Source = new Uri(
+                "pack://application:,,,/GTA GXT Editor;component/Themes/MainWindowCommandStyles.xaml",
+                UriKind.Absolute)
+        };
+        application.Resources.MergedDictionaries.Add(commandStyles);
+
+        try
+        {
+            var style = Assert.IsInstanceOfType<Style>(
+                application.FindResource("ReviewedCheckBoxStyle"));
+            Assert.AreEqual(typeof(CheckBox), style.TargetType);
+        }
+        finally
+        {
+            application.Resources.MergedDictionaries.Remove(commandStyles);
             application.Resources.MergedDictionaries.Remove(fluent);
         }
     }

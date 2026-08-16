@@ -134,10 +134,10 @@ layer is read-only, is not copied into BYX, and does not replace custom translat
 comments. If a BYX project provides its own occurrences for an entry, they take
 priority over the bundled metadata.
 
-The table can be filtered by block type and name and switched between progression
-order and the original GXT order. The first file added through **Source/comparison…**
-is treated as the English source and appears in the table, inspector, and entry
-editor.
+The table can be filtered by block type, block name, and reviewed status and
+switched between progression order and the original GXT order. The first file
+added through **Source/comparison…** is treated as the English source and appears
+in the table, inspector, and entry editor.
 
 Translator comments are stored in the BYX project metadata. Adding a comment to a
 plain GXT makes the save command offer to create a BYX project; separate GXT export

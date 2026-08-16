@@ -108,6 +108,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     public IReadOnlyList<EntrySortOption> SortOptions => EntryList.SortOptions;
 
+    public IReadOnlyList<ReviewedFilterOption> ReviewedFilterOptions =>
+        EntryList.ReviewedFilterOptions;
+
     public bool IsComparisonLoaded => ComparisonColumns.Count > 0;
 
     public bool HasEnglishSource => ComparisonColumns.Count > 0;
@@ -175,6 +178,12 @@ public partial class MainWindowViewModel : ObservableObject
     {
         get => EntryList.SelectedSortOption;
         set => EntryList.SelectedSortOption = value;
+    }
+
+    public ReviewedFilterOption SelectedReviewedFilter
+    {
+        get => EntryList.SelectedReviewedFilter;
+        set => EntryList.SelectedReviewedFilter = value;
     }
 
     public string CommentDraft
@@ -1759,6 +1768,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             SelectedMetadataType = MetadataTypeOptions[0];
             SelectedMetadataBlock = MetadataBlockOptions[0];
+            SelectedReviewedFilter = ReviewedFilterOptions[0];
             SelectedSortOption = project.GameType == GXTType.GtaViceCity
                 ? SortOptions[0]
                 : SortOptions[1];

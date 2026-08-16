@@ -138,15 +138,19 @@ public sealed class LocalizationServiceTests
             option.Type == "mission");
         viewModel.SelectedSortOption = viewModel.SortOptions.Single(option =>
             option.Mode == EntrySortMode.EncounterOrder);
+        viewModel.SelectedReviewedFilter = viewModel.ReviewedFilterOptions.Single(option =>
+            option.Mode == ReviewedFilterMode.ReviewedOnly);
 
         localization.SetLanguage("en-US");
 
         Assert.AreEqual(SearchColumn.Comment, viewModel.SelectedSearchColumn.Column);
         Assert.AreEqual("mission", viewModel.SelectedMetadataType.Type);
         Assert.AreEqual(EntrySortMode.EncounterOrder, viewModel.SelectedSortOption.Mode);
+        Assert.AreEqual(ReviewedFilterMode.ReviewedOnly, viewModel.SelectedReviewedFilter.Mode);
         StringAssert.StartsWith(viewModel.SelectedSearchColumn.Title, "en-US:");
         StringAssert.StartsWith(viewModel.SelectedMetadataType.Name, "en-US:");
         StringAssert.StartsWith(viewModel.SelectedSortOption.Name, "en-US:");
+        StringAssert.StartsWith(viewModel.SelectedReviewedFilter.Name, "en-US:");
     }
 
     [TestMethod]
@@ -164,12 +168,14 @@ public sealed class LocalizationServiceTests
         viewModel.SelectedMetadataType = null!;
         viewModel.SelectedMetadataBlock = null!;
         viewModel.SelectedSortOption = null!;
+        viewModel.SelectedReviewedFilter = null!;
 
         Assert.IsTrue(localization.SetLanguage("be-BY"));
         Assert.AreEqual(SearchColumn.All, viewModel.SelectedSearchColumn.Column);
         Assert.IsNull(viewModel.SelectedMetadataType.Type);
         Assert.IsNull(viewModel.SelectedMetadataBlock.Id);
         Assert.AreEqual(EntrySortMode.GxtOrder, viewModel.SelectedSortOption.Mode);
+        Assert.AreEqual(ReviewedFilterMode.All, viewModel.SelectedReviewedFilter.Mode);
     }
 
     private sealed class TestResourceManager : ResourceManager
