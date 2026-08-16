@@ -6,6 +6,7 @@ AppVersion=@@APP_VERSION@@
 DefaultDirName={pf32}\Steam\steamapps\common\Grand Theft Auto Vice City
 AppendDefaultDirName=no
 DisableDirPage=no
+DirExistsWarning=no
 DisableProgramGroupPage=yes
 DisableReadyMemo=no
 DisableWelcomePage=no

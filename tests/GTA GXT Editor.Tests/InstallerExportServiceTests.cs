@@ -53,6 +53,7 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "Name: \"silentpatch\"");
         StringAssert.Contains(script, "AppendDefaultDirName=no");
         StringAssert.Contains(script, "DisableDirPage=no");
+        StringAssert.Contains(script, "DirExistsWarning=no");
         StringAssert.Contains(script, "UsePreviousAppDir=yes");
         StringAssert.Contains(script, "Check: not IsSilentPatchSelected");
         StringAssert.Contains(script, "Check: IsSilentPatchSelected");
