@@ -1,0 +1,15 @@
+---
+description: WPF, MVVM, command-state, and bilingual localization conventions
+globs: "{Views,ViewModels,Themes,Localization,Services}/**/*.{cs,xaml,resx}"
+alwaysApply: false
+---
+
+# WPF and MVVM rules
+
+- Put layout, bindings, templates, and visual states in XAML; put state and actions in view models; keep code-behind limited to WPF-specific window/event plumbing that delegates to commands or services.
+- Derive view models from `ObservableObject`. Use `[ObservableProperty]`, `[RelayCommand]`, `CanExecute`, and `[NotifyCanExecuteChangedFor]` consistently. When a dependency changes, notify every affected computed property and command explicitly.
+- Route document-changing commands through the current busy/cancellation flow. Disable incompatible commands while busy, preserve the current document until a new one is fully loaded, prompt for unsaved changes, update `EditorSession.IsDirty`, and refresh selection/filter state after a successful commit.
+- Preserve game gates: TXD and Windows-installer features are GTA Vice City-only; installer export/configuration additionally requires an attached TXD.
+- Use `{loc:Translate Resource.Key}` for visible XAML text and `ILocalizationService.Get/Format` in C#. Add every new key to both `Localization/Strings.resx` and `Localization/Strings.be-BY.resx`; keep format placeholders identical. On language changes, rebuild/notify cached labels, option lists, status text, and computed UI strings.
+- Reuse Fluent dynamic resources and shared styles from `Themes/`. Avoid hard-coded colors and duplicated control templates. Preserve keyboard gestures, accessibility labels/tooltips, binding modes, and enabled-state behavior when changing controls.
+- Keep dialogs behind `IDialogService` so view-model behavior remains unit-testable. Do not call `MessageBox` or file dialogs directly from a view model.

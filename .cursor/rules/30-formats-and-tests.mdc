@@ -1,0 +1,19 @@
+---
+description: Binary/data-format safety, compatibility, and required regression tests
+globs: "{Common,Contracts,GTAIII,GTAVC,Models,Services,tests}/**/*.cs"
+alwaysApply: false
+---
+
+# Format and compatibility rules
+
+- Treat GXT, TXD, BYX/ZIP, mapping JSON, metadata, comments, and installer inputs as untrusted. Validate signatures, versions, lengths/counts, offsets, integer overflow, duplicate identities, archive paths, unpacked-size budgets, and checksums before allocation or state mutation.
+- Read exact byte counts and use explicit little-endian primitives/helpers. Preserve game-specific layout and encoding: GTA III identity is `key`; Vice City identity is `table + key`. Keys/tables are non-empty ASCII, at most 8 characters; Vice City JSON defaults a missing table to `MAIN`.
+- Do not silently reinterpret mapping bytes, legacy Belarusian profiles, table names, language codes, BYX versions, canonical entry paths, or SHA-256 fields. Maintain declared backward compatibility (currently BYX v3 read, v4 read/write) unless the task explicitly changes the format and migration policy.
+- Keep import/open operations transactional: parse and validate into temporary objects, then commit. Failed or cancelled operations must leave the active editor session and target file unchanged.
+- JSON contracts should use explicit naming/options, reject unknown members where the existing format is strict, validate required fields and duplicate identities, and write deterministic UTF-8 without a BOM where existing exporters do so.
+
+# Regression tests
+
+- Use MSTest `[TestClass]`/`[TestMethod]` and descriptive `Method_Condition_ExpectedResult` names. Follow Arrange–Act–Assert, use temporary directories with cleanup, and prefer fakes at service/dialog boundaries over UI automation.
+- Parser changes require valid, truncated, malformed, oversized/overflow, and cancellation/atomicity coverage as applicable. UI workflow changes require command `CanExecute`, dirty-state, cancellation, failure rollback, and localization assertions.
+- Treat `tests/GTA GXT Editor.Tests/Fixtures/Contracts` and the SHA-256 values in `BinaryContractTests` as independent external contracts. Never regenerate or update hashes merely to make a test pass; change fixtures only for an intentional, documented format revision.

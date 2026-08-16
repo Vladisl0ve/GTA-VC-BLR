@@ -1,0 +1,15 @@
+---
+description: C# architecture, error handling, and asynchronous workflow conventions
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C# implementation rules
+
+- Use the existing root namespace `GTA_GXT_Editor`; keep the intentional `GTA_3_GXT_Editor.Utils` compatibility namespace unchanged. Prefer existing abstractions and constructor injection over global state or a new DI framework.
+- Keep domain/I/O logic out of views and view models. Put reusable validation in domain/service helpers and external operations behind interfaces when they need test doubles (`IDialogService`, `IDocumentWorkflow`, `IProjectSerializer`, etc.).
+- Use nullable annotations, collection expressions, pattern matching, `ArgumentNullException.ThrowIfNull`, and `ArgumentException.ThrowIfNullOrWhiteSpace` consistently with nearby code. Do not suppress analyzers unless compatibility requires it and the suppression has a precise justification.
+- Translate malformed external data into localized `InvalidDataException`; reserve argument exceptions for programmer/API misuse. Use `LocalizationProvider.Current.Get/Format` for user-facing errors and avoid leaking raw framework messages when a stable domain message exists.
+- Keep overwrites of project/GXT/BYX/installer targets transactional: fully validate/serialize to a sibling temporary file, replace the target only after success, and remove the temporary file in `finally`. Follow an existing direct-export pattern only when a partial export cannot corrupt editor state or an existing primary document.
+- For potentially slow synchronous parsing/serialization, use the existing async service wrapper and propagate `CancellationToken`. Check cancellation before committing state; rethrow `OperationCanceledException`; do not mutate WPF-bound collections from a worker thread.
+- Dispose streams, archives, readers, cancellation sources, and view models that own subscriptions/resources. Prefer `using`/`await using` and bounded reads over loading unchecked input.
