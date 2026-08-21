@@ -55,6 +55,7 @@ public sealed class InstallerProfileValidatorTests
     [TestMethod]
     [DataRow("TEXT\\BELARUS.GXT")]
     [DataRow("models\\fonts.txd")]
+    [DataRow("BelarusianLanguage.ini")]
     public void Validate_AutomaticPayloadDestinationConflict_IsRejected(string destination)
     {
         var profile = CreateValidProfile();

@@ -52,6 +52,8 @@ The generated installer always contains:
 - `TEXT\BELARUS.GXT`, generated from the current GXT snapshot;
 - `MODELS\FONTS.TXD`, copied from the attached TXD;
 - the main plugin as `BelarusianLanguage.asi`;
+- `BelarusianLanguage.ini` in the game root (`Enabled=1`) so the translation is
+  selected on launch;
 - `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight fixed IPL replacements.
 
 The core component is fixed. SilentPatch is one all-or-nothing component, selected
@@ -66,7 +68,8 @@ file's path, component, SHA-256, and original-backup policy.
 ## Installation and removal
 
 Setup is available in English and Belarusian and shows the standard language,
-welcome, game-directory, components, ready, progress, and finish pages. The common
+welcome, game-directory, components, ready, progress, and finish pages. The welcome
+page displays the bundled Vice City postcard image. The common
 Steam path is only an initial suggestion. Setup does not inspect `gta-vc.exe` or
 validate the folder contents, and `AppendDefaultDirName=no` ensures the directory
 selected by the user is used verbatim.
@@ -75,24 +78,20 @@ The stable Inno AppId and backup directory derive from the profile ProductId.
 Original `MODELS\FONTS.TXD` and, when SilentPatch is selected, the eight IPL files
 are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
 Existing GXT/ASI/INI payloads are mod-owned and overwritten without an original
-backup. Transaction state, licenses, conflicts, and the uninstaller stay under
-`_BelarusianMod\<ProductId>` in the game folder. Uninstall removes that directory
-except for `conflicts`, which is kept when a managed file changed after
-installation. A failed or cancelled attempt restores its pending pre-attempt
-snapshots and does not commit new state.
+backup. Transaction state, licenses, and the uninstaller stay under
+`_BelarusianMod\<ProductId>` in the game folder. A shortcut named
+`uninstall_BLR.exe` is created in the game root and is removed with the
+localization. Uninstall removes that support directory except for a leftover
+`conflicts` folder from an older installer, which is kept. A failed or cancelled
+attempt restores its pending pre-attempt snapshots and does not commit new state.
 An update must use the same game directory recorded by the first successful
 installation; moving the installation requires uninstalling it first.
 
 Updates keep the first original backup and update installed hashes. Reinstalling
-without SilentPatch restores the IPL originals and removes its ASI/INI. Uninstall
-restores the font/IPL originals, deletes mod-owned payloads, then removes the
-ProductId backup directory. State created by the previous installer schema, or an
+without SilentPatch restores unmodified IPL originals and removes its ASI/INI.
+Uninstall restores unmodified font/IPL originals, deletes unmodified mod-owned
+payloads, then removes the ProductId backup directory. Files the user changed
+after installation are left in place; uninstall does not prompt and does not copy
+them to `conflicts`. State created by the previous installer schema, or an
 older ProgramData-based installation of the same ProductId, is
 rejected with an instruction to uninstall that version first.
-
-If a managed file changed after installation, interactive uninstall asks per file:
-restore it (archive the changed copy, then restore/delete) or leave it (archive the
-original backup and keep the current file). Silent uninstall uses the safe restore
-choice automatically. Conflict copies remain under
-`_BelarusianMod\<ProductId>\conflicts` and the
-interactive uninstaller displays their location.

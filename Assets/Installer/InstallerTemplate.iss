@@ -10,6 +10,8 @@ DirExistsWarning=no
 DisableProgramGroupPage=yes
 DisableReadyMemo=no
 DisableWelcomePage=no
+WizardImageFile=Welcome.png
+WizardImageBackColor=#71C4F6
 OutputDir=output
 OutputBaseFilename=setup
 Compression=lzma2/ultra64
@@ -55,10 +57,6 @@ english.ComponentSilentPatch=SilentPatch (optional)
 belarusian.ComponentSilentPatch=SilentPatch (неабавязкова)
 english.BackupFailed=Setup could not create a backup of: %1
 belarusian.BackupFailed=Не ўдалося стварыць рэзервовую копію: %1
-english.FileChangedPrompt=The file "%1" was changed after installation.%n%nYes — save the changed file to the conflicts folder and restore the previous state.%nNo — keep the changed file and save the previous version to the conflicts folder.
-belarusian.FileChangedPrompt=Файл «%1» быў зменены пасля ўсталявання.%n%nТак — захаваць зменены файл у папцы канфліктаў і аднавіць папярэдні стан.%nНе — пакінуць зменены файл і захаваць папярэднюю версію ў папцы канфліктаў.
-english.ConflictsSaved=Changed or previous files were saved here:%n%1
-belarusian.ConflictsSaved=Змененыя або папярэднія файлы захаваныя тут:%n%1
 english.InvalidState=The installer backup state is damaged. Setup cannot continue safely.
 belarusian.InvalidState=Стан рэзервовых копій пашкоджаны. Бяспечна працягнуць усталяванне немагчыма.
 english.LegacyState=An older installation of this localization was detected. Uninstall it before running this setup.
@@ -70,7 +68,11 @@ belarusian.DifferentGameDirectory=Гэтая беларусізацыя ўжо �
 @@FILE_ENTRIES@@
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\_BelarusianMod\@@PRODUCT_ID@@\licenses"; Flags: ignoreversion
 
+[Icons]
+Name: "{app}\uninstall_BLR.exe"; Filename: "{uninstallexe}"
+
 [UninstallDelete]
+Type: files; Name: "{app}\uninstall_BLR.exe.lnk"
 Type: filesandordirs; Name: "{app}\_BelarusianModBackup\@@PRODUCT_ID@@"
 Type: dirifempty; Name: "{app}\_BelarusianModBackup"
 Type: files; Name: "{app}\_BelarusianMod\@@PRODUCT_ID@@\state.ini"
@@ -91,7 +93,6 @@ Type: dirifempty; Name: "{app}\_BelarusianMod"
 var
   InstallPrepared: Boolean;
   InstallCommitted: Boolean;
-  HadConflicts: Boolean;
   HadPreviousState: Boolean;
 
 function SupportRoot: String;
@@ -173,14 +174,6 @@ end;
 function DestinationFileFor(const RelativePath: String): String;
 begin
   Result := AddBackslash(ExpandConstant('{app}')) + RelativePath;
-end;
-
-function IsSilentMode: Boolean;
-begin
-  if IsUninstaller then
-    Result := UninstallSilent
-  else
-    Result := WizardSilent;
 end;
 
 function IsSilentPatchSelected: Boolean;
@@ -377,27 +370,10 @@ begin
   InstallPrepared := True;
 end;
 
-function ConflictDirectory: String;
-begin
-  Result := AddBackslash(SupportRoot) + 'conflicts\' +
-            GetDateTimeString('yyyymmdd-hhnnss', '-', '-');
-end;
-
-function ArchiveFile(const SourceFile, RelativePath, Suffix: String): Boolean;
-var
-  Target: String;
-begin
-  Target := AddBackslash(ConflictDirectory) + RelativePath + Suffix;
-  ForceDirectories(ExtractFileDir(Target));
-  Result := CopyFile(SourceFile, Target, False);
-  if Result then
-    HadConflicts := True;
-end;
-
 procedure RestoreEntry(const RelativePath: String);
 var
   Section, ManagedType, Destination, Backup, InstalledHash, CurrentHash: String;
-  OriginalExists, Changed, RestorePrevious: Boolean;
+  OriginalExists, Changed: Boolean;
 begin
   if not IsUninstaller then
     AddToPending(RelativePath);
@@ -419,28 +395,7 @@ begin
       Changed := True;
   end;
 
-  RestorePrevious := True;
-  if Changed then
-  begin
-    if IsSilentMode then
-      RestorePrevious := True
-    else
-      RestorePrevious := MsgBox(
-        FmtMessage(CustomMessage('FileChangedPrompt'), [RelativePath]),
-        mbConfirmation,
-        MB_YESNO) = IDYES;
-
-    if RestorePrevious then
-    begin
-      if not ArchiveFile(Destination, RelativePath, '.changed') then
-        RaiseException(FmtMessage(CustomMessage('BackupFailed'), [RelativePath]));
-    end
-    else if OriginalExists and FileExists(Backup) then
-      if not ArchiveFile(Backup, RelativePath, '.original') then
-        RaiseException(FmtMessage(CustomMessage('BackupFailed'), [RelativePath]));
-  end;
-
-  if RestorePrevious then
+  if not Changed then
   begin
     if FileExists(Destination) and not DeleteFile(Destination) then
       RaiseException(FmtMessage(CustomMessage('BackupFailed'), [RelativePath]));
@@ -529,6 +484,54 @@ begin
   DeleteFile(PendingFile);
 end;
 
+procedure LayoutWelcomeImage;
+var
+  PageWidth, PageHeight, ImageWidth, ImageHeight, DrawWidth, DrawHeight: Integer;
+begin
+  PageWidth := WizardForm.WelcomePage.Width;
+  PageHeight := WizardForm.WelcomePage.Height;
+  ImageWidth := WizardForm.WizardBitmapImage.Bitmap.Width;
+  ImageHeight := WizardForm.WizardBitmapImage.Bitmap.Height;
+  if (ImageWidth <= 0) or (ImageHeight <= 0) then
+  begin
+    DrawWidth := PageWidth;
+    DrawHeight := PageHeight;
+  end
+  else if (PageWidth * ImageHeight) > (PageHeight * ImageWidth) then
+  begin
+    DrawHeight := PageHeight;
+    DrawWidth := (PageHeight * ImageWidth) div ImageHeight;
+  end
+  else
+  begin
+    DrawWidth := PageWidth;
+    DrawHeight := (PageWidth * ImageHeight) div ImageWidth;
+  end;
+  WizardForm.WizardBitmapImage.SetBounds(
+    (PageWidth - DrawWidth) div 2,
+    (PageHeight - DrawHeight) div 2,
+    DrawWidth,
+    DrawHeight);
+end;
+
+procedure InitializeWizard;
+begin
+  WizardForm.WelcomeLabel1.Visible := False;
+  WizardForm.WelcomeLabel2.Visible := False;
+  WizardForm.WelcomePage.Color := $F6C471;
+  WizardForm.WizardBitmapImage.Parent := WizardForm.WelcomePage;
+  WizardForm.WizardBitmapImage.Stretch := True;
+  WizardForm.WizardBitmapImage.BackColor := $F6C471;
+  WizardForm.WizardBitmapImage.Anchors := [akLeft, akTop];
+  LayoutWelcomeImage;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpWelcome then
+    LayoutWelcomeImage;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
@@ -606,10 +609,5 @@ begin
         RestoreEntry(Values[I]);
     DeleteFile(IndexFile);
     DeleteFile(StateFile);
-  end
-  else if (CurUninstallStep = usDone) and HadConflicts and (not UninstallSilent) then
-    MsgBox(
-      FmtMessage(CustomMessage('ConflictsSaved'), [AddBackslash(SupportRoot) + 'conflicts']),
-      mbInformation,
-      MB_OK);
+  end;
 end;

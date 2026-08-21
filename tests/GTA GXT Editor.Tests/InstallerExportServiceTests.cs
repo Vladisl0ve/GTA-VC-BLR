@@ -45,6 +45,20 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "TEXT\\BELARUS.GXT");
         StringAssert.Contains(script, "MODELS\\FONTS.TXD");
         StringAssert.Contains(script, "BelarusianLanguage.asi");
+        StringAssert.Contains(script, "BelarusianLanguage.ini");
+        StringAssert.Contains(script, "BackupPayload('BelarusianLanguage.ini', False)");
+        StringAssert.Contains(script, "WizardImageFile=Welcome.png");
+        StringAssert.Contains(
+            script,
+            "Name: \"{app}\\uninstall_BLR.exe\"; Filename: \"{uninstallexe}\"");
+        StringAssert.Contains(
+            script,
+            "Type: files; Name: \"{app}\\uninstall_BLR.exe.lnk\"");
+        Assert.IsFalse(script.Contains("FileChangedPrompt", StringComparison.Ordinal));
+        Assert.IsFalse(script.Contains("ConflictsSaved", StringComparison.Ordinal));
+        StringAssert.Contains(script, "if not Changed then");
+        StringAssert.Contains(script, "procedure InitializeWizard");
+        Assert.IsTrue(compiler.WelcomeImageStaged);
         Assert.IsFalse(script.Contains("FONTB.TXD", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(script.Contains("dinput8.dll", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "SilentPatchVC.asi");
@@ -98,6 +112,7 @@ public sealed class InstallerExportServiceTests
                 "asset-00000009000000000000000000000000.bin",
                 "asset-0000000a000000000000000000000000.bin",
                 "asset-0000000b000000000000000000000000.bin",
+                "generated-belarusian-language-ini.bin",
                 "generated-font-models.bin",
                 "generated-gxt.bin",
                 "manifest-core.json",
@@ -112,11 +127,11 @@ public sealed class InstallerExportServiceTests
         CollectionAssert.AreEqual(
             new[] { "core" },
             coreManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(3, coreManifest["files"]!.AsArray());
+        Assert.HasCount(4, coreManifest["files"]!.AsArray());
         CollectionAssert.AreEqual(
             new[] { "core", "silentpatch" },
             fullManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(13, fullManifest["files"]!.AsArray());
+        Assert.HasCount(14, fullManifest["files"]!.AsArray());
         var fullFiles = fullManifest["files"]!.AsArray()
             .Select(value => value!.AsObject())
             .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
@@ -125,6 +140,10 @@ public sealed class InstallerExportServiceTests
             "MODELS\\FONTS.TXD",
             fullFiles["MODELS\\FONTS.TXD"]["backupPath"]!.GetValue<string>());
         Assert.IsFalse(fullFiles["TEXT\\BELARUS.GXT"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsFalse(fullFiles["BelarusianLanguage.ini"]["backupOriginal"]!.GetValue<bool>());
+        CollectionAssert.AreEqual(
+            "[Belarusian]\r\nEnabled=1\r\n"u8.ToArray(),
+            compiler.StagedContents["generated-belarusian-language-ini.bin"]);
         Assert.IsFalse(fullFiles["SilentPatchVC.asi"]["backupOriginal"]!.GetValue<bool>());
         Assert.IsFalse(fullFiles["SilentPatchVC.ini"]["backupOriginal"]!.GetValue<bool>());
         Assert.HasCount(
@@ -290,6 +309,8 @@ public sealed class InstallerExportServiceTests
 
         public byte[]? ScriptBytes { get; private set; }
 
+        public bool WelcomeImageStaged { get; private set; }
+
         public string[] StagedFiles { get; private set; } = [];
 
         public Dictionary<string, byte[]> StagedContents { get; private set; } =
@@ -302,6 +323,8 @@ public sealed class InstallerExportServiceTests
             CancellationToken cancellationToken)
         {
             ScriptBytes = File.ReadAllBytes(scriptPath);
+            WelcomeImageStaged = File.Exists(
+                Path.Combine(Path.GetDirectoryName(scriptPath)!, "Welcome.png"));
             StagedFiles = Directory.GetFiles(
                     Path.Combine(Path.GetDirectoryName(scriptPath)!, "payload"))
                 .Select(Path.GetFileName)

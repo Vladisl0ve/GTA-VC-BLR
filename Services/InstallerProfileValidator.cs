@@ -30,7 +30,7 @@ public static class InstallerProfileValidator
     public static IReadOnlyList<string> SilentPatchDestinations => ReadOnlySilentPatchDestinations;
 
     private static readonly HashSet<string> ReservedDestinations = new(
-        ["TEXT\\BELARUS.GXT", "MODELS\\FONTS.TXD"],
+        ["TEXT\\BELARUS.GXT", "MODELS\\FONTS.TXD", "BelarusianLanguage.ini"],
         StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> ReservedNames = new(

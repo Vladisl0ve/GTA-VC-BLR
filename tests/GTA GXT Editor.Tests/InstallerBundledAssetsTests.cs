@@ -22,6 +22,18 @@ public sealed class InstallerBundledAssetsTests
     }
 
     [TestMethod]
+    public void WelcomeImage_IsBundledWithInstallerAssets()
+    {
+        Assert.IsTrue(
+            File.Exists(Path.Combine(
+                AppContext.BaseDirectory,
+                "Assets",
+                "Installer",
+                "Welcome.png")),
+            "Missing installer welcome image: Assets/Installer/Welcome.png");
+    }
+
+    [TestMethod]
     public void BundledInnoCompiler_MatchesPinnedSha256Inventory()
     {
         var toolRoot = Path.Combine(AppContext.BaseDirectory, "Tools", "InnoSetup", "7.0.2-x86");

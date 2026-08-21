@@ -113,11 +113,12 @@ ASI Loaders and arbitrary additional files are not included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
 Inno Setup 7.0.2 x86 compiler. The installer always writes `TEXT\BELARUS.GXT`,
-`MODELS\FONTS.TXD`, and `BelarusianLanguage.asi`; SilentPatch is a setup component
-that is selected by default. Original font/IPL files are mirrored under
-`_BelarusianModBackup\<ProductId>`. Transactional state, licenses, conflicts, and
-the uninstaller live under `_BelarusianMod\<ProductId>` in the game folder. The
-selected directory is used verbatim and does not need to contain
+`MODELS\FONTS.TXD`, `BelarusianLanguage.asi`, and `BelarusianLanguage.ini`;
+SilentPatch is a setup component that is selected by default. Original font/IPL
+files are mirrored under `_BelarusianModBackup\<ProductId>`. Transactional state,
+licenses, and the uninstaller live under `_BelarusianMod\<ProductId>` in the game
+folder, with an `uninstall_BLR.exe` shortcut in the game root. The selected
+directory is used verbatim and does not need to contain
 `gta-vc.exe`. See
 [Windows installer export](docs/windows-installer.md) for the exact contract.
 
