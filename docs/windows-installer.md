@@ -69,7 +69,7 @@ file's path, component, SHA-256, and original-backup policy.
 
 Setup is available in English and Belarusian and shows the standard language,
 welcome, game-directory, components, ready, progress, and finish pages. The welcome
-page displays the bundled Vice City postcard image. The common
+page displays the bundled Vice City postcard as a 24-bit BMP. The common
 Steam path is only an initial suggestion. Setup does not inspect `gta-vc.exe` or
 validate the folder contents, and `AppendDefaultDirName=no` ensures the directory
 selected by the user is used verbatim.

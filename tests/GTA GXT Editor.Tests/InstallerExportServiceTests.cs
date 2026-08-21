@@ -47,7 +47,7 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "BelarusianLanguage.asi");
         StringAssert.Contains(script, "BelarusianLanguage.ini");
         StringAssert.Contains(script, "BackupPayload('BelarusianLanguage.ini', False)");
-        StringAssert.Contains(script, "WizardImageFile=Welcome.png");
+        StringAssert.Contains(script, "WizardImageFile=Welcome.bmp");
         StringAssert.Contains(
             script,
             "Name: \"{app}\\uninstall_BLR.exe\"; Filename: \"{uninstallexe}\"");
@@ -324,7 +324,7 @@ public sealed class InstallerExportServiceTests
         {
             ScriptBytes = File.ReadAllBytes(scriptPath);
             WelcomeImageStaged = File.Exists(
-                Path.Combine(Path.GetDirectoryName(scriptPath)!, "Welcome.png"));
+                Path.Combine(Path.GetDirectoryName(scriptPath)!, "Welcome.bmp"));
             StagedFiles = Directory.GetFiles(
                     Path.Combine(Path.GetDirectoryName(scriptPath)!, "payload"))
                 .Select(Path.GetFileName)

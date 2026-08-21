@@ -20,7 +20,7 @@ public sealed class InnoInstallerExportService : IInstallerExportService
     private const string TemplateRelativePath = "Assets/Installer/InstallerTemplate.iss";
     private const string BelarusianLanguageRelativePath = "Assets/Installer/Belarusian.isl";
     private const string NoticesRelativePath = "Assets/Installer/THIRD-PARTY-NOTICES.txt";
-    private const string WelcomeImageRelativePath = "Assets/Installer/Welcome.png";
+    private const string WelcomeImageRelativePath = "Assets/Installer/Welcome.bmp";
 
     private static readonly byte[] BelarusianLanguageIniBytes =
         "[Belarusian]\r\nEnabled=1\r\n"u8.ToArray();
@@ -81,7 +81,7 @@ public sealed class InnoInstallerExportService : IInstallerExportService
             var package = StagePayload(projectSnapshot, profile, stageDirectory);
             File.Copy(belarusianLanguagePath, Path.Combine(buildDirectory, "Belarusian.isl"));
             File.Copy(noticesPath, Path.Combine(buildDirectory, "THIRD-PARTY-NOTICES.txt"));
-            File.Copy(welcomeImagePath, Path.Combine(buildDirectory, "Welcome.png"));
+            File.Copy(welcomeImagePath, Path.Combine(buildDirectory, "Welcome.bmp"));
             var template = await File.ReadAllTextAsync(templatePath, Encoding.UTF8, cancellationToken);
             var script = GenerateScript(template, profile, package);
             var scriptPath = Path.Combine(buildDirectory, "installer.iss");
