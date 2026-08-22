@@ -15,8 +15,9 @@ BYX project path.
 Export still opens the profile editor so its product metadata can be reviewed,
 but files already stored in the BYX project are preselected and do not need to be
 read from disk again. In export mode, confirming requires
-`BelarusianLanguage.asi` and the complete SilentPatch set; an incomplete draft
-cannot be exported.
+`BelarusianLanguage.asi`, both `MODELS\gta3.img` and `MODELS\gta3.dir`, and the
+complete SilentPatch set; an incomplete draft cannot be exported. Up to 23 files
+from the game `txd` folder are optional.
 
 ## BYX v4 installer data
 
@@ -26,14 +27,15 @@ array of binary attachments. Each attachment is stored as
 role, bytes, and SHA-256 in the profile/manifest pair. Legacy profiles may still
 store the ASI Loader and additional-file roles, so existing BYX projects remain
 readable. A stored profile may contain a partial or empty attachment list. New
-exports accept only the main ASI and the exact SilentPatch set.
+exports accept the main ASI, `MODELS\gta3.img`, `MODELS\gta3.dir`, the exact
+SilentPatch set, and up to 23 optional `txd\*.txd` replacements.
 
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,
 Windows device names, invalid Windows path characters, and duplicate destinations
 are rejected. `.asi` and `.dll` attachments must be x86 PE images. README, source,
 archive, checksum, and `APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected. The
-unpacked project limit is 512 MB and the installer attachment limit is 512 files.
+unpacked project limit is 1 GB and the installer attachment limit is 512 files.
 
 BYX v3 opens with no installer profile and is upgraded on save. BYX v1/v2 and
 versions newer than v4 are rejected.
@@ -54,6 +56,8 @@ The generated installer always contains:
 - the main plugin as `BelarusianLanguage.asi`;
 - `BelarusianLanguage.ini` in the game root (`Enabled=1`) so the translation is
   selected on launch;
+- `MODELS\gta3.img` and `MODELS\gta3.dir`;
+- up to 23 optional `txd\*.txd` replacements;
 - `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight fixed IPL replacements.
 
 The core component is fixed. SilentPatch is one all-or-nothing component, selected
@@ -75,7 +79,8 @@ validate the folder contents, and `AppendDefaultDirName=no` ensures the director
 selected by the user is used verbatim.
 
 The stable Inno AppId and backup directory derive from the profile ProductId.
-Original `MODELS\FONTS.TXD` and, when SilentPatch is selected, the eight IPL files
+Original `MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, any installed
+`txd\*.txd` replacements, and, when SilentPatch is selected, the eight IPL files
 are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
 Existing GXT/ASI/INI payloads are mod-owned and overwritten without an original
 backup. Transaction state, licenses, and the uninstaller stay under
@@ -89,7 +94,7 @@ installation; moving the installation requires uninstalling it first.
 
 Updates keep the first original backup and update installed hashes. Reinstalling
 without SilentPatch restores unmodified IPL originals and removes its ASI/INI.
-Uninstall restores unmodified font/IPL originals, deletes unmodified mod-owned
+Uninstall restores unmodified font, archive, TXD, and IPL originals, deletes unmodified mod-owned
 payloads, then removes the ProductId backup directory. Files the user changed
 after installation are left in place; uninstall does not prompt and does not copy
 them to `conflicts`. State created by the previous installer schema, or an

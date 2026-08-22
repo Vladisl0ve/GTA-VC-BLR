@@ -336,7 +336,7 @@
   <data name="Comments.NameNonAscii" xml:space="preserve"><value>{0} of comments entry {1} must contain only ASCII characters and no NUL.</value></data>
 
   <data name="Byx.NotFound" xml:space="preserve"><value>Project file was not found.</value></data>
-  <data name="Byx.TooLarge" xml:space="preserve"><value>BYX project exceeds the 512 MB size limit.</value></data>
+  <data name="Byx.TooLarge" xml:space="preserve"><value>BYX project exceeds the 1 GB size limit.</value></data>
   <data name="Byx.InvalidFormat" xml:space="preserve"><value>Invalid BYX project format.</value></data>
   <data name="Byx.VersionNew" xml:space="preserve"><value>BYX version {0} is not supported yet.</value></data>
   <data name="Byx.VersionOld" xml:space="preserve"><value>BYX version {0} is no longer supported.</value></data>
@@ -355,7 +355,7 @@
   <data name="Byx.EntrySetMismatch" xml:space="preserve"><value>The BYX entry set does not match manifest.json.</value></data>
   <data name="Byx.TooManyEntries" xml:space="preserve"><value>The BYX project contains too many entries.</value></data>
   <data name="Byx.DuplicateEntry" xml:space="preserve"><value>Entry '{0}' is duplicated in the BYX project.</value></data>
-  <data name="Byx.UnpackedTooLarge" xml:space="preserve"><value>Unpacked BYX data exceeds 512 MB.</value></data>
+  <data name="Byx.UnpackedTooLarge" xml:space="preserve"><value>Unpacked BYX data exceeds 1 GB.</value></data>
   <data name="Byx.JsonCorrupt" xml:space="preserve"><value>JSON inside the BYX project is corrupt.</value></data>
   <data name="Byx.EntryMissing" xml:space="preserve"><value>Entry '{0}' is missing from the BYX project.</value></data>
   <data name="Byx.EntryTooLarge" xml:space="preserve"><value>Entry '{0}' is too large.</value></data>
@@ -431,6 +431,8 @@
   <data name="Installer.Editor.Publisher" xml:space="preserve"><value>Publisher</value></data>
   <data name="Installer.Editor.OutputName" xml:space="preserve"><value>Output EXE name</value></data>
   <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Select BelarusianLanguage.asi…</value></data>
+  <data name="Installer.Editor.ModelsArchive" xml:space="preserve"><value>Select gta3.img and gta3.dir…</value></data>
+  <data name="Installer.Editor.GameTxd" xml:space="preserve"><value>Add TXD files…</value></data>
   <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Select x86 dinput8.dll…</value></data>
   <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Add SilentPatch files…</value></data>
   <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Select SilentPatch folder…</value></data>
@@ -440,13 +442,15 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI and the SilentPatch distribution root. The complete SilentPatch set is bundled together and remains optional in the generated setup.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI, models\gta3.img together with gta3.dir, optional files from the game txd folder (up to 23), and the SilentPatch distribution root. SilentPatch remains optional in the generated setup.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
   <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Main ASI</value></data>
   <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
   <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
+  <data name="Installer.Role.ModelsArchive" xml:space="preserve"><value>Models archive</value></data>
+  <data name="Installer.Role.GameTxd" xml:space="preserve"><value>Game TXD</value></data>
   <data name="Installer.Role.Additional" xml:space="preserve"><value>Additional</value></data>
 
   <data name="Installer.Validation.ProductId" xml:space="preserve"><value>The installer ProductId is invalid.</value></data>
@@ -460,11 +464,15 @@
   <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Attached file “{0}” has an invalid source name.</value></data>
   <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>More than one file targets “{0}”. Destination paths are case-insensitive.</value></data>
   <data name="Installer.Validation.X86" xml:space="preserve"><value>“{0}” must be a valid x86 PE .asi or .dll file.</value></data>
-  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 512 MB limit.</value></data>
+  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 1 GB limit.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Select exactly one x86 main ASI targeting BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>If selected, the x86 ASI Loader must target dinput8.dll.</value></data>
   <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Select the complete SilentPatch set: SilentPatchVC.asi, SilentPatchVC.ini, and all eight required IPL files.</value></data>
   <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>The selected SilentPatch folder is missing these files:&#xA;{0}</value></data>
+  <data name="Installer.Validation.ModelsArchive" xml:space="preserve"><value>Select both MODELS\gta3.img and MODELS\gta3.dir.</value></data>
+  <data name="Installer.Validation.ModelsArchiveMissingDir" xml:space="preserve"><value>gta3.dir must be in the same folder as the selected gta3.img.</value></data>
+  <data name="Installer.Validation.GameTxd" xml:space="preserve"><value>TXD replacements must target txd\*.txd with no subfolders.</value></data>
+  <data name="Installer.Validation.GameTxdCount" xml:space="preserve"><value>The installer may contain no more than {0} TXD files from the game txd folder.</value></data>
   <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader and additional files are no longer supported. Remove them from the installer profile.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>“{0}” is not a safe path relative to the game folder.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>“{0}” is a source, archive, checksum, README or command file and cannot be placed in the game folder.</value></data>

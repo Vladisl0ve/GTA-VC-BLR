@@ -6,6 +6,8 @@ public enum InstallerAssetRole
     AsiLoader,
     SilentPatch,
     Additional,
+    ModelsArchive,
+    GameTxd,
 }
 
 public sealed class InstallerAsset

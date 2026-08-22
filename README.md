@@ -89,7 +89,7 @@ removing a TXD leaves it active as the custom GXT encoding.
 BYX v4 is a self-contained ZIP container with a GXT, an optional single TXD, the
 pair's profile, translator metadata, and SHA-256 checksums. A Vice City project may
 also contain a Windows-installer profile and its binary resources under safe,
-GUID-derived archive names. The combined unpacked size is limited to 512 MB and an
+GUID-derived archive names. The combined unpacked size is limited to 1 GB and an
 installer profile may contain at most 512 files.
 
 BYX v3 projects remain readable. They open with an empty installer profile and are
@@ -106,16 +106,19 @@ For a GTA Vice City project with an attached TXD, choose **Export as → Windows
 installer…**. To prepare and store its files before exporting, use the
 **Windows installer** panel below the TXD controls and save the project as BYX.
 The project may keep an incomplete installer-profile draft after some or all of
-its files are removed. Export requires `BelarusianLanguage.asi` and a complete
-SilentPatch distribution: `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight
-supported IPL files. Files already stored in BYX remain selected on later exports.
-ASI Loaders and arbitrary additional files are not included.
+its files are removed. Export requires `BelarusianLanguage.asi`, `MODELS\gta3.img`,
+`MODELS\gta3.dir`, and a complete SilentPatch distribution: `SilentPatchVC.asi`,
+`SilentPatchVC.ini`, and the eight supported IPL files. Up to 23 files from the
+game `txd` folder may also be attached. Files already stored in BYX remain
+selected on later exports. ASI Loaders and arbitrary additional files are not
+included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
 Inno Setup 7.0.2 x86 compiler. The installer always writes `TEXT\BELARUS.GXT`,
-`MODELS\FONTS.TXD`, `BelarusianLanguage.asi`, and `BelarusianLanguage.ini`;
-SilentPatch is a setup component that is selected by default. Original font/IPL
-files are mirrored under `_BelarusianModBackup\<ProductId>`. Transactional state,
+`MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, `BelarusianLanguage.asi`,
+and `BelarusianLanguage.ini`; SilentPatch is a setup component that is selected by
+default. Original font, archive, TXD, and IPL files are mirrored under
+`_BelarusianModBackup\<ProductId>`. Transactional state,
 licenses, and the uninstaller live under `_BelarusianMod\<ProductId>` in the game
 folder, with an `uninstall_BLR.exe` shortcut in the game root. The selected
 directory is used verbatim and does not need to contain

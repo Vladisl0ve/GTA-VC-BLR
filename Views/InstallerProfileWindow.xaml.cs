@@ -43,6 +43,12 @@ public partial class InstallerProfileWindow : Window
             InstallerProfileValidator.MainAsiDestination,
             "ASI (*.asi)|*.asi|All files (*.*)|*.*");
 
+    private void SelectModelsArchive_OnClick(object sender, RoutedEventArgs e) =>
+        SelectModelsArchive();
+
+    private void SelectGameTxd_OnClick(object sender, RoutedEventArgs e) =>
+        SelectGameTxdFiles();
+
     private void SelectSilentPatchFolder_OnClick(object sender, RoutedEventArgs e) =>
         SelectSilentPatchFolder();
 
@@ -163,6 +169,130 @@ public partial class InstallerProfileWindow : Window
         }
     }
 
+    private void SelectModelsArchive()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = _localization.Get("Installer.Editor.SelectFile"),
+            Filter = "IMG (gta3.img)|gta3.img|All files (*.*)|*.*",
+            FileName = "gta3.img",
+            InitialDirectory = _suggestedDirectory,
+            CheckFileExists = true,
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var imgPath = dialog.FileName;
+        var directory = Path.GetDirectoryName(imgPath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            ShowValidationError("Installer.Validation.ModelsArchive");
+            return;
+        }
+
+        var dirPath = Path.Combine(directory, "gta3.dir");
+        if (!File.Exists(dirPath))
+        {
+            ShowValidationError("Installer.Validation.ModelsArchiveMissingDir");
+            return;
+        }
+
+        var retainedSize = _assets
+            .Where(row => row.Asset.Role != InstallerAssetRole.ModelsArchive)
+            .Sum(row => row.Asset.Data.LongLength);
+        if (new FileInfo(imgPath).Length + new FileInfo(dirPath).Length >
+            InstallerProfileValidator.MaximumPayloadSize - retainedSize)
+        {
+            ShowValidationError("Installer.Validation.PayloadSize");
+            return;
+        }
+
+        RemoveAssetsByRole(InstallerAssetRole.ModelsArchive);
+        AddAsset(imgPath, InstallerProfileValidator.Gta3ImgDestination, InstallerAssetRole.ModelsArchive);
+        AddAsset(dirPath, InstallerProfileValidator.Gta3DirDestination, InstallerAssetRole.ModelsArchive);
+    }
+
+    private void SelectGameTxdFiles()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = _localization.Get("Installer.Editor.SelectFiles"),
+            Filter = "TXD (*.txd)|*.txd|All files (*.*)|*.*",
+            InitialDirectory = _suggestedDirectory,
+            CheckFileExists = true,
+            Multiselect = true,
+        };
+        if (dialog.ShowDialog(this) != true || dialog.FileNames.Length == 0)
+        {
+            return;
+        }
+
+        if (dialog.FileNames.Any(path =>
+                !Path.GetExtension(path).Equals(".txd", StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowValidationError("Installer.Validation.GameTxd");
+            return;
+        }
+
+        var selectedFiles = dialog.FileNames
+            .Select(path => new
+            {
+                SourcePath = path,
+                Destination = InstallerProfileValidator.GetGameTxdDestination(Path.GetFileName(path)),
+            })
+            .GroupBy(item => item.Destination, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+
+        var incomingDestinations = selectedFiles
+            .Select(item => item.Destination)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var retained = _assets
+            .Where(row => !incomingDestinations.Contains(row.Asset.DestinationPath))
+            .ToList();
+        if (retained.Count(row => row.Asset.Role == InstallerAssetRole.GameTxd) + selectedFiles.Length >
+            InstallerProfileValidator.MaximumGameTxdAssets)
+        {
+            MessageBox.Show(
+                this,
+                _localization.Format(
+                    "Installer.Validation.GameTxdCount",
+                    InstallerProfileValidator.MaximumGameTxdAssets),
+                _localization.Get("Common.Error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        if (retained.Count + selectedFiles.Length > InstallerProfileValidator.MaximumAssets)
+        {
+            ShowValidationError("Installer.Validation.AssetCount");
+            return;
+        }
+
+        if (selectedFiles.Sum(item => new FileInfo(item.SourcePath).Length) >
+            InstallerProfileValidator.MaximumPayloadSize - retained.Sum(row => row.Asset.Data.LongLength))
+        {
+            ShowValidationError("Installer.Validation.PayloadSize");
+            return;
+        }
+
+        for (var index = _assets.Count - 1; index >= 0; index--)
+        {
+            if (incomingDestinations.Contains(_assets[index].Asset.DestinationPath))
+            {
+                _assets.RemoveAt(index);
+            }
+        }
+
+        foreach (var item in selectedFiles)
+        {
+            AddAsset(item.SourcePath, item.Destination, InstallerAssetRole.GameTxd);
+        }
+    }
+
     private static string ToSourcePath(string root, string destination) =>
         Path.Combine(root, destination.Replace('\\', Path.DirectorySeparatorChar));
 
@@ -212,7 +342,14 @@ public partial class InstallerProfileWindow : Window
             RemoveAssetsByRole(InstallerAssetRole.SilentPatch);
         }
 
-        foreach (var row in selected.Where(row => row.Asset.Role != InstallerAssetRole.SilentPatch))
+        if (selected.Any(row => row.Asset.Role == InstallerAssetRole.ModelsArchive))
+        {
+            RemoveAssetsByRole(InstallerAssetRole.ModelsArchive);
+        }
+
+        foreach (var row in selected.Where(row =>
+                     row.Asset.Role is not InstallerAssetRole.SilentPatch and
+                     not InstallerAssetRole.ModelsArchive))
         {
             _assets.Remove(row);
         }

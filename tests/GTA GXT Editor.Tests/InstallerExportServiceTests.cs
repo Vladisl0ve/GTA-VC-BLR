@@ -46,6 +46,8 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "MODELS\\FONTS.TXD");
         StringAssert.Contains(script, "BelarusianLanguage.asi");
         StringAssert.Contains(script, "BelarusianLanguage.ini");
+        StringAssert.Contains(script, "MODELS\\gta3.img");
+        StringAssert.Contains(script, "MODELS\\gta3.dir");
         StringAssert.Contains(script, "BackupPayload('BelarusianLanguage.ini', False)");
         StringAssert.Contains(script, "WizardImageFile=Welcome.bmp");
         StringAssert.Contains(
@@ -72,6 +74,8 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "Check: not IsSilentPatchSelected");
         StringAssert.Contains(script, "Check: IsSilentPatchSelected");
         StringAssert.Contains(script, "BackupPayload('MODELS\\FONTS.TXD', True)");
+        StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.img', True)");
+        StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.dir', True)");
         StringAssert.Contains(script, "BackupPayload('SilentPatchVC.asi', False)");
         StringAssert.Contains(script, "BackupPayload('data\\maps\\club\\CLUB.ipl', True)");
         StringAssert.Contains(
@@ -112,6 +116,8 @@ public sealed class InstallerExportServiceTests
                 "asset-00000009000000000000000000000000.bin",
                 "asset-0000000a000000000000000000000000.bin",
                 "asset-0000000b000000000000000000000000.bin",
+                "asset-0000000c000000000000000000000000.bin",
+                "asset-0000000d000000000000000000000000.bin",
                 "generated-belarusian-language-ini.bin",
                 "generated-font-models.bin",
                 "generated-gxt.bin",
@@ -127,15 +133,20 @@ public sealed class InstallerExportServiceTests
         CollectionAssert.AreEqual(
             new[] { "core" },
             coreManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(4, coreManifest["files"]!.AsArray());
+        Assert.HasCount(6, coreManifest["files"]!.AsArray());
         CollectionAssert.AreEqual(
             new[] { "core", "silentpatch" },
             fullManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(14, fullManifest["files"]!.AsArray());
+        Assert.HasCount(16, fullManifest["files"]!.AsArray());
         var fullFiles = fullManifest["files"]!.AsArray()
             .Select(value => value!.AsObject())
             .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
         Assert.IsTrue(fullFiles["MODELS\\FONTS.TXD"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsTrue(fullFiles["MODELS\\gta3.img"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsTrue(fullFiles["MODELS\\gta3.dir"]["backupOriginal"]!.GetValue<bool>());
+        Assert.AreEqual(
+            "MODELS\\gta3.img",
+            fullFiles["MODELS\\gta3.img"]["backupPath"]!.GetValue<string>());
         Assert.AreEqual(
             "MODELS\\FONTS.TXD",
             fullFiles["MODELS\\FONTS.TXD"]["backupPath"]!.GetValue<string>());
@@ -151,6 +162,31 @@ public sealed class InstallerExportServiceTests
             fullFiles.Values.Where(value =>
                 value["component"]!.GetValue<string>() == "silentpatch" &&
                 value["backupOriginal"]!.GetValue<bool>()));
+    }
+
+    [TestMethod]
+    public async Task BuildAsync_GameTxd_IsCorePayloadWithOriginalBackup()
+    {
+        var compiler = new InspectingCompiler();
+        var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
+        var project = CreateProject();
+        project.InstallerProfile!.Assets.Add(CreateGameTxd(14, "loadsc0.txd"));
+        var target = Path.Combine(_testDirectory, "output", "Belarusian Setup.exe");
+
+        await service.BuildAsync(project, target, CancellationToken.None);
+
+        var script = Encoding.UTF8.GetString(compiler.ScriptBytes!);
+        StringAssert.Contains(script, "txd\\loadsc0.txd");
+        StringAssert.Contains(script, "BackupPayload('txd\\loadsc0.txd', True)");
+        CollectionAssert.Contains(compiler.StagedFiles, "asset-0000000e000000000000000000000000.bin");
+
+        var fullManifest = JsonNode.Parse(compiler.StagedContents["manifest-full.json"])!.AsObject();
+        var fullFiles = fullManifest["files"]!.AsArray()
+            .Select(value => value!.AsObject())
+            .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
+        Assert.IsTrue(fullFiles["txd\\loadsc0.txd"]["backupOriginal"]!.GetValue<bool>());
+        Assert.AreEqual("core", fullFiles["txd\\loadsc0.txd"]["component"]!.GetValue<string>());
+        Assert.HasCount(7, JsonNode.Parse(compiler.StagedContents["manifest-core.json"])!["files"]!.AsArray());
     }
 
     [TestMethod]
@@ -263,6 +299,8 @@ public sealed class InstallerExportServiceTests
                     CreateBinary(1, InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
                     .. InstallerProfileValidator.SilentPatchDestinations.Select((destination, index) =>
                         CreateSilentPatchAsset(index + 2, destination)),
+                    CreateModelsArchive(12, InstallerProfileValidator.Gta3ImgDestination),
+                    CreateModelsArchive(13, InstallerProfileValidator.Gta3DirDestination),
                 ],
             },
         };
@@ -291,6 +329,24 @@ public sealed class InstallerExportServiceTests
                 DestinationPath = destination,
                 Data = Encoding.UTF8.GetBytes(destination),
             };
+
+    private static InstallerAsset CreateModelsArchive(int id, string destination) => new()
+    {
+        Id = new Guid(id, 0, 0, new byte[8]),
+        Role = InstallerAssetRole.ModelsArchive,
+        OriginalFileName = Path.GetFileName(destination),
+        DestinationPath = destination,
+        Data = Encoding.UTF8.GetBytes(destination),
+    };
+
+    private static InstallerAsset CreateGameTxd(int id, string fileName) => new()
+    {
+        Id = new Guid(id, 0, 0, new byte[8]),
+        Role = InstallerAssetRole.GameTxd,
+        OriginalFileName = fileName,
+        DestinationPath = InstallerProfileValidator.GetGameTxdDestination(fileName),
+        Data = Encoding.UTF8.GetBytes(fileName),
+    };
 
     private static byte[] CreateX86PeImage()
     {

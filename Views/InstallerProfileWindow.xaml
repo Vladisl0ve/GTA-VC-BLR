@@ -41,6 +41,8 @@
 
         <WrapPanel Grid.Row="1" Margin="0,16,0,12">
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.MainAsi}" Click="SelectMainAsi_OnClick" />
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.ModelsArchive}" Click="SelectModelsArchive_OnClick" />
+            <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.GameTxd}" Click="SelectGameTxd_OnClick" />
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Installer.Editor.SilentPatchFolder}" Click="SelectSilentPatchFolder_OnClick" />
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Common.Remove}" Click="RemoveAsset_OnClick" />
         </WrapPanel>

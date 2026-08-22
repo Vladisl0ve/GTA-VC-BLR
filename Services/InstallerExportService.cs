@@ -176,8 +176,7 @@ public sealed class InnoInstallerExportService : IInstallerExportService
                 $"asset-{asset.Id:N}.bin",
                 asset.DestinationPath,
                 asset.Role == InstallerAssetRole.SilentPatch ? "silentpatch" : "core",
-                asset.Role == InstallerAssetRole.SilentPatch &&
-                Path.GetExtension(asset.DestinationPath).Equals(".ipl", StringComparison.OrdinalIgnoreCase),
+                ShouldBackupOriginal(asset),
                 asset.Data));
         }
 
@@ -323,6 +322,11 @@ public sealed class InnoInstallerExportService : IInstallerExportService
             .Append(manifest.Sha256)
             .AppendLine("')");
     }
+
+    private static bool ShouldBackupOriginal(InstallerAsset asset) =>
+        asset.Role is InstallerAssetRole.ModelsArchive or InstallerAssetRole.GameTxd ||
+        asset.Role == InstallerAssetRole.SilentPatch &&
+        Path.GetExtension(asset.DestinationPath).Equals(".ipl", StringComparison.OrdinalIgnoreCase);
 
     private static string Escape(string value) => value.Replace("\"", "\"\"");
 

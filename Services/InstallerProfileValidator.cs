@@ -7,8 +7,11 @@ namespace GTA_GXT_Editor.Services;
 public static class InstallerProfileValidator
 {
     public const int MaximumAssets = 512;
-    public const long MaximumPayloadSize = 512L * 1024 * 1024;
+    public const int MaximumGameTxdAssets = 23;
+    public const long MaximumPayloadSize = 1024L * 1024 * 1024;
     public const string MainAsiDestination = "BelarusianLanguage.asi";
+    public const string Gta3ImgDestination = "MODELS\\gta3.img";
+    public const string Gta3DirDestination = "MODELS\\gta3.dir";
 
     private static readonly string[] RequiredSilentPatchDestinations =
     [
@@ -24,10 +27,21 @@ public static class InstallerProfileValidator
         "data\\maps\\washints\\washints.ipl",
     ];
 
+    private static readonly string[] RequiredModelsArchiveDestinations =
+    [
+        Gta3ImgDestination,
+        Gta3DirDestination,
+    ];
+
     private static readonly IReadOnlyList<string> ReadOnlySilentPatchDestinations =
         Array.AsReadOnly(RequiredSilentPatchDestinations);
 
+    private static readonly IReadOnlyList<string> ReadOnlyModelsArchiveDestinations =
+        Array.AsReadOnly(RequiredModelsArchiveDestinations);
+
     public static IReadOnlyList<string> SilentPatchDestinations => ReadOnlySilentPatchDestinations;
+
+    public static IReadOnlyList<string> ModelsArchiveDestinations => ReadOnlyModelsArchiveDestinations;
 
     private static readonly HashSet<string> ReservedDestinations = new(
         ["TEXT\\BELARUS.GXT", "MODELS\\FONTS.TXD", "BelarusianLanguage.ini"],
@@ -46,7 +60,10 @@ public static class InstallerProfileValidator
         ValidateCommon(profile);
 
         if (profile.Assets.Any(asset =>
-                asset.Role is not InstallerAssetRole.MainAsi and not InstallerAssetRole.SilentPatch))
+                asset.Role is not InstallerAssetRole.MainAsi and
+                not InstallerAssetRole.SilentPatch and
+                not InstallerAssetRole.ModelsArchive and
+                not InstallerAssetRole.GameTxd))
         {
             Throw("Installer.Validation.UnsupportedRole");
         }
@@ -67,6 +84,9 @@ public static class InstallerProfileValidator
         {
             Throw("Installer.Validation.SilentPatch");
         }
+
+        ValidateModelsArchiveComplete(profile);
+        ValidateGameTxdAssets(profile);
     }
 
     public static void ValidateForStorage(InstallerProfile profile)
@@ -88,7 +108,34 @@ public static class InstallerProfileValidator
         {
             Throw("Installer.Validation.AsiLoader");
         }
+
+        ValidateModelsArchiveForStorage(profile);
+        ValidateGameTxdAssets(profile);
     }
+
+    public static string GetGameTxdDestination(string fileName)
+    {
+        if (!IsFileNameOnly(fileName) ||
+            !Path.GetExtension(fileName).Equals(".txd", StringComparison.OrdinalIgnoreCase))
+        {
+            Throw("Installer.Validation.GameTxd");
+        }
+
+        return "txd\\" + fileName;
+    }
+
+    public static bool IsGameTxdDestination(string destination)
+    {
+        var segments = destination.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 2 &&
+               segments[0].Equals("txd", StringComparison.OrdinalIgnoreCase) &&
+               Path.GetExtension(segments[1]).Equals(".txd", StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(segments[1], Path.GetFileName(segments[1]), StringComparison.Ordinal);
+    }
+
+    public static bool IsModelsArchiveDestination(string destination) =>
+        destination.Equals(Gta3ImgDestination, StringComparison.OrdinalIgnoreCase) ||
+        destination.Equals(Gta3DirDestination, StringComparison.OrdinalIgnoreCase);
 
     private static void ValidateCommon(InstallerProfile profile)
     {
@@ -154,7 +201,45 @@ public static class InstallerProfileValidator
         {
             Throw("Installer.Validation.PayloadSize");
         }
+    }
 
+    private static void ValidateModelsArchiveComplete(InstallerProfile profile)
+    {
+        var archives = profile.Assets
+            .Where(asset => asset.Role == InstallerAssetRole.ModelsArchive)
+            .Select(asset => asset.DestinationPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (archives.Count != RequiredModelsArchiveDestinations.Length ||
+            RequiredModelsArchiveDestinations.Any(path => !archives.Contains(path)))
+        {
+            Throw("Installer.Validation.ModelsArchive");
+        }
+    }
+
+    private static void ValidateModelsArchiveForStorage(InstallerProfile profile)
+    {
+        if (profile.Assets.Any(asset =>
+                asset.Role == InstallerAssetRole.ModelsArchive &&
+                !IsModelsArchiveDestination(asset.DestinationPath)))
+        {
+            Throw("Installer.Validation.ModelsArchive");
+        }
+    }
+
+    private static void ValidateGameTxdAssets(InstallerProfile profile)
+    {
+        var gameTxd = profile.Assets
+            .Where(asset => asset.Role == InstallerAssetRole.GameTxd)
+            .ToList();
+        if (gameTxd.Count > MaximumGameTxdAssets)
+        {
+            Throw("Installer.Validation.GameTxdCount", MaximumGameTxdAssets);
+        }
+
+        if (gameTxd.Any(asset => !IsGameTxdDestination(asset.DestinationPath)))
+        {
+            Throw("Installer.Validation.GameTxd");
+        }
     }
 
     public static string NormalizeDestinationPath(string path)

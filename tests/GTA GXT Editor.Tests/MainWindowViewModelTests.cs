@@ -1348,6 +1348,22 @@ public sealed class MainWindowViewModelTests
         Assets =
         [
             CreateInstallerBinary(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
+            new InstallerAsset
+            {
+                Id = Guid.NewGuid(),
+                Role = InstallerAssetRole.ModelsArchive,
+                OriginalFileName = "gta3.img",
+                DestinationPath = InstallerProfileValidator.Gta3ImgDestination,
+                Data = [1, 2, 3],
+            },
+            new InstallerAsset
+            {
+                Id = Guid.NewGuid(),
+                Role = InstallerAssetRole.ModelsArchive,
+                OriginalFileName = "gta3.dir",
+                DestinationPath = InstallerProfileValidator.Gta3DirDestination,
+                Data = [4, 5, 6],
+            },
             .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
                 Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
                     ? CreateInstallerBinary(InstallerAssetRole.SilentPatch, destination)

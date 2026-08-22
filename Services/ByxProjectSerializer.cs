@@ -18,7 +18,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     private const string CharacterMapEntryName = "mapping/characters.json";
     private const string MetadataEntryName = "metadata/entries.json";
     private const string InstallerProfileEntryName = "installer/profile.json";
-    private const long MaximumArchiveSize = 512L * 1024 * 1024;
+    private const long MaximumArchiveSize = 1024L * 1024 * 1024;
     private const long MaximumManifestSize = 1024 * 1024;
     private const long MaximumCharacterMapSize = 4L * 1024 * 1024;
     private const long MaximumMetadataSize = 64L * 1024 * 1024;

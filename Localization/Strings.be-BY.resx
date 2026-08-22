@@ -336,7 +336,7 @@
   <data name="Comments.NameNonAscii" xml:space="preserve"><value>{0} запісу каментароў {1} павінна змяшчаць толькі ASCII-сімвалы без NUL.</value></data>
 
   <data name="Byx.NotFound" xml:space="preserve"><value>Файл праекта не знойдзены.</value></data>
-  <data name="Byx.TooLarge" xml:space="preserve"><value>Праект BYX перавышае ліміт памеру 512 МБ.</value></data>
+  <data name="Byx.TooLarge" xml:space="preserve"><value>Праект BYX перавышае ліміт памеру 1 ГБ.</value></data>
   <data name="Byx.InvalidFormat" xml:space="preserve"><value>Некарэктны фармат праекта BYX.</value></data>
   <data name="Byx.VersionNew" xml:space="preserve"><value>Версія BYX {0} пакуль не падтрымліваецца.</value></data>
   <data name="Byx.VersionOld" xml:space="preserve"><value>Версія BYX {0} больш не падтрымліваецца.</value></data>
@@ -355,7 +355,7 @@
   <data name="Byx.EntrySetMismatch" xml:space="preserve"><value>Набор запісаў BYX не адпавядае manifest.json.</value></data>
   <data name="Byx.TooManyEntries" xml:space="preserve"><value>Праект BYX змяшчае занадта шмат запісаў.</value></data>
   <data name="Byx.DuplicateEntry" xml:space="preserve"><value>Запіс '{0}' паўтараецца ў праекце BYX.</value></data>
-  <data name="Byx.UnpackedTooLarge" xml:space="preserve"><value>Распакованыя даныя BYX перавышаюць 512 МБ.</value></data>
+  <data name="Byx.UnpackedTooLarge" xml:space="preserve"><value>Распакованыя даныя BYX перавышаюць 1 ГБ.</value></data>
   <data name="Byx.JsonCorrupt" xml:space="preserve"><value>JSON унутры праекта BYX пашкоджаны.</value></data>
   <data name="Byx.EntryMissing" xml:space="preserve"><value>У праекце BYX няма запісу '{0}'.</value></data>
   <data name="Byx.EntryTooLarge" xml:space="preserve"><value>Запіс '{0}' занадта вялікі.</value></data>
@@ -431,6 +431,8 @@
   <data name="Installer.Editor.Publisher" xml:space="preserve"><value>Выдавец</value></data>
   <data name="Installer.Editor.OutputName" xml:space="preserve"><value>Назва выніковага EXE</value></data>
   <data name="Installer.Editor.MainAsi" xml:space="preserve"><value>Выбраць BelarusianLanguage.asi…</value></data>
+  <data name="Installer.Editor.ModelsArchive" xml:space="preserve"><value>Выбраць gta3.img і gta3.dir…</value></data>
+  <data name="Installer.Editor.GameTxd" xml:space="preserve"><value>Дадаць файлы TXD…</value></data>
   <data name="Installer.Editor.AsiLoader" xml:space="preserve"><value>Выбраць x86 dinput8.dll…</value></data>
   <data name="Installer.Editor.SilentPatchFiles" xml:space="preserve"><value>Дадаць файлы SilentPatch…</value></data>
   <data name="Installer.Editor.SilentPatchFolder" xml:space="preserve"><value>Выбраць папку SilentPatch…</value></data>
@@ -440,13 +442,15 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI і каранёвую папку дыстрыбутыва SilentPatch. Поўны набор SilentPatch дадаецца разам і застаецца неабавязковым у створаным інсталятары.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI, models\gta3.img разам з gta3.dir, неабавязковыя файлы з папкі txd гульні (да 23) і каранёвую папку дыстрыбутыва SilentPatch. SilentPatch застаецца неабавязковым у створаным інсталятары.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
   <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Асноўны ASI</value></data>
   <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
   <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
+  <data name="Installer.Role.ModelsArchive" xml:space="preserve"><value>Архіў models</value></data>
+  <data name="Installer.Role.GameTxd" xml:space="preserve"><value>TXD гульні</value></data>
   <data name="Installer.Role.Additional" xml:space="preserve"><value>Дадатковы</value></data>
 
   <data name="Installer.Validation.ProductId" xml:space="preserve"><value>ProductId інсталятара няправільны.</value></data>
@@ -460,11 +464,15 @@
   <data name="Installer.Validation.SourceName" xml:space="preserve"><value>Далучаны файл «{0}» мае няправільную зыходную назву.</value></data>
   <data name="Installer.Validation.DuplicateTarget" xml:space="preserve"><value>Некалькі файлаў прызначаныя ў «{0}». Рэгістр у шляхах не адрозніваецца.</value></data>
   <data name="Installer.Validation.X86" xml:space="preserve"><value>«{0}» мусіць быць сапраўдным x86 PE-файлам .asi або .dll.</value></data>
-  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 512 МБ.</value></data>
+  <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 1 ГБ.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Калі выбраны x86 ASI Loader, яго прызначэннем павінен быць dinput8.dll.</value></data>
   <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Выберыце поўны набор SilentPatch: SilentPatchVC.asi, SilentPatchVC.ini і ўсе восем патрэбных файлаў IPL.</value></data>
   <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>У выбранай папцы SilentPatch няма наступных файлаў:&#xA;{0}</value></data>
+  <data name="Installer.Validation.ModelsArchive" xml:space="preserve"><value>Выберыце абодва файлы MODELS\gta3.img і MODELS\gta3.dir.</value></data>
+  <data name="Installer.Validation.ModelsArchiveMissingDir" xml:space="preserve"><value>Файл gta3.dir мусіць быць у той самай папцы, што і выбраны gta3.img.</value></data>
+  <data name="Installer.Validation.GameTxd" xml:space="preserve"><value>Замены TXD мусяць мець прызначэнне txd\*.txd без падпапак.</value></data>
+  <data name="Installer.Validation.GameTxdCount" xml:space="preserve"><value>Інсталятар можа змяшчаць не больш за {0} файлаў TXD з папкі txd гульні.</value></data>
   <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader і дадатковыя файлы больш не падтрымліваюцца. Выдаліце іх з профілю інсталятара.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>

@@ -164,6 +164,100 @@ public sealed class InstallerProfileValidatorTests
     }
 
     [TestMethod]
+    public void Validate_MissingModelsArchive_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.ModelsArchive);
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_MissingOrPartialModelsArchive_IsAccepted()
+    {
+        var withoutArchive = CreateValidProfile();
+        withoutArchive.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.ModelsArchive);
+        var onlyImg = CreateValidProfile();
+        onlyImg.Assets.RemoveAll(asset =>
+            asset.Role == InstallerAssetRole.ModelsArchive &&
+            asset.DestinationPath.Equals(
+                InstallerProfileValidator.Gta3DirDestination,
+                StringComparison.OrdinalIgnoreCase));
+
+        InstallerProfileValidator.ValidateForStorage(withoutArchive);
+        InstallerProfileValidator.ValidateForStorage(onlyImg);
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_ModelsArchiveWithWrongDestination_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        var archive = profile.Assets.Single(asset =>
+            asset.Role == InstallerAssetRole.ModelsArchive &&
+            asset.DestinationPath.Equals(
+                InstallerProfileValidator.Gta3ImgDestination,
+                StringComparison.OrdinalIgnoreCase));
+        archive.DestinationPath = "MODELS\\other.img";
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_TwentyThreeGameTxd_IsAccepted()
+    {
+        var profile = CreateValidProfile();
+        for (var index = 0; index < InstallerProfileValidator.MaximumGameTxdAssets; index++)
+        {
+            profile.Assets.Add(CreateGameTxd($"loadsc{index}.txd"));
+        }
+
+        InstallerProfileValidator.Validate(profile);
+        InstallerProfileValidator.ValidateForStorage(profile);
+    }
+
+    [TestMethod]
+    public void Validate_TwentyFourGameTxd_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        for (var index = 0; index <= InstallerProfileValidator.MaximumGameTxdAssets; index++)
+        {
+            profile.Assets.Add(CreateGameTxd($"loadsc{index}.txd"));
+        }
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    [DataRow("txd\\nested\\signs.txd")]
+    [DataRow("txd\\signs.png")]
+    [DataRow("MODELS\\signs.txd")]
+    [DataRow("signs.txd")]
+    public void Validate_InvalidGameTxdDestination_IsRejected(string destination)
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Add(new InstallerAsset
+        {
+            Id = Guid.NewGuid(),
+            Role = InstallerAssetRole.GameTxd,
+            OriginalFileName = Path.GetFileName(destination),
+            DestinationPath = destination,
+            Data = [1],
+        });
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void GetGameTxdDestination_UsesFileNameUnderTxd()
+    {
+        Assert.AreEqual("txd\\loadsc0.txd", InstallerProfileValidator.GetGameTxdDestination("loadsc0.txd"));
+        Assert.IsTrue(InstallerProfileValidator.IsGameTxdDestination("txd\\loadsc0.txd"));
+        Assert.IsFalse(InstallerProfileValidator.IsGameTxdDestination("txd\\a\\b.txd"));
+    }
+
+    [TestMethod]
     public void ValidateForStorage_PresentMainAsiWithWrongDestination_IsRejected()
     {
         var profile = CreateValidProfile();
@@ -224,6 +318,12 @@ public sealed class InstallerProfileValidatorTests
         Assets =
         [
             CreateBinary(InstallerAssetRole.MainAsi, InstallerProfileValidator.MainAsiDestination),
+            CreatePayload(
+                InstallerAssetRole.ModelsArchive,
+                InstallerProfileValidator.Gta3ImgDestination),
+            CreatePayload(
+                InstallerAssetRole.ModelsArchive,
+                InstallerProfileValidator.Gta3DirDestination),
             .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
                 Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
                     ? CreateBinary(InstallerAssetRole.SilentPatch, destination)
@@ -253,6 +353,24 @@ public sealed class InstallerProfileValidatorTests
         Role = InstallerAssetRole.Additional,
         OriginalFileName = "file.ini",
         DestinationPath = destination,
+        Data = [1],
+    };
+
+    private static InstallerAsset CreatePayload(InstallerAssetRole role, string destination) => new()
+    {
+        Id = Guid.NewGuid(),
+        Role = role,
+        OriginalFileName = Path.GetFileName(destination),
+        DestinationPath = destination,
+        Data = [1, 2, 3],
+    };
+
+    private static InstallerAsset CreateGameTxd(string fileName) => new()
+    {
+        Id = Guid.NewGuid(),
+        Role = InstallerAssetRole.GameTxd,
+        OriginalFileName = fileName,
+        DestinationPath = InstallerProfileValidator.GetGameTxdDestination(fileName),
         Data = [1],
     };
 
