@@ -65,6 +65,7 @@ public sealed class InstallerExportServiceTests
         Assert.IsFalse(script.Contains("dinput8.dll", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(script, "SilentPatchVC.asi");
         StringAssert.Contains(script, "SilentPatchVC.ini");
+        StringAssert.Contains(script, "ddraw.dll");
         StringAssert.Contains(script, "data\\maps\\washints\\washints.ipl");
         StringAssert.Contains(script, "Name: \"silentpatch\"");
         StringAssert.Contains(script, "AppendDefaultDirName=no");
@@ -77,6 +78,7 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.img', True)");
         StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.dir', True)");
         StringAssert.Contains(script, "BackupPayload('SilentPatchVC.asi', False)");
+        StringAssert.Contains(script, "BackupPayload('ddraw.dll', False)");
         StringAssert.Contains(script, "BackupPayload('data\\maps\\club\\CLUB.ipl', True)");
         StringAssert.Contains(
             script,
@@ -118,6 +120,7 @@ public sealed class InstallerExportServiceTests
                 "asset-0000000b000000000000000000000000.bin",
                 "asset-0000000c000000000000000000000000.bin",
                 "asset-0000000d000000000000000000000000.bin",
+                "asset-0000000e000000000000000000000000.bin",
                 "generated-belarusian-language-ini.bin",
                 "generated-font-models.bin",
                 "generated-gxt.bin",
@@ -137,7 +140,7 @@ public sealed class InstallerExportServiceTests
         CollectionAssert.AreEqual(
             new[] { "core", "silentpatch" },
             fullManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(16, fullManifest["files"]!.AsArray());
+        Assert.HasCount(17, fullManifest["files"]!.AsArray());
         var fullFiles = fullManifest["files"]!.AsArray()
             .Select(value => value!.AsObject())
             .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
@@ -157,6 +160,7 @@ public sealed class InstallerExportServiceTests
             compiler.StagedContents["generated-belarusian-language-ini.bin"]);
         Assert.IsFalse(fullFiles["SilentPatchVC.asi"]["backupOriginal"]!.GetValue<bool>());
         Assert.IsFalse(fullFiles["SilentPatchVC.ini"]["backupOriginal"]!.GetValue<bool>());
+        Assert.IsFalse(fullFiles["ddraw.dll"]["backupOriginal"]!.GetValue<bool>());
         Assert.HasCount(
             8,
             fullFiles.Values.Where(value =>
@@ -170,7 +174,7 @@ public sealed class InstallerExportServiceTests
         var compiler = new InspectingCompiler();
         var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
         var project = CreateProject();
-        project.InstallerProfile!.Assets.Add(CreateGameTxd(14, "loadsc0.txd"));
+        project.InstallerProfile!.Assets.Add(CreateGameTxd(15, "loadsc0.txd"));
         var target = Path.Combine(_testDirectory, "output", "Belarusian Setup.exe");
 
         await service.BuildAsync(project, target, CancellationToken.None);
@@ -178,7 +182,7 @@ public sealed class InstallerExportServiceTests
         var script = Encoding.UTF8.GetString(compiler.ScriptBytes!);
         StringAssert.Contains(script, "txd\\loadsc0.txd");
         StringAssert.Contains(script, "BackupPayload('txd\\loadsc0.txd', True)");
-        CollectionAssert.Contains(compiler.StagedFiles, "asset-0000000e000000000000000000000000.bin");
+        CollectionAssert.Contains(compiler.StagedFiles, "asset-0000000f000000000000000000000000.bin");
 
         var fullManifest = JsonNode.Parse(compiler.StagedContents["manifest-full.json"])!.AsObject();
         var fullFiles = fullManifest["files"]!.AsArray()
@@ -187,6 +191,37 @@ public sealed class InstallerExportServiceTests
         Assert.IsTrue(fullFiles["txd\\loadsc0.txd"]["backupOriginal"]!.GetValue<bool>());
         Assert.AreEqual("core", fullFiles["txd\\loadsc0.txd"]["component"]!.GetValue<string>());
         Assert.HasCount(7, JsonNode.Parse(compiler.StagedContents["manifest-core.json"])!["files"]!.AsArray());
+    }
+
+    [TestMethod]
+    public async Task BuildAsync_ReleaseReadMes_AreNotStagedInInstallerPayload()
+    {
+        var compiler = new InspectingCompiler();
+        var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
+        var project = CreateProject();
+        var english = "English README body"u8.ToArray();
+        var belarusian = Encoding.UTF8.GetBytes("Беларускі README");
+        project.InstallerProfile!.ReleaseReadMeEnglish = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000064"),
+            OriginalFileName = "ReadMe.txt",
+            Data = english,
+        };
+        project.InstallerProfile.ReleaseReadMeBelarusian = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000065"),
+            OriginalFileName = "ПрачытайМяне.txt",
+            Data = belarusian,
+        };
+        var target = Path.Combine(_testDirectory, "output", "Setup.exe");
+
+        await service.BuildAsync(project, target, CancellationToken.None);
+
+        var script = Encoding.UTF8.GetString(compiler.ScriptBytes!);
+        Assert.IsFalse(script.Contains("ReadMe.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(script.Contains("ПрачытайМяне.txt", StringComparison.Ordinal));
+        Assert.IsFalse(compiler.StagedContents.Values.Any(bytes => bytes.AsSpan().SequenceEqual(english)));
+        Assert.IsFalse(compiler.StagedContents.Values.Any(bytes => bytes.AsSpan().SequenceEqual(belarusian)));
     }
 
     [TestMethod]
@@ -299,8 +334,8 @@ public sealed class InstallerExportServiceTests
                     CreateBinary(1, InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
                     .. InstallerProfileValidator.SilentPatchDestinations.Select((destination, index) =>
                         CreateSilentPatchAsset(index + 2, destination)),
-                    CreateModelsArchive(12, InstallerProfileValidator.Gta3ImgDestination),
-                    CreateModelsArchive(13, InstallerProfileValidator.Gta3DirDestination),
+                    CreateModelsArchive(13, InstallerProfileValidator.Gta3ImgDestination),
+                    CreateModelsArchive(14, InstallerProfileValidator.Gta3DirDestination),
                 ],
             },
         };
@@ -319,7 +354,7 @@ public sealed class InstallerExportServiceTests
     };
 
     private static InstallerAsset CreateSilentPatchAsset(int id, string destination) =>
-        Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+        InstallerProfileValidator.RequiresX86Validation(destination)
             ? CreateBinary(id, InstallerAssetRole.SilentPatch, destination)
             : new InstallerAsset
             {

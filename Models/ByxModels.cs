@@ -74,7 +74,7 @@ public sealed class ByxInstallerAssetItem : ByxArchiveItem
 
 public sealed class ByxInstallerProfileDocument
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public string Format { get; set; } = "BYX_INSTALLER_PROFILE";
 
@@ -91,6 +91,19 @@ public sealed class ByxInstallerProfileDocument
     public string OutputFileName { get; set; } = string.Empty;
 
     public List<ByxInstallerProfileAsset> Assets { get; set; } = [];
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ByxInstallerReleaseDocument? ReleaseReadMeEnglish { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ByxInstallerReleaseDocument? ReleaseReadMeBelarusian { get; set; }
+}
+
+public sealed class ByxInstallerReleaseDocument
+{
+    public Guid Id { get; set; }
+
+    public string FileName { get; set; } = string.Empty;
 }
 
 public sealed class ByxInstallerProfileAsset

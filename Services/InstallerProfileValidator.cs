@@ -8,7 +8,9 @@ public static class InstallerProfileValidator
 {
     public const int MaximumAssets = 512;
     public const int MaximumGameTxdAssets = 23;
+    public const int MaximumReleaseDocuments = 2;
     public const long MaximumPayloadSize = 1024L * 1024 * 1024;
+    public const long MaximumReleaseDocumentSize = 1024L * 1024;
     public const string MainAsiDestination = "BelarusianLanguage.asi";
     public const string Gta3ImgDestination = "MODELS\\gta3.img";
     public const string Gta3DirDestination = "MODELS\\gta3.dir";
@@ -17,6 +19,7 @@ public static class InstallerProfileValidator
     [
         "SilentPatchVC.asi",
         "SilentPatchVC.ini",
+        "ddraw.dll",
         "data\\maps\\club\\CLUB.ipl",
         "data\\maps\\hotel\\hotel.IPL",
         "data\\maps\\littleha\\littleha.ipl",
@@ -87,6 +90,13 @@ public static class InstallerProfileValidator
 
         ValidateModelsArchiveComplete(profile);
         ValidateGameTxdAssets(profile);
+    }
+
+    public static void ValidateForReleaseZip(InstallerProfile profile)
+    {
+        Validate(profile);
+        ValidateReleaseDocumentRequired(profile.ReleaseReadMeEnglish, "Installer.Validation.ReleaseReadMeEnglish");
+        ValidateReleaseDocumentRequired(profile.ReleaseReadMeBelarusian, "Installer.Validation.ReleaseReadMeBelarusian");
     }
 
     public static void ValidateForStorage(InstallerProfile profile)
@@ -195,6 +205,11 @@ public static class InstallerProfileValidator
             {
                 Throw("Installer.Validation.X86", asset.OriginalFileName);
             }
+        }
+
+        foreach (var document in profile.EnumerateReleaseDocuments())
+        {
+            ValidateReleaseDocument(document, assetIds, ref totalLength);
         }
 
         if (totalLength > MaximumPayloadSize)
@@ -317,7 +332,41 @@ public static class InstallerProfileValidator
         }
     }
 
-    private static bool RequiresX86Validation(string destination)
+    private static void ValidateReleaseDocumentRequired(
+        InstallerReleaseDocument? document,
+        string resourceKey)
+    {
+        if (document is null)
+        {
+            Throw(resourceKey);
+        }
+    }
+
+    private static void ValidateReleaseDocument(
+        InstallerReleaseDocument document,
+        HashSet<Guid> assetIds,
+        ref long totalLength)
+    {
+        if (document.Id == Guid.Empty || !assetIds.Add(document.Id))
+        {
+            Throw("Installer.Validation.AssetId");
+        }
+
+        if (!IsFileNameOnly(document.OriginalFileName) ||
+            !Path.GetExtension(document.OriginalFileName).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            Throw("Installer.Validation.ReleaseReadMe", document.OriginalFileName);
+        }
+
+        if (document.Data.Length == 0 || document.Data.LongLength > MaximumReleaseDocumentSize)
+        {
+            Throw("Installer.Validation.ReleaseReadMeSize", document.OriginalFileName);
+        }
+
+        totalLength = checked(totalLength + document.Data.LongLength);
+    }
+
+    public static bool RequiresX86Validation(string destination)
     {
         var extension = Path.GetExtension(destination);
         return extension.Equals(".asi", StringComparison.OrdinalIgnoreCase) ||

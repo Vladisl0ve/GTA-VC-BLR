@@ -308,6 +308,75 @@ public sealed class InstallerProfileValidatorTests
         Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.Validate(profile));
     }
 
+    [TestMethod]
+    public void Validate_WithoutReleaseReadMes_Succeeds()
+    {
+        InstallerProfileValidator.Validate(CreateValidProfile());
+        InstallerProfileValidator.ValidateForStorage(CreateValidProfile());
+    }
+
+    [TestMethod]
+    public void ValidateForReleaseZip_RequiresBothReadMes()
+    {
+        var profile = CreateValidProfile();
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForReleaseZip(profile));
+
+        profile.ReleaseReadMeEnglish = CreateReadMe("ReadMe.txt", "English");
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForReleaseZip(profile));
+
+        profile.ReleaseReadMeBelarusian = CreateReadMe("ПрачытайМяне.txt", "Беларуская");
+        InstallerProfileValidator.ValidateForReleaseZip(profile);
+        InstallerProfileValidator.Validate(profile);
+    }
+
+    [TestMethod]
+    public void ValidateForStorage_AcceptsOptionalReadMes()
+    {
+        var profile = CreateValidProfile();
+        profile.Assets.Clear();
+        profile.ReleaseReadMeEnglish = CreateReadMe("notes.txt", "draft");
+
+        InstallerProfileValidator.ValidateForStorage(profile);
+    }
+
+    [TestMethod]
+    public void Validate_ReadMeWithWrongExtension_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.ReleaseReadMeEnglish = CreateReadMe("ReadMe.md", "English");
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_ReadMeSharingAssetId_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        var mainAsi = profile.Assets.Single(asset => asset.Role == InstallerAssetRole.MainAsi);
+        profile.ReleaseReadMeEnglish = new InstallerReleaseDocument
+        {
+            Id = mainAsi.Id,
+            OriginalFileName = "ReadMe.txt",
+            Data = "English"u8.ToArray(),
+        };
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_EmptyReadMe_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.ReleaseReadMeEnglish = new InstallerReleaseDocument
+        {
+            Id = Guid.NewGuid(),
+            OriginalFileName = "ReadMe.txt",
+            Data = [],
+        };
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
     private static InstallerProfile CreateValidProfile() => new()
     {
         ProductId = Guid.NewGuid(),
@@ -325,7 +394,7 @@ public sealed class InstallerProfileValidatorTests
                 InstallerAssetRole.ModelsArchive,
                 InstallerProfileValidator.Gta3DirDestination),
             .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
-                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                InstallerProfileValidator.RequiresX86Validation(destination)
                     ? CreateBinary(InstallerAssetRole.SilentPatch, destination)
                     : new InstallerAsset
                     {
@@ -372,6 +441,13 @@ public sealed class InstallerProfileValidatorTests
         OriginalFileName = fileName,
         DestinationPath = InstallerProfileValidator.GetGameTxdDestination(fileName),
         Data = [1],
+    };
+
+    private static InstallerReleaseDocument CreateReadMe(string fileName, string text) => new()
+    {
+        Id = Guid.NewGuid(),
+        OriginalFileName = fileName,
+        Data = System.Text.Encoding.UTF8.GetBytes(text),
     };
 
     private static byte[] CreateX86PeImage()

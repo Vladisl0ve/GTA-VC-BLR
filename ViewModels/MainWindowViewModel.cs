@@ -21,6 +21,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ILocalizationService _localization;
     private readonly IAppSettingsStore _appSettings;
     private readonly IInstallerExportService _installerExportService;
+    private readonly IReleaseZipExportService _releaseZipExportService;
 
     private string DocumentFileFilter => _localization.Get("Filter.Document");
     private string GxtFileFilter => _localization.Get("Filter.Gxt");
@@ -30,6 +31,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string CharacterMapFileFilter => _localization.Get("Filter.CharacterMap");
     private string CommentsFileFilter => _localization.Get("Filter.Comments");
     private string InstallerFileFilter => _localization.Get("Filter.Installer");
+    private string ReleaseZipFileFilter => _localization.Get("Filter.ReleaseZip");
 
     private CommonGXTManager? _manager => _session.Manager;
     private EditorProject? _project => _session.Project;
@@ -57,12 +59,15 @@ public partial class MainWindowViewModel : ObservableObject
         EditorSession? session = null,
         ILocalizationService? localization = null,
         IAppSettingsStore? appSettings = null,
-        IInstallerExportService? installerExportService = null)
+        IInstallerExportService? installerExportService = null,
+        IReleaseZipExportService? releaseZipExportService = null)
     {
         _dialogs = dialogs;
         _localization = localization ?? LocalizationProvider.Current;
         _appSettings = appSettings ?? new JsonAppSettingsStore();
         _installerExportService = installerExportService ?? new InnoInstallerExportService();
+        _releaseZipExportService = releaseZipExportService ??
+            new ReleaseZipExportService(_installerExportService);
         var resolvedTxdReader = txdReader ?? new TxdReader();
         var resolvedProjectSerializer = projectSerializer ??
             new ByxProjectSerializer(managerFactory, resolvedTxdReader);
@@ -218,6 +223,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ImportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommentsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportReleaseZipCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureInstallerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleReviewedCommand))]
     private bool isDocumentLoaded;
@@ -232,6 +238,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RemoveTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportTxdCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportInstallerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportReleaseZipCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureInstallerCommand))]
     private TxdAttachment? attachedTxd;
 
@@ -682,6 +689,51 @@ public partial class MainWindowViewModel : ObservableObject
             catch (Exception exception)
             {
                 _dialogs.ShowError(_localization.Format("Message.ExportInstallerFailed", exception.Message));
+            }
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExportReleaseZip))]
+    private Task ExportReleaseZipAsync()
+    {
+        if (_project is null || _project.AttachedTxd is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var directory = GetProjectDirectory();
+        var result = EditInstallerProfile(directory, InstallerProfileEditorMode.ExportReleaseZip);
+        if (result is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        ApplyInstallerProfile(result.Profile);
+        var suggestedName = Path.GetFileNameWithoutExtension(result.Profile.OutputFileName) + ".zip";
+        var targetPath = _dialogs.SaveFile(
+            _localization.Get("Dialog.ExportReleaseZip"),
+            ReleaseZipFileFilter,
+            Path.Combine(directory, suggestedName));
+        if (targetPath is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunBusyAsync("Busy.ExportReleaseZip", async token =>
+        {
+            try
+            {
+                var snapshot = await _documentWorkflow.CreateSnapshotAsync(_project, token);
+                await _releaseZipExportService.BuildAsync(snapshot, targetPath, token);
+                SetStatus("Status.ReleaseZipExported", targetPath);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _dialogs.ShowError(_localization.Format("Message.ExportReleaseZipFailed", exception.Message));
             }
         });
     }
@@ -1847,6 +1899,7 @@ public partial class MainWindowViewModel : ObservableObject
         SaveCommand.NotifyCanExecuteChanged();
         ExportGxtCommand.NotifyCanExecuteChanged();
         ExportInstallerCommand.NotifyCanExecuteChanged();
+        ExportReleaseZipCommand.NotifyCanExecuteChanged();
         ConfigureInstallerCommand.NotifyCanExecuteChanged();
         SaveProjectAsCommand.NotifyCanExecuteChanged();
         AddEntryCommand.NotifyCanExecuteChanged();
@@ -1875,6 +1928,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanExportInstaller() =>
         CanUseDocument() && _loadedType == GXTType.GtaViceCity && AttachedTxd is not null;
+
+    private bool CanExportReleaseZip() => CanExportInstaller();
 
     private bool CanConfigureInstaller() => CanExportInstaller();
 

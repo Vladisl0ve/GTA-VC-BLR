@@ -291,6 +291,89 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
+    public void SaveAndLoad_InstallerProfile_PreservesReleaseReadMes()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        project.InstallerProfile.ReleaseReadMeEnglish = CreateReleaseReadMe(
+            20,
+            "notes-en.txt",
+            "English notes");
+        project.InstallerProfile.ReleaseReadMeBelarusian = CreateReleaseReadMe(
+            21,
+            "ПрачытайМяне.txt",
+            "Беларускія нататкі");
+        var path = Path.Combine(_testDirectory, "installer-readmes.byx");
+
+        _serializer.Save(path, project);
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.InstallerProfile);
+        Assert.IsNotNull(loaded.InstallerProfile.ReleaseReadMeEnglish);
+        Assert.IsNotNull(loaded.InstallerProfile.ReleaseReadMeBelarusian);
+        Assert.AreEqual(
+            project.InstallerProfile.ReleaseReadMeEnglish.Id,
+            loaded.InstallerProfile.ReleaseReadMeEnglish.Id);
+        Assert.AreEqual("notes-en.txt", loaded.InstallerProfile.ReleaseReadMeEnglish.OriginalFileName);
+        CollectionAssert.AreEqual(
+            project.InstallerProfile.ReleaseReadMeEnglish.Data,
+            loaded.InstallerProfile.ReleaseReadMeEnglish.Data);
+        Assert.AreEqual(
+            "ПрачытайМяне.txt",
+            loaded.InstallerProfile.ReleaseReadMeBelarusian.OriginalFileName);
+        CollectionAssert.AreEqual(
+            project.InstallerProfile.ReleaseReadMeBelarusian.Data,
+            loaded.InstallerProfile.ReleaseReadMeBelarusian.Data);
+
+        using var archive = ZipFile.OpenRead(path);
+        var profile = ReadJsonObject(archive, "installer/profile.json");
+        Assert.AreEqual(2, profile["version"]!.GetValue<int>());
+        Assert.AreEqual(
+            project.InstallerProfile.ReleaseReadMeEnglish.Id,
+            profile["releaseReadMeEnglish"]!["id"]!.GetValue<Guid>());
+        Assert.AreEqual(
+            "notes-en.txt",
+            profile["releaseReadMeEnglish"]!["fileName"]!.GetValue<string>());
+        var manifest = ReadJsonObject(archive, "manifest.json");
+        Assert.HasCount(6, manifest["installer"]!["assets"]!.AsArray());
+        AssertManifestHashMatches(
+            archive,
+            manifest["installer"]!["assets"]!.AsArray()
+                .Single(item => item!["id"]!.GetValue<Guid>() ==
+                    project.InstallerProfile.ReleaseReadMeEnglish.Id)!
+                .AsObject());
+    }
+
+    [TestMethod]
+    public void Save_InstallerProfile_WritesVersion2WithoutReadMes()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "installer-v2.byx");
+
+        _serializer.Save(path, project);
+
+        using var archive = ZipFile.OpenRead(path);
+        var profile = ReadJsonObject(archive, "installer/profile.json");
+        Assert.AreEqual(2, profile["version"]!.GetValue<int>());
+        Assert.IsFalse(profile.ContainsKey("releaseReadMeEnglish"));
+        Assert.IsFalse(profile.ContainsKey("releaseReadMeBelarusian"));
+    }
+
+    [TestMethod]
+    public void Load_InstallerProfileVersion1_IsRejected()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "installer-v1.byx");
+        _serializer.Save(path, project);
+
+        MutateInstallerProfile(path, profile => profile["version"] = 1);
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
     public void SaveAndLoad_EmptyInstallerProfile_PreservesDraftWithoutAssetEntries()
     {
         var project = CreateProject();
@@ -703,6 +786,13 @@ public sealed class ByxProjectSerializerTests
         Data = CreateX86PeImage(),
     };
 
+    private static InstallerReleaseDocument CreateReleaseReadMe(int id, string fileName, string text) => new()
+    {
+        Id = new Guid(id, 0, 0, new byte[8]),
+        OriginalFileName = fileName,
+        Data = Encoding.UTF8.GetBytes(text),
+    };
+
     private static byte[] CreateX86PeImage()
     {
         var data = new byte[128];
@@ -752,6 +842,24 @@ public sealed class ByxProjectSerializerTests
         using var archive = new ZipArchive(stream, ZipArchiveMode.Update);
         var manifest = ReadJsonObject(archive, "manifest.json");
         mutation(manifest);
+        archive.GetEntry("manifest.json")!.Delete();
+        WriteJsonEntry(archive, "manifest.json", manifest);
+    }
+
+    private static void MutateInstallerProfile(string path, Action<JsonObject> mutation)
+    {
+        using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Update);
+        var profile = ReadJsonObject(archive, "installer/profile.json");
+        mutation(profile);
+        var profileData = JsonSerializer.SerializeToUtf8Bytes(
+            profile,
+            new JsonSerializerOptions { WriteIndented = true });
+        archive.GetEntry("installer/profile.json")!.Delete();
+        WriteArchiveEntry(archive, "installer/profile.json", profileData);
+
+        var manifest = ReadJsonObject(archive, "manifest.json");
+        manifest["installer"]!["sha256"] = Convert.ToHexStringLower(SHA256.HashData(profileData));
         archive.GetEntry("manifest.json")!.Delete();
         WriteJsonEntry(archive, "manifest.json", manifest);
     }

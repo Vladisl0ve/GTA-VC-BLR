@@ -171,6 +171,10 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 JsonOptions);
         }
 
+        var installerBinaries = installerProfile is null
+            ? new List<InstallerStoredBinary>()
+            : GetInstallerStoredBinaries(installerProfile);
+
         var manifest = new ByxManifest
         {
             Format = "BYX",
@@ -212,12 +216,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 {
                     Entry = InstallerProfileEntryName,
                     Sha256 = ComputeHash(installerProfileData),
-                    Assets = installerProfile.Assets.Select(asset => new ByxInstallerAssetItem
+                    Assets = installerBinaries.Select(binary => new ByxInstallerAssetItem
                     {
-                        Id = asset.Id,
-                        OriginalFileName = SanitizeFileName(asset.OriginalFileName, $"{asset.Id:N}.bin"),
-                        Entry = GetInstallerAssetEntryName(asset.Id),
-                        Sha256 = ComputeHash(asset.Data),
+                        Id = binary.Id,
+                        OriginalFileName = SanitizeFileName(binary.OriginalFileName, $"{binary.Id:N}.bin"),
+                        Entry = GetInstallerAssetEntryName(binary.Id),
+                        Sha256 = ComputeHash(binary.Data),
                     }).ToList(),
                 },
         };
@@ -229,7 +233,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             characterMapData,
             metadataData,
             installerProfileData,
-            installerProfile?.Assets);
+            installerBinaries);
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath)
@@ -271,12 +275,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                         InstallerProfileEntryName,
                         installerProfileData,
                         CompressionLevel.Optimal);
-                    foreach (var asset in installerProfile.Assets)
+                    foreach (var binary in installerBinaries)
                     {
                         WriteEntry(
                             archive,
-                            GetInstallerAssetEntryName(asset.Id),
-                            asset.Data,
+                            GetInstallerAssetEntryName(binary.Id),
+                            binary.Data,
                             CompressionLevel.Optimal);
                     }
                 }
@@ -320,14 +324,14 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[]? characterMapData,
         byte[] metadataData,
         byte[]? installerProfileData,
-        List<InstallerAsset>? installerAssets)
+        IReadOnlyList<InstallerStoredBinary> installerBinaries)
     {
         var entryCount = 3 +
                          (txdData is null ? 0 : 1) +
                          (characterMapData is null ? 0 : 1) +
                          (installerProfileData is null ? 0 : 1) +
-                         (installerAssets?.Count ?? 0);
-        var installerAssetsLength = installerAssets?.Sum(asset => asset.Data.LongLength) ?? 0;
+                         installerBinaries.Count;
+        var installerAssetsLength = installerBinaries.Sum(binary => binary.Data.LongLength);
         var totalLength = checked(
             manifestData.LongLength +
             gxtData.LongLength +
@@ -361,7 +365,31 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             Role = asset.Role,
             DestinationPath = asset.DestinationPath,
         }).ToList(),
+        ReleaseReadMeEnglish = CreateReleaseDocument(profile.ReleaseReadMeEnglish),
+        ReleaseReadMeBelarusian = CreateReleaseDocument(profile.ReleaseReadMeBelarusian),
     };
+
+    private static ByxInstallerReleaseDocument? CreateReleaseDocument(
+        InstallerReleaseDocument? document) =>
+        document is null
+            ? null
+            : new ByxInstallerReleaseDocument
+            {
+                Id = document.Id,
+                FileName = document.OriginalFileName,
+            };
+
+    private static List<InstallerStoredBinary> GetInstallerStoredBinaries(
+        InstallerProfile profile)
+    {
+        var binaries = new List<InstallerStoredBinary>(
+            profile.Assets.Count + InstallerProfileValidator.MaximumReleaseDocuments);
+        binaries.AddRange(profile.Assets.Select(asset =>
+            new InstallerStoredBinary(asset.Id, asset.OriginalFileName, asset.Data)));
+        binaries.AddRange(profile.EnumerateReleaseDocuments().Select(document =>
+            new InstallerStoredBinary(document.Id, document.OriginalFileName, document.Data)));
+        return binaries;
+    }
 
     private static InstallerProfile LoadInstallerProfile(
         ZipArchive archive,
@@ -377,7 +405,6 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
         var manifestAssets = item.Assets.ToDictionary(asset => asset.Id);
         if (manifestAssets.Count != item.Assets.Count ||
-            document.Assets.Count != item.Assets.Count ||
             document.Assets.Select(asset => asset.Id).Distinct().Count() != document.Assets.Count)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
@@ -386,7 +413,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var assets = new List<InstallerAsset>(document.Assets.Count);
         foreach (var profileAsset in document.Assets)
         {
-            if (!manifestAssets.TryGetValue(profileAsset.Id, out var manifestAsset))
+            if (!manifestAssets.Remove(profileAsset.Id, out var manifestAsset))
             {
                 throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
             }
@@ -409,9 +436,46 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             Publisher = document.Publisher,
             OutputFileName = document.OutputFileName,
             Assets = assets,
+            ReleaseReadMeEnglish = LoadReleaseDocument(
+                archive,
+                document.ReleaseReadMeEnglish,
+                manifestAssets),
+            ReleaseReadMeBelarusian = LoadReleaseDocument(
+                archive,
+                document.ReleaseReadMeBelarusian,
+                manifestAssets),
         };
+        if (manifestAssets.Count != 0)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
+        }
+
         InstallerProfileValidator.ValidateForStorage(profile);
         return profile;
+    }
+
+    private static InstallerReleaseDocument? LoadReleaseDocument(
+        ZipArchive archive,
+        ByxInstallerReleaseDocument? document,
+        Dictionary<Guid, ByxInstallerAssetItem> remainingManifestAssets)
+    {
+        if (document is null)
+        {
+            return null;
+        }
+
+        if (!remainingManifestAssets.Remove(document.Id, out var manifestAsset) ||
+            !string.Equals(document.FileName, manifestAsset.OriginalFileName, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
+        }
+
+        return new InstallerReleaseDocument
+        {
+            Id = document.Id,
+            OriginalFileName = manifestAsset.OriginalFileName,
+            Data = ReadValidatedEntry(archive, manifestAsset, MaximumArchiveSize),
+        };
     }
 
     private static CharacterMapProfile LoadCharacterMap(
@@ -486,7 +550,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             item,
             InstallerProfileEntryName,
             LocalizationProvider.Current.Get("Byx.AttachmentInstaller"));
-        if (item.Assets.Count > InstallerProfileValidator.MaximumAssets)
+        if (item.Assets.Count > InstallerProfileValidator.MaximumAssets +
+            InstallerProfileValidator.MaximumReleaseDocuments)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.TooManyEntries"));
         }
@@ -705,4 +770,5 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         return string.IsNullOrWhiteSpace(name) ? fallback : name;
     }
 
+    private readonly record struct InstallerStoredBinary(Guid Id, string OriginalFileName, byte[] Data);
 }
