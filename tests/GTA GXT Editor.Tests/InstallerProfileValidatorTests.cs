@@ -36,6 +36,30 @@ public sealed class InstallerProfileValidatorTests
     }
 
     [TestMethod]
+    public void Validate_CustomModDocumentation_IsAcceptedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Readme", false, "ReadMe_GInput.txt", 92));
+        profile.Mods.Add(CreateMod("Markdown guide", false, "docs\\controls.md", 93));
+
+        InstallerProfileValidator.Validate(profile);
+    }
+
+    [TestMethod]
+    [DataRow("APPLY_MOD.cmd")]
+    [DataRow("CLEAN_MOD.cmd")]
+    [DataRow("checksums.sha256")]
+    [DataRow("source.cpp")]
+    [DataRow("package.zip")]
+    public void Validate_CustomModExcludedPayload_IsRejected(string destination)
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Excluded file", false, destination, 94));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
     public void Validate_CustomModDuplicateName_IsRejectedCaseInsensitively()
     {
         var profile = CreateValidProfile();
@@ -127,6 +151,7 @@ public sealed class InstallerProfileValidatorTests
 
     [TestMethod]
     [DataRow("README.txt")]
+    [DataRow("docs\\guide.md")]
     [DataRow("APPLY_MOD.cmd")]
     [DataRow("CLEAN_MOD.cmd")]
     [DataRow("checksums.sha256")]

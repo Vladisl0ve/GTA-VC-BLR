@@ -187,11 +187,13 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "Components: mod_11111111111111111111111111111111");
         StringAssert.Contains(script, "Components: mod_22222222222222222222222222222222");
         StringAssert.Contains(script, "BackupPayload('plugins\\required.dat', True)");
+        StringAssert.Contains(script, "BackupPayload('ReadMe_Required.txt', True)");
         StringAssert.Contains(script, "BackupPayload('data\\optional.dat', True)");
         StringAssert.Contains(script, "WizardIsComponentSelected('mod_22222222222222222222222222222222')");
         StringAssert.Contains(script, "\"component\":\"mod_11111111111111111111111111111111\"");
         CollectionAssert.Contains(compiler.StagedFiles, "mod-00000014000000000000000000000000.bin");
         CollectionAssert.Contains(compiler.StagedFiles, "mod-00000015000000000000000000000000.bin");
+        CollectionAssert.Contains(compiler.StagedFiles, "mod-00000016000000000000000000000000.bin");
         Assert.IsFalse(compiler.StagedFiles.Any(file => file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)));
     }
 
@@ -324,6 +326,7 @@ public sealed class InstallerExportServiceTests
         var gameDirectory = Path.Combine(_testDirectory, "Fake Vice City");
         var requiredPath = Path.Combine(gameDirectory, "plugins", "required.dat");
         var optionalPath = Path.Combine(gameDirectory, "data", "optional.dat");
+        var readMePath = Path.Combine(gameDirectory, "ReadMe_Required.txt");
         Directory.CreateDirectory(Path.GetDirectoryName(requiredPath)!);
         Directory.CreateDirectory(Path.GetDirectoryName(optionalPath)!);
         await File.WriteAllBytesAsync(requiredPath, [1, 2, 3]);
@@ -344,6 +347,7 @@ public sealed class InstallerExportServiceTests
 
             CollectionAssert.AreEqual(new byte[] { 20, 21 }, await File.ReadAllBytesAsync(requiredPath));
             CollectionAssert.AreEqual(new byte[] { 22, 23 }, await File.ReadAllBytesAsync(optionalPath));
+            CollectionAssert.AreEqual(new byte[] { 24, 25 }, await File.ReadAllBytesAsync(readMePath));
             var manifestPath = Path.Combine(
                 gameDirectory,
                 "_BelarusianModBackup",
@@ -374,6 +378,7 @@ public sealed class InstallerExportServiceTests
 
             CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, await File.ReadAllBytesAsync(requiredPath));
             CollectionAssert.AreEqual(new byte[] { 4, 5, 6 }, await File.ReadAllBytesAsync(optionalPath));
+            Assert.IsFalse(File.Exists(readMePath));
             Assert.IsFalse(File.Exists(manifestPath));
         }
         finally
@@ -488,6 +493,13 @@ public sealed class InstallerExportServiceTests
                         OriginalFileName = "required.dat",
                         DestinationPath = "plugins\\required.dat",
                         Data = [20, 21],
+                    },
+                    new InstallerModFile
+                    {
+                        Id = new Guid(22, 0, 0, new byte[8]),
+                        OriginalFileName = "ReadMe_Required.txt",
+                        DestinationPath = "ReadMe_Required.txt",
+                        Data = [24, 25],
                     },
                 ],
             },

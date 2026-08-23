@@ -111,7 +111,9 @@ its files are removed. Export requires `BelarusianLanguage.asi`, `MODELS\gta3.im
 `SilentPatchVC.ini`, `ddraw.dll`, and the eight supported IPL files. Up to 23 files from the
 game `txd` folder may also be attached. The profile can also embed multiple custom
 ZIP mods. ZIP paths are installed relative to the game root; each mod is marked
-required or optional when added, and the source ZIP itself is not retained.
+required or optional when added, and the source ZIP itself is not retained. A
+single common packaging directory is removed automatically, while README and
+Markdown documentation is installed with its mod.
 Attach `ReadMe.txt` and `ПрачытайМяне.txt`
 in the same profile editor for **Export as → Release .zip…**; they are stored in
 BYX and are not copied into the installer payload. Files already stored in BYX

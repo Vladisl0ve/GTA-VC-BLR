@@ -205,6 +205,7 @@ public static class InstallerProfileValidator
                 asset.OriginalFileName,
                 asset.DestinationPath,
                 asset.Data,
+                allowDocumentation: false,
                 assetIds,
                 destinations,
                 ref totalLength);
@@ -235,6 +236,7 @@ public static class InstallerProfileValidator
                     file.OriginalFileName,
                     file.DestinationPath,
                     file.Data,
+                    allowDocumentation: true,
                     assetIds,
                     destinations,
                     ref totalLength);
@@ -257,6 +259,7 @@ public static class InstallerProfileValidator
         string originalFileName,
         string destinationPath,
         byte[] data,
+        bool allowDocumentation,
         HashSet<Guid> assetIds,
         HashSet<string> destinations,
         ref long totalLength)
@@ -277,7 +280,7 @@ public static class InstallerProfileValidator
             Throw("Installer.Validation.DuplicateTarget", destination);
         }
 
-        ValidateAllowedPayloadName(destination);
+        ValidateAllowedPayloadName(destination, allowDocumentation);
         totalLength = checked(totalLength + data.LongLength);
         if (RequiresX86Validation(destination) && !IsX86PeImage(data))
         {
@@ -380,22 +383,24 @@ public static class InstallerProfileValidator
         }
     }
 
-    private static void ValidateAllowedPayloadName(string destination)
+    private static void ValidateAllowedPayloadName(string destination, bool allowDocumentation)
     {
         var fileName = Path.GetFileName(destination);
         var extension = Path.GetExtension(fileName);
-        if (fileName.StartsWith("README", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("APPLY_", StringComparison.OrdinalIgnoreCase) &&
-            extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("CLEAN_", StringComparison.OrdinalIgnoreCase) &&
-            extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
+        var isDocumentation = fileName.StartsWith("README", StringComparison.OrdinalIgnoreCase) ||
+                              extension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+        var isCommand = extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) &&
+                        (fileName.StartsWith("APPLY_", StringComparison.OrdinalIgnoreCase) ||
+                         fileName.StartsWith("CLEAN_", StringComparison.OrdinalIgnoreCase));
+        var isExcludedExtension = extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
+                                  extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
+                                  extension.Equals(".rar", StringComparison.OrdinalIgnoreCase) ||
+                                  extension.Equals(".c", StringComparison.OrdinalIgnoreCase) ||
+                                  extension.Equals(".cpp", StringComparison.OrdinalIgnoreCase);
+        if ((!allowDocumentation && isDocumentation) ||
+            isCommand ||
             fileName.Contains("SHA256", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".rar", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".c", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".cpp", StringComparison.OrdinalIgnoreCase))
+            isExcludedExtension)
         {
             Throw("Installer.Validation.ExcludedFile", destination);
         }

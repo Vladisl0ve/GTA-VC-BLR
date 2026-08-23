@@ -48,7 +48,45 @@ public sealed class InstallerModArchiveReaderTests
     }
 
     [TestMethod]
+    public void Read_CommonTopLevelDirectory_IsRemovedAndDocumentationIsAccepted()
+    {
+        var archivePath = CreateArchive(
+            ("GInputVC_BLR/GInputVC.asi", CreateX86PeImage()),
+            ("GInputVC_BLR/ReadMe_GInput.txt", "Instructions"u8.ToArray()),
+            ("GInputVC_BLR/docs/controls.md", "# Controls"u8.ToArray()));
+
+        var mod = InstallerModArchiveReader.Read(
+            archivePath,
+            "GInputVC BLR",
+            isRequired: false,
+            CreateProfile());
+
+        Assert.HasCount(3, mod.Files);
+        Assert.AreEqual("GInputVC.asi", mod.Files[0].DestinationPath);
+        Assert.AreEqual("ReadMe_GInput.txt", mod.Files[1].DestinationPath);
+        Assert.AreEqual("docs\\controls.md", mod.Files[2].DestinationPath);
+    }
+
+    [TestMethod]
+    public void Read_RootFilePreventsTopLevelDirectoryRemoval()
+    {
+        var archivePath = CreateArchive(
+            ("config.ini", new byte[] { 1 }),
+            ("plugins/example.dat", new byte[] { 2 }));
+
+        var mod = InstallerModArchiveReader.Read(
+            archivePath,
+            "Mixed layout",
+            isRequired: false,
+            CreateProfile());
+
+        Assert.AreEqual("config.ini", mod.Files[0].DestinationPath);
+        Assert.AreEqual("plugins\\example.dat", mod.Files[1].DestinationPath);
+    }
+
+    [TestMethod]
     [DataRow("../outside.dat")]
+    [DataRow("wrapper/../outside.dat")]
     [DataRow("/absolute.dat")]
     [DataRow("C:/absolute.dat")]
     public void Read_UnsafePath_IsRejected(string entryName)
@@ -66,8 +104,8 @@ public sealed class InstallerModArchiveReaderTests
     public void Read_DuplicateCaseInsensitiveDestination_IsRejected()
     {
         var archivePath = CreateArchive(
-            ("plugins/config.ini", new byte[] { 1 }),
-            ("PLUGINS/CONFIG.INI", new byte[] { 2 }));
+            ("wrapper/plugins/config.ini", new byte[] { 1 }),
+            ("wrapper/PLUGINS/CONFIG.INI", new byte[] { 2 }));
 
         Assert.Throws<InvalidDataException>(() => InstallerModArchiveReader.Read(
             archivePath,
@@ -100,7 +138,7 @@ public sealed class InstallerModArchiveReaderTests
     [TestMethod]
     public void Read_ReservedGeneratedPayload_IsRejected()
     {
-        var archivePath = CreateArchive(("TEXT/BELARUS.GXT", new byte[] { 1 }));
+        var archivePath = CreateArchive(("wrapper/TEXT/BELARUS.GXT", new byte[] { 1 }));
 
         Assert.Throws<InvalidDataException>(() => InstallerModArchiveReader.Read(
             archivePath,
@@ -124,7 +162,7 @@ public sealed class InstallerModArchiveReaderTests
     [TestMethod]
     public void Read_NestedArchive_IsRejectedByPayloadRules()
     {
-        var archivePath = CreateArchive(("plugins/nested.zip", new byte[] { 1, 2, 3 }));
+        var archivePath = CreateArchive(("wrapper/plugins/nested.zip", new byte[] { 1, 2, 3 }));
 
         Assert.Throws<InvalidDataException>(() => InstallerModArchiveReader.Read(
             archivePath,

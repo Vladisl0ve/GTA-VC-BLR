@@ -36,19 +36,26 @@ public static class InstallerModArchiveReader
         try
         {
             using var archive = ZipFile.OpenRead(archivePath);
-            foreach (var entry in archive.Entries)
+            var entries = archive.Entries
+                .Where(entry => !IsDirectory(entry))
+                .ToList();
+            foreach (var entry in entries)
             {
-                if (IsDirectory(entry))
-                {
-                    continue;
-                }
-
                 if (IsSymbolicLinkOrReparsePoint(entry))
                 {
                     throw new InvalidDataException(LocalizationProvider.Current.Format(
                         "Installer.Validation.ModArchiveUnsafeEntry",
                         entry.FullName));
                 }
+            }
+
+            var normalizedPaths = entries
+                .Select(entry => InstallerProfileValidator.NormalizeDestinationPath(entry.FullName))
+                .ToList();
+            var stripCommonTopLevelDirectory = HasCommonTopLevelDirectory(normalizedPaths);
+            for (var index = 0; index < entries.Count; index++)
+            {
+                var entry = entries[index];
 
                 if (files.Count >= remainingFileCount)
                 {
@@ -57,7 +64,13 @@ public static class InstallerModArchiveReader
                         InstallerProfileValidator.MaximumAssets));
                 }
 
-                var destination = InstallerProfileValidator.NormalizeDestinationPath(entry.FullName);
+                var destination = normalizedPaths[index];
+                if (stripCommonTopLevelDirectory)
+                {
+                    destination = InstallerProfileValidator.NormalizeDestinationPath(
+                        destination[(destination.IndexOf('\\') + 1)..]);
+                }
+
                 if (!destinations.Add(destination))
                 {
                     throw new InvalidDataException(LocalizationProvider.Current.Format(
@@ -155,6 +168,33 @@ public static class InstallerModArchiveReader
     private static bool IsDirectory(ZipArchiveEntry entry) =>
         entry.FullName.EndsWith('/') ||
         entry.FullName.EndsWith('\\');
+
+    private static bool HasCommonTopLevelDirectory(List<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return false;
+        }
+
+        var firstSeparator = paths[0].IndexOf('\\');
+        if (firstSeparator <= 0)
+        {
+            return false;
+        }
+
+        var firstDirectory = paths[0][..firstSeparator];
+        foreach (var path in paths)
+        {
+            var separator = path.IndexOf('\\');
+            if (separator <= 0 ||
+                !path.AsSpan(0, separator).Equals(firstDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static bool IsSymbolicLinkOrReparsePoint(ZipArchiveEntry entry)
     {

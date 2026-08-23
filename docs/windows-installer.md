@@ -20,7 +20,10 @@ complete SilentPatch set; an incomplete draft cannot be exported. Up to 23 files
 from the game `txd` folder are optional. The custom-mod table imports one ZIP per
 mod and lets the author add, rename, change required/optional status, or remove a
 mod before export. Import is atomic and uses ZIP entry paths directly relative to
-the game root.
+the game root. If every non-empty entry is under the same top-level directory and
+there is no file at the ZIP root, that one packaging directory is removed
+automatically. README and Markdown documentation inside a custom mod is retained
+and installed with the rest of that mod.
 
 **Export as → Release .zip…** uses the same availability rules and profile
 editor. Confirming in this mode also requires both release README files. The
@@ -48,11 +51,13 @@ mods. A legacy ASI Loader may still be stored in a draft but is not exported.
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,
 Windows device names, invalid Windows path characters, and duplicate destinations
-are rejected. `.asi` and `.dll` attachments must be x86 PE images. README, source,
-archive, checksum, and `APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected. ZIP
-directories are merged, empty directories are ignored, and symbolic links,
-reparse points, empty archives, and case-insensitive path conflicts with any core
-or mod payload are rejected. The
+are rejected. `.asi` and `.dll` attachments must be x86 PE images. Custom mods may
+include README and `.md` documentation; those files remain rejected as core
+installer attachments. Source, archive, checksum, and
+`APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected everywhere. ZIP directories are
+merged, empty directories are ignored, and symbolic links, reparse points, empty
+archives, and case-insensitive path conflicts with any core or mod payload are
+rejected. The
 unpacked project limit is 1 GB and the installer attachment limit is 512 files,
 plus up to two release README files of at most 1 MB each.
 
