@@ -74,7 +74,8 @@ public sealed class ByxInstallerAssetItem : ByxArchiveItem
 
 public sealed class ByxInstallerProfileDocument
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
+    public const int LegacyVersion = 2;
 
     public string Format { get; set; } = "BYX_INSTALLER_PROFILE";
 
@@ -92,11 +93,31 @@ public sealed class ByxInstallerProfileDocument
 
     public List<ByxInstallerProfileAsset> Assets { get; set; } = [];
 
+    public List<ByxInstallerProfileMod> Mods { get; set; } = [];
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ByxInstallerReleaseDocument? ReleaseReadMeEnglish { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ByxInstallerReleaseDocument? ReleaseReadMeBelarusian { get; set; }
+}
+
+public sealed class ByxInstallerProfileMod
+{
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public bool IsRequired { get; set; }
+
+    public List<ByxInstallerProfileModFile> Files { get; set; } = [];
+}
+
+public sealed class ByxInstallerProfileModFile
+{
+    public Guid Id { get; set; }
+
+    public string DestinationPath { get; set; } = string.Empty;
 }
 
 public sealed class ByxInstallerReleaseDocument

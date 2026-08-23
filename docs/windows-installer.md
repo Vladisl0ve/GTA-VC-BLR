@@ -17,7 +17,10 @@ but files already stored in the BYX project are preselected and do not need to b
 read from disk again. In export mode, confirming requires
 `BelarusianLanguage.asi`, both `MODELS\gta3.img` and `MODELS\gta3.dir`, and the
 complete SilentPatch set; an incomplete draft cannot be exported. Up to 23 files
-from the game `txd` folder are optional.
+from the game `txd` folder are optional. The custom-mod table imports one ZIP per
+mod and lets the author add, rename, change required/optional status, or remove a
+mod before export. Import is atomic and uses ZIP entry paths directly relative to
+the game root.
 
 **Export as → Release .zip…** uses the same availability rules and profile
 editor. Confirming in this mode also requires both release README files. The
@@ -29,21 +32,27 @@ SHA-256 companion for the installer only.
 The optional `installer` manifest item references `installer/profile.json` and an
 array of binary attachments. Each attachment is stored as
 `installer/assets/<guid>.bin` and has an ID, original file name, destination,
-role, bytes, and SHA-256 in the profile/manifest pair. The current installer
-profile schema is version 2. Older installer profile versions are rejected.
+role, bytes, and SHA-256 in the profile/manifest pair. Custom mods add a stable ID,
+display name, required flag, and file references; only the extracted files are
+stored, not the source ZIP. The current installer profile schema is version 3.
+Schema v2 remains readable and its flat `Additional` files migrate into one
+required legacy mod; version 1 and versions newer than 3 are rejected.
 Optional `releaseReadMeEnglish` and `releaseReadMeBelarusian` references store
 the release README files used by **Release .zip…**; they are omitted from the
 Inno Setup payload and must not target the game folder. A stored profile may
 contain a partial or empty attachment list, including empty README slots. New
 exports accept the main ASI, `MODELS\gta3.img`, `MODELS\gta3.dir`, the exact
-SilentPatch set, and up to 23 optional `txd\*.txd` replacements. Legacy ASI
-Loader and additional-file roles may still be stored in a draft.
+SilentPatch set, up to 23 optional `txd\*.txd` replacements, and validated custom
+mods. A legacy ASI Loader may still be stored in a draft but is not exported.
 
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,
 Windows device names, invalid Windows path characters, and duplicate destinations
 are rejected. `.asi` and `.dll` attachments must be x86 PE images. README, source,
-archive, checksum, and `APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected. The
+archive, checksum, and `APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected. ZIP
+directories are merged, empty directories are ignored, and symbolic links,
+reparse points, empty archives, and case-insensitive path conflicts with any core
+or mod payload are rejected. The
 unpacked project limit is 1 GB and the installer attachment limit is 512 files,
 plus up to two release README files of at most 1 MB each.
 
@@ -68,14 +77,18 @@ The generated installer always contains:
   selected on launch;
 - `MODELS\gta3.img` and `MODELS\gta3.dir`;
 - up to 23 optional `txd\*.txd` replacements;
-- `SilentPatchVC.asi`, `SilentPatchVC.ini`, `ddraw.dll`, and the eight fixed IPL replacements.
+- `SilentPatchVC.asi`, `SilentPatchVC.ini`, `ddraw.dll`, and the eight fixed IPL replacements;
+- every extracted file belonging to the configured custom ZIP mods.
 
-The core component is fixed. SilentPatch is one all-or-nothing component, selected
-by default but removable on the components page. `FONTB.TXD`, `dinput8.dll`, and
-arbitrary additional payloads are not emitted.
+The core component is fixed. SilentPatch is one all-or-nothing component selected
+by default. Each custom mod is a separate component keyed by its stable mod ID.
+Required mods are visible, selected, and fixed in every setup type. Optional mods
+are included in Full by default and can be cleared on the components page.
+`FONTB.TXD` and `dinput8.dll` are not emitted.
 
-Two UTF-8 JSON manifests are staged and setup writes the one matching the selected
-components to `_BelarusianModBackup\<ProductId>\manifest.json`. It records schema
+Setup generates one UTF-8 JSON manifest at install time from the components that
+were actually selected and writes it to
+`_BelarusianModBackup\<ProductId>\manifest.json`. It records schema
 version 1, the stable ProductId, product metadata, selected components, and each
 file's path, component, SHA-256, and original-backup policy.
 
@@ -112,6 +125,7 @@ The stable Inno AppId and backup directory derive from the profile ProductId.
 Original `MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, any installed
 `txd\*.txd` replacements, and, when SilentPatch is selected, the eight IPL files
 are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
+Every custom-mod target is backed up under the same rules before it is replaced.
 Existing GXT/ASI/INI payloads and SilentPatch `ddraw.dll` are mod-owned and
 overwritten without an original backup. Transaction state, licenses, and the uninstaller stay under
 `_BelarusianMod\<ProductId>` in the game folder. A shortcut named
@@ -123,8 +137,9 @@ An update must use the same game directory recorded by the first successful
 installation; moving the installation requires uninstalling it first.
 
 Updates keep the first original backup and update installed hashes. Reinstalling
-without SilentPatch restores unmodified IPL originals and removes its ASI/INI and `ddraw.dll`.
-Uninstall restores unmodified font, archive, TXD, and IPL originals, deletes unmodified mod-owned
+without SilentPatch or a previously selected optional mod restores their unmodified
+originals and removes files that did not exist before installation.
+Uninstall restores unmodified font, archive, TXD, IPL, and custom-mod originals, deletes unmodified mod-owned
 payloads, then removes the ProductId backup directory. Files the user changed
 after installation are left in place; uninstall does not prompt and does not copy
 them to `conflicts`. State created by the previous installer schema, or an

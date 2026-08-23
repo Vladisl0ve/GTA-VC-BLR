@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using GTA_GXT_Editor.Common;
@@ -72,8 +73,10 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "DisableDirPage=no");
         StringAssert.Contains(script, "DirExistsWarning=no");
         StringAssert.Contains(script, "UsePreviousAppDir=yes");
-        StringAssert.Contains(script, "Check: not IsSilentPatchSelected");
-        StringAssert.Contains(script, "Check: IsSilentPatchSelected");
+        StringAssert.Contains(script, "procedure WriteSelectedManifest");
+        StringAssert.Contains(script, "WizardIsComponentSelected('silentpatch')");
+        StringAssert.Contains(script, "BackupPayload(RelativePath, False)");
+        StringAssert.Contains(script, "RecordPayload(RelativePath, GetSHA256OfFile(FileName))");
         StringAssert.Contains(script, "BackupPayload('MODELS\\FONTS.TXD', True)");
         StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.img', True)");
         StringAssert.Contains(script, "BackupPayload('MODELS\\gta3.dir', True)");
@@ -124,48 +127,17 @@ public sealed class InstallerExportServiceTests
                 "generated-belarusian-language-ini.bin",
                 "generated-font-models.bin",
                 "generated-gxt.bin",
-                "manifest-core.json",
-                "manifest-full.json",
             },
             compiler.StagedFiles);
-
-        var coreManifest = JsonNode.Parse(compiler.StagedContents["manifest-core.json"])!.AsObject();
-        var fullManifest = JsonNode.Parse(compiler.StagedContents["manifest-full.json"])!.AsObject();
-        Assert.AreEqual(1, coreManifest["schemaVersion"]!.GetValue<int>());
-        Assert.AreEqual("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", coreManifest["installId"]!.GetValue<string>());
-        CollectionAssert.AreEqual(
-            new[] { "core" },
-            coreManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(6, coreManifest["files"]!.AsArray());
-        CollectionAssert.AreEqual(
-            new[] { "core", "silentpatch" },
-            fullManifest["selectedComponents"]!.AsArray().Select(value => value!.GetValue<string>()).ToArray());
-        Assert.HasCount(17, fullManifest["files"]!.AsArray());
-        var fullFiles = fullManifest["files"]!.AsArray()
-            .Select(value => value!.AsObject())
-            .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
-        Assert.IsTrue(fullFiles["MODELS\\FONTS.TXD"]["backupOriginal"]!.GetValue<bool>());
-        Assert.IsTrue(fullFiles["MODELS\\gta3.img"]["backupOriginal"]!.GetValue<bool>());
-        Assert.IsTrue(fullFiles["MODELS\\gta3.dir"]["backupOriginal"]!.GetValue<bool>());
-        Assert.AreEqual(
-            "MODELS\\gta3.img",
-            fullFiles["MODELS\\gta3.img"]["backupPath"]!.GetValue<string>());
-        Assert.AreEqual(
-            "MODELS\\FONTS.TXD",
-            fullFiles["MODELS\\FONTS.TXD"]["backupPath"]!.GetValue<string>());
-        Assert.IsFalse(fullFiles["TEXT\\BELARUS.GXT"]["backupOriginal"]!.GetValue<bool>());
-        Assert.IsFalse(fullFiles["BelarusianLanguage.ini"]["backupOriginal"]!.GetValue<bool>());
+        StringAssert.Contains(script, "\"schemaVersion\":1");
+        StringAssert.Contains(script, "\"installId\":\"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\"");
+        StringAssert.Contains(script, "\"path\":\"MODELS\\\\FONTS.TXD\",\"component\":\"core\"");
+        StringAssert.Contains(script, "\"backupOriginal\":true,\"backupPath\":\"MODELS\\\\gta3.img\"");
+        StringAssert.Contains(script, "\"path\":\"TEXT\\\\BELARUS.GXT\",\"component\":\"core\"");
+        StringAssert.Contains(script, "\"backupOriginal\":false,\"backupPath\":null");
         CollectionAssert.AreEqual(
             "[Belarusian]\r\nEnabled=1\r\n"u8.ToArray(),
             compiler.StagedContents["generated-belarusian-language-ini.bin"]);
-        Assert.IsFalse(fullFiles["SilentPatchVC.asi"]["backupOriginal"]!.GetValue<bool>());
-        Assert.IsFalse(fullFiles["SilentPatchVC.ini"]["backupOriginal"]!.GetValue<bool>());
-        Assert.IsFalse(fullFiles["ddraw.dll"]["backupOriginal"]!.GetValue<bool>());
-        Assert.HasCount(
-            8,
-            fullFiles.Values.Where(value =>
-                value["component"]!.GetValue<string>() == "silentpatch" &&
-                value["backupOriginal"]!.GetValue<bool>()));
     }
 
     [TestMethod]
@@ -184,13 +156,43 @@ public sealed class InstallerExportServiceTests
         StringAssert.Contains(script, "BackupPayload('txd\\loadsc0.txd', True)");
         CollectionAssert.Contains(compiler.StagedFiles, "asset-0000000f000000000000000000000000.bin");
 
-        var fullManifest = JsonNode.Parse(compiler.StagedContents["manifest-full.json"])!.AsObject();
-        var fullFiles = fullManifest["files"]!.AsArray()
-            .Select(value => value!.AsObject())
-            .ToDictionary(value => value["path"]!.GetValue<string>(), StringComparer.OrdinalIgnoreCase);
-        Assert.IsTrue(fullFiles["txd\\loadsc0.txd"]["backupOriginal"]!.GetValue<bool>());
-        Assert.AreEqual("core", fullFiles["txd\\loadsc0.txd"]["component"]!.GetValue<string>());
-        Assert.HasCount(7, JsonNode.Parse(compiler.StagedContents["manifest-core.json"])!["files"]!.AsArray());
+        StringAssert.Contains(
+            script,
+            "\"path\":\"txd\\\\loadsc0.txd\",\"component\":\"core\"");
+        StringAssert.Contains(
+            script,
+            "\"backupOriginal\":true,\"backupPath\":\"txd\\\\loadsc0.txd\"");
+    }
+
+    [TestMethod]
+    public async Task BuildAsync_CustomMods_AreStableComponentsWithOriginalBackup()
+    {
+        var compiler = new InspectingCompiler();
+        var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
+        var project = CreateProject();
+        AddTestMods(project);
+        var target = Path.Combine(_testDirectory, "output", "Setup.exe");
+
+        await service.BuildAsync(project, target, CancellationToken.None);
+
+        var script = Encoding.UTF8.GetString(compiler.ScriptBytes!);
+        StringAssert.Contains(
+            script,
+            "Name: \"mod_11111111111111111111111111111111\"; Description: \"{cm:ComponentMod_11111111111111111111111111111111}\"; Types: full compact custom; Flags: fixed");
+        StringAssert.Contains(
+            script,
+            "Name: \"mod_22222222222222222222222222222222\"; Description: \"{cm:ComponentMod_22222222222222222222222222222222}\"; Types: full");
+        StringAssert.Contains(script, "english.ComponentMod_11111111111111111111111111111111=Required mod (required)");
+        StringAssert.Contains(script, "belarusian.ComponentMod_22222222222222222222222222222222=Optional mod (неабавязкова)");
+        StringAssert.Contains(script, "Components: mod_11111111111111111111111111111111");
+        StringAssert.Contains(script, "Components: mod_22222222222222222222222222222222");
+        StringAssert.Contains(script, "BackupPayload('plugins\\required.dat', True)");
+        StringAssert.Contains(script, "BackupPayload('data\\optional.dat', True)");
+        StringAssert.Contains(script, "WizardIsComponentSelected('mod_22222222222222222222222222222222')");
+        StringAssert.Contains(script, "\"component\":\"mod_11111111111111111111111111111111\"");
+        CollectionAssert.Contains(compiler.StagedFiles, "mod-00000014000000000000000000000000.bin");
+        CollectionAssert.Contains(compiler.StagedFiles, "mod-00000015000000000000000000000000.bin");
+        Assert.IsFalse(compiler.StagedFiles.Any(file => file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)));
     }
 
     [TestMethod]
@@ -287,7 +289,9 @@ public sealed class InstallerExportServiceTests
             AppContext.BaseDirectory);
         var target = Path.Combine(_testDirectory, "compiled-setup.exe");
 
-        await service.BuildAsync(CreateProject(), target, CancellationToken.None);
+        var project = CreateProject();
+        AddTestMods(project);
+        await service.BuildAsync(project, target, CancellationToken.None);
 
         var setup = await File.ReadAllBytesAsync(target);
         Assert.IsGreaterThan(1024, setup.Length);
@@ -298,6 +302,90 @@ public sealed class InstallerExportServiceTests
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(retainedSetupPath))!);
             File.Copy(target, retainedSetupPath, overwrite: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task BuildAsync_SmokeInstallAndUninstall_CustomModsBackupAndRestoreOriginals()
+    {
+        var compilerPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Tools",
+            "InnoSetup",
+            "7.0.2-x86",
+            "ISCC.exe");
+        var service = new InnoInstallerExportService(
+            new LowestPrivilegesTestCompiler(compilerPath),
+            AppContext.BaseDirectory);
+        var project = CreateProject();
+        project.InstallerProfile!.ProductId = Guid.NewGuid();
+        AddTestMods(project);
+        var setupPath = Path.Combine(_testDirectory, "smoke-setup.exe");
+        var gameDirectory = Path.Combine(_testDirectory, "Fake Vice City");
+        var requiredPath = Path.Combine(gameDirectory, "plugins", "required.dat");
+        var optionalPath = Path.Combine(gameDirectory, "data", "optional.dat");
+        Directory.CreateDirectory(Path.GetDirectoryName(requiredPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(optionalPath)!);
+        await File.WriteAllBytesAsync(requiredPath, [1, 2, 3]);
+        await File.WriteAllBytesAsync(optionalPath, [4, 5, 6]);
+
+        string? uninstallerPath = null;
+        try
+        {
+            await service.BuildAsync(project, setupPath, CancellationToken.None);
+            await RunInstallerProcessAsync(
+                setupPath,
+                "/VERYSILENT",
+                "/SUPPRESSMSGBOXES",
+                "/NORESTART",
+                "/LANG=english",
+                "/TYPE=full",
+                $"/DIR={gameDirectory}");
+
+            CollectionAssert.AreEqual(new byte[] { 20, 21 }, await File.ReadAllBytesAsync(requiredPath));
+            CollectionAssert.AreEqual(new byte[] { 22, 23 }, await File.ReadAllBytesAsync(optionalPath));
+            var manifestPath = Path.Combine(
+                gameDirectory,
+                "_BelarusianModBackup",
+                project.InstallerProfile.ProductId.ToString("D"),
+                "manifest.json");
+            var manifest = JsonNode.Parse(await File.ReadAllTextAsync(manifestPath))!.AsObject();
+            var selectedComponents = manifest["selectedComponents"]!.AsArray()
+                .Select(value => value!.GetValue<string>())
+                .ToArray();
+            CollectionAssert.Contains(selectedComponents, "mod_11111111111111111111111111111111");
+            CollectionAssert.Contains(selectedComponents, "mod_22222222222222222222222222222222");
+            Assert.IsTrue(manifest["files"]!.AsArray().Any(value =>
+                value!["path"]!.GetValue<string>() == "plugins\\required.dat" &&
+                value["backupOriginal"]!.GetValue<bool>()));
+
+            var uninstallDirectory = Path.Combine(
+                gameDirectory,
+                "_BelarusianMod",
+                project.InstallerProfile.ProductId.ToString("D"),
+                "uninstall");
+            uninstallerPath = Directory.GetFiles(uninstallDirectory, "*.exe").Single();
+            await RunInstallerProcessAsync(
+                uninstallerPath,
+                "/VERYSILENT",
+                "/SUPPRESSMSGBOXES",
+                "/NORESTART");
+            uninstallerPath = null;
+
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, await File.ReadAllBytesAsync(requiredPath));
+            CollectionAssert.AreEqual(new byte[] { 4, 5, 6 }, await File.ReadAllBytesAsync(optionalPath));
+            Assert.IsFalse(File.Exists(manifestPath));
+        }
+        finally
+        {
+            if (uninstallerPath is not null && File.Exists(uninstallerPath))
+            {
+                await RunInstallerProcessAsync(
+                    uninstallerPath,
+                    "/VERYSILENT",
+                    "/SUPPRESSMSGBOXES",
+                    "/NORESTART");
+            }
         }
     }
 
@@ -383,6 +471,64 @@ public sealed class InstallerExportServiceTests
         Data = Encoding.UTF8.GetBytes(fileName),
     };
 
+    private static void AddTestMods(EditorProject project)
+    {
+        project.InstallerProfile!.Mods =
+        [
+            new InstallerMod
+            {
+                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Name = "Required mod",
+                IsRequired = true,
+                Files =
+                [
+                    new InstallerModFile
+                    {
+                        Id = new Guid(20, 0, 0, new byte[8]),
+                        OriginalFileName = "required.dat",
+                        DestinationPath = "plugins\\required.dat",
+                        Data = [20, 21],
+                    },
+                ],
+            },
+            new InstallerMod
+            {
+                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Name = "Optional mod",
+                IsRequired = false,
+                Files =
+                [
+                    new InstallerModFile
+                    {
+                        Id = new Guid(21, 0, 0, new byte[8]),
+                        OriginalFileName = "optional.dat",
+                        DestinationPath = "data\\optional.dat",
+                        Data = [22, 23],
+                    },
+                ],
+            },
+        ];
+    }
+
+    private static async Task RunInstallerProcessAsync(string executablePath, params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executablePath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo)
+            ?? throw new AssertFailedException($"Could not start {executablePath}");
+        await process.WaitForExitAsync();
+        Assert.AreEqual(0, process.ExitCode, $"Process failed: {executablePath}");
+    }
+
     private static byte[] CreateX86PeImage()
     {
         var data = new byte[128];
@@ -446,6 +592,31 @@ public sealed class InstallerExportServiceTests
         {
             BuildDirectory = Path.GetDirectoryName(scriptPath);
             throw new InvalidOperationException("compiler failed");
+        }
+    }
+
+    private sealed class LowestPrivilegesTestCompiler(string compilerPath) : IInstallerCompiler
+    {
+        private readonly InnoInstallerCompiler _inner = new(compilerPath);
+
+        public Task<string> CompileAsync(
+            string scriptPath,
+            string outputDirectory,
+            string outputBaseName,
+            CancellationToken cancellationToken)
+        {
+            var script = File.ReadAllText(scriptPath);
+            const string productionDirective = "PrivilegesRequired=admin";
+            Assert.IsTrue(script.Contains(productionDirective, StringComparison.Ordinal));
+            File.WriteAllText(
+                scriptPath,
+                script.Replace(productionDirective, "PrivilegesRequired=lowest", StringComparison.Ordinal),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            return _inner.CompileAsync(
+                scriptPath,
+                outputDirectory,
+                outputBaseName,
+                cancellationToken);
         }
     }
 

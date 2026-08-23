@@ -109,19 +109,22 @@ The project may keep an incomplete installer-profile draft after some or all of
 its files are removed. Export requires `BelarusianLanguage.asi`, `MODELS\gta3.img`,
 `MODELS\gta3.dir`, and a complete SilentPatch distribution: `SilentPatchVC.asi`,
 `SilentPatchVC.ini`, `ddraw.dll`, and the eight supported IPL files. Up to 23 files from the
-game `txd` folder may also be attached. Attach `ReadMe.txt` and `ПрачытайМяне.txt`
+game `txd` folder may also be attached. The profile can also embed multiple custom
+ZIP mods. ZIP paths are installed relative to the game root; each mod is marked
+required or optional when added, and the source ZIP itself is not retained.
+Attach `ReadMe.txt` and `ПрачытайМяне.txt`
 in the same profile editor for **Export as → Release .zip…**; they are stored in
 BYX and are not copied into the installer payload. Files already stored in BYX
-remain selected on later exports. ASI Loaders and arbitrary additional files are
-not included.
+remain selected on later exports. Legacy ASI Loaders are not included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
 Inno Setup 7.0.2 x86 compiler. **Release .zip…** packs that installer together
 with the two README files and a regenerated SHA-256 companion for the installer.
 The installer always writes `TEXT\BELARUS.GXT`,
 `MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, `BelarusianLanguage.asi`,
-and `BelarusianLanguage.ini`; SilentPatch is a setup component that is selected by
-default. Original font, archive, TXD, and IPL files are mirrored under
+and `BelarusianLanguage.ini`; SilentPatch and optional custom mods are setup
+components selected by default, while required custom mods are visible and fixed.
+Original font, archive, TXD, IPL, and custom-mod target files are mirrored under
 `_BelarusianModBackup\<ProductId>`. Transactional state,
 licenses, and the uninstaller live under `_BelarusianMod\<ProductId>` in the game
 folder, with an `uninstall_BLR.exe` shortcut in the game root. The selected

@@ -165,6 +165,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[]? installerProfileData = null;
         if (installerProfile is not null)
         {
+            MigrateLegacyAdditionalAssets(installerProfile);
             InstallerProfileValidator.ValidateForStorage(installerProfile);
             installerProfileData = JsonSerializer.SerializeToUtf8Bytes(
                 CreateInstallerProfileDocument(installerProfile),
@@ -365,6 +366,17 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             Role = asset.Role,
             DestinationPath = asset.DestinationPath,
         }).ToList(),
+        Mods = profile.Mods.Select(mod => new ByxInstallerProfileMod
+        {
+            Id = mod.Id,
+            Name = mod.Name,
+            IsRequired = mod.IsRequired,
+            Files = mod.Files.Select(file => new ByxInstallerProfileModFile
+            {
+                Id = file.Id,
+                DestinationPath = file.DestinationPath,
+            }).ToList(),
+        }).ToList(),
         ReleaseReadMeEnglish = CreateReleaseDocument(profile.ReleaseReadMeEnglish),
         ReleaseReadMeBelarusian = CreateReleaseDocument(profile.ReleaseReadMeBelarusian),
     };
@@ -383,9 +395,11 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         InstallerProfile profile)
     {
         var binaries = new List<InstallerStoredBinary>(
-            profile.Assets.Count + InstallerProfileValidator.MaximumReleaseDocuments);
+            profile.PayloadFileCount + InstallerProfileValidator.MaximumReleaseDocuments);
         binaries.AddRange(profile.Assets.Select(asset =>
             new InstallerStoredBinary(asset.Id, asset.OriginalFileName, asset.Data)));
+        binaries.AddRange(profile.Mods.SelectMany(mod => mod.Files).Select(file =>
+            new InstallerStoredBinary(file.Id, file.OriginalFileName, file.Data)));
         binaries.AddRange(profile.EnumerateReleaseDocuments().Select(document =>
             new InstallerStoredBinary(document.Id, document.OriginalFileName, document.Data)));
         return binaries;
@@ -398,14 +412,19 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var profileData = ReadValidatedEntry(archive, item, MaximumManifestSize);
         var document = Deserialize<ByxInstallerProfileDocument>(profileData, JsonOptions);
         if (!string.Equals(document.Format, "BYX_INSTALLER_PROFILE", StringComparison.Ordinal) ||
-            document.Version != ByxInstallerProfileDocument.CurrentVersion)
+            document.Version is not (
+                ByxInstallerProfileDocument.LegacyVersion or
+                ByxInstallerProfileDocument.CurrentVersion))
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerProfileInvalid"));
         }
 
         var manifestAssets = item.Assets.ToDictionary(asset => asset.Id);
+        var referencedIds = document.Assets.Select(asset => asset.Id)
+            .Concat(document.Mods.SelectMany(mod => mod.Files).Select(file => file.Id))
+            .ToArray();
         if (manifestAssets.Count != item.Assets.Count ||
-            document.Assets.Select(asset => asset.Id).Distinct().Count() != document.Assets.Count)
+            referencedIds.Distinct().Count() != referencedIds.Length)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
         }
@@ -428,6 +447,35 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             });
         }
 
+        var mods = new List<InstallerMod>(document.Mods.Count);
+        foreach (var profileMod in document.Mods)
+        {
+            var files = new List<InstallerModFile>(profileMod.Files.Count);
+            foreach (var profileFile in profileMod.Files)
+            {
+                if (!manifestAssets.Remove(profileFile.Id, out var manifestAsset))
+                {
+                    throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
+                }
+
+                files.Add(new InstallerModFile
+                {
+                    Id = profileFile.Id,
+                    OriginalFileName = manifestAsset.OriginalFileName,
+                    DestinationPath = profileFile.DestinationPath,
+                    Data = ReadValidatedEntry(archive, manifestAsset, MaximumArchiveSize),
+                });
+            }
+
+            mods.Add(new InstallerMod
+            {
+                Id = profileMod.Id,
+                Name = profileMod.Name,
+                IsRequired = profileMod.IsRequired,
+                Files = files,
+            });
+        }
+
         var profile = new InstallerProfile
         {
             ProductId = document.ProductId,
@@ -436,6 +484,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             Publisher = document.Publisher,
             OutputFileName = document.OutputFileName,
             Assets = assets,
+            Mods = mods,
             ReleaseReadMeEnglish = LoadReleaseDocument(
                 archive,
                 document.ReleaseReadMeEnglish,
@@ -445,6 +494,10 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                 document.ReleaseReadMeBelarusian,
                 manifestAssets),
         };
+        if (document.Version == ByxInstallerProfileDocument.LegacyVersion)
+        {
+            MigrateLegacyAdditionalAssets(profile);
+        }
         if (manifestAssets.Count != 0)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InstallerAssetsMismatch"));
@@ -452,6 +505,54 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
         InstallerProfileValidator.ValidateForStorage(profile);
         return profile;
+    }
+
+    private static void MigrateLegacyAdditionalAssets(InstallerProfile profile)
+    {
+        var legacyAssets = profile.Assets
+            .Where(asset => asset.Role == InstallerAssetRole.Additional)
+            .ToList();
+        if (legacyAssets.Count == 0)
+        {
+            return;
+        }
+
+        var source = new byte[16 + legacyAssets.Count * 16];
+        profile.ProductId.TryWriteBytes(source);
+        var offset = 16;
+        foreach (var asset in legacyAssets.OrderBy(asset => asset.Id))
+        {
+            asset.Id.TryWriteBytes(source.AsSpan(offset, 16));
+            offset += 16;
+        }
+
+        var hash = SHA256.HashData(source);
+        var modId = new Guid(hash.AsSpan(0, 16));
+        var modName = "Legacy additional files";
+        var suffix = 2;
+        while (profile.Mods.Any(mod =>
+                   mod.Id == modId ||
+                   mod.Name.Equals(modName, StringComparison.OrdinalIgnoreCase)))
+        {
+            hash = SHA256.HashData(hash);
+            modId = new Guid(hash.AsSpan(0, 16));
+            modName = $"Legacy additional files ({suffix++})";
+        }
+
+        profile.Assets.RemoveAll(asset => asset.Role == InstallerAssetRole.Additional);
+        profile.Mods.Add(new InstallerMod
+        {
+            Id = modId,
+            Name = modName,
+            IsRequired = true,
+            Files = legacyAssets.Select(asset => new InstallerModFile
+            {
+                Id = asset.Id,
+                OriginalFileName = asset.OriginalFileName,
+                DestinationPath = asset.DestinationPath,
+                Data = [.. asset.Data],
+            }).ToList(),
+        });
     }
 
     private static InstallerReleaseDocument? LoadReleaseDocument(

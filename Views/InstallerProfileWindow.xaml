@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:GTA_GXT_Editor.Localization"
         Title="{loc:Translate Installer.Editor.Title}"
-        Width="940"
-        Height="760"
-        MinWidth="760"
-        MinHeight="620"
+        Width="1040"
+        Height="860"
+        MinWidth="820"
+        MinHeight="700"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="18">
         <Grid.RowDefinitions>
@@ -100,20 +100,58 @@
             </Grid>
         </Grid>
 
-        <DataGrid x:Name="AssetsGrid"
-                  Grid.Row="3"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  SelectionMode="Extended"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal">
-            <DataGrid.Columns>
-                <DataGridTextColumn Width="150" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Role}" Binding="{Binding RoleText}" />
-                <DataGridTextColumn Width="220" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Source}" Binding="{Binding OriginalFileName}" />
-                <DataGridTextColumn Width="*" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Destination}" Binding="{Binding DestinationPath}" />
-                <DataGridTextColumn Width="100" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Size}" Binding="{Binding SizeText}" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="2*" />
+            </Grid.RowDefinitions>
+
+            <DataGrid x:Name="AssetsGrid"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      SelectionMode="Extended"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Width="150" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Role}" Binding="{Binding RoleText}" />
+                    <DataGridTextColumn Width="220" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Source}" Binding="{Binding OriginalFileName}" />
+                    <DataGridTextColumn Width="*" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Destination}" Binding="{Binding DestinationPath}" />
+                    <DataGridTextColumn Width="100" IsReadOnly="True" Header="{loc:Translate Installer.Editor.Column.Size}" Binding="{Binding SizeText}" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <DockPanel Grid.Row="1" Margin="0,12,0,6">
+                <TextBlock VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="{loc:Translate Installer.Mods.Title}" />
+                <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button Margin="8,0,0,0" Padding="12,5"
+                            Content="{loc:Translate Installer.Mod.AddZip}" Click="AddMod_OnClick" />
+                    <Button Margin="8,0,0,0" Padding="12,5"
+                            Content="{loc:Translate Common.Edit}" Click="EditMod_OnClick" />
+                    <Button Margin="8,0,0,0" Padding="12,5"
+                            Content="{loc:Translate Common.Remove}" Click="RemoveMod_OnClick" />
+                </StackPanel>
+            </DockPanel>
+
+            <DataGrid x:Name="ModsGrid"
+                      Grid.Row="2"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      MouseDoubleClick="ModsGrid_OnMouseDoubleClick">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Width="*" Header="{loc:Translate Installer.Mod.Column.Name}" Binding="{Binding Name}" />
+                    <DataGridTextColumn Width="170" Header="{loc:Translate Installer.Mod.Column.Type}" Binding="{Binding TypeText}" />
+                    <DataGridTextColumn Width="110" Header="{loc:Translate Installer.Mod.Column.Files}" Binding="{Binding FileCount}" />
+                    <DataGridTextColumn Width="110" Header="{loc:Translate Installer.Editor.Column.Size}" Binding="{Binding SizeText}" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
 
         <Grid Grid.Row="4" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>

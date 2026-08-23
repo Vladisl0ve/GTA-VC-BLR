@@ -266,7 +266,7 @@ public sealed class ByxProjectSerializerTests
         Assert.AreEqual(project.InstallerProfile.ProductId, profile.ProductId);
         Assert.AreEqual("1.2.3", profile.Version);
         Assert.AreEqual("Belarusian Games", profile.Publisher);
-        Assert.HasCount(4, profile.Assets);
+        Assert.HasCount(3, profile.Assets);
         for (var index = 0; index < profile.Assets.Count; index++)
         {
             Assert.AreEqual(project.InstallerProfile.Assets[index].Id, profile.Assets[index].Id);
@@ -274,6 +274,15 @@ public sealed class ByxProjectSerializerTests
             Assert.AreEqual(project.InstallerProfile.Assets[index].DestinationPath, profile.Assets[index].DestinationPath);
             CollectionAssert.AreEqual(project.InstallerProfile.Assets[index].Data, profile.Assets[index].Data);
         }
+        Assert.HasCount(1, profile.Mods);
+        Assert.AreEqual(project.InstallerProfile.Mods[0].Id, profile.Mods[0].Id);
+        Assert.AreEqual("Optional configuration", profile.Mods[0].Name);
+        Assert.IsFalse(profile.Mods[0].IsRequired);
+        Assert.HasCount(1, profile.Mods[0].Files);
+        Assert.AreEqual(project.InstallerProfile.Mods[0].Files[0].Id, profile.Mods[0].Files[0].Id);
+        CollectionAssert.AreEqual(
+            project.InstallerProfile.Mods[0].Files[0].Data,
+            profile.Mods[0].Files[0].Data);
 
         using var archive = ZipFile.OpenRead(path);
         var manifest = ReadJsonObject(archive, "manifest.json");
@@ -288,6 +297,14 @@ public sealed class ByxProjectSerializerTests
             Assert.AreEqual(entryName, manifestAsset["entry"]!.GetValue<string>());
             AssertManifestHashMatches(archive, manifestAsset.AsObject());
         }
+        var modFile = project.InstallerProfile.Mods[0].Files[0];
+        var modEntryName = $"installer/assets/{modFile.Id:N}.bin";
+        Assert.IsNotNull(archive.GetEntry(modEntryName));
+        AssertManifestHashMatches(
+            archive,
+            manifest["installer"]!["assets"]!.AsArray()
+                .Single(item => item!["id"]!.GetValue<Guid>() == modFile.Id)!
+                .AsObject());
     }
 
     [TestMethod]
@@ -327,7 +344,7 @@ public sealed class ByxProjectSerializerTests
 
         using var archive = ZipFile.OpenRead(path);
         var profile = ReadJsonObject(archive, "installer/profile.json");
-        Assert.AreEqual(2, profile["version"]!.GetValue<int>());
+        Assert.AreEqual(3, profile["version"]!.GetValue<int>());
         Assert.AreEqual(
             project.InstallerProfile.ReleaseReadMeEnglish.Id,
             profile["releaseReadMeEnglish"]!["id"]!.GetValue<Guid>());
@@ -345,7 +362,7 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void Save_InstallerProfile_WritesVersion2WithoutReadMes()
+    public void Save_InstallerProfile_WritesVersion3WithoutReadMes()
     {
         var project = CreateProject();
         project.InstallerProfile = CreateInstallerProfile();
@@ -355,7 +372,7 @@ public sealed class ByxProjectSerializerTests
 
         using var archive = ZipFile.OpenRead(path);
         var profile = ReadJsonObject(archive, "installer/profile.json");
-        Assert.AreEqual(2, profile["version"]!.GetValue<int>());
+        Assert.AreEqual(3, profile["version"]!.GetValue<int>());
         Assert.IsFalse(profile.ContainsKey("releaseReadMeEnglish"));
         Assert.IsFalse(profile.ContainsKey("releaseReadMeBelarusian"));
     }
@@ -374,11 +391,60 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
+    public void Load_InstallerProfileVersion2_MigratesAdditionalFilesToRequiredMod()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "installer-v2.byx");
+        _serializer.Save(path, project);
+        var legacyFile = project.InstallerProfile.Mods[0].Files[0];
+
+        MutateInstallerProfile(path, profile =>
+        {
+            profile["version"] = 2;
+            profile["mods"]!.AsArray().Clear();
+            profile.Remove("mods");
+            profile["assets"]!.AsArray().Add(new JsonObject
+            {
+                ["id"] = legacyFile.Id,
+                ["role"] = nameof(InstallerAssetRole.Additional),
+                ["destinationPath"] = legacyFile.DestinationPath,
+            });
+        });
+
+        var loaded = _serializer.Load(path);
+        var loadedAgain = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.InstallerProfile);
+        Assert.HasCount(3, loaded.InstallerProfile.Assets);
+        Assert.HasCount(1, loaded.InstallerProfile.Mods);
+        Assert.AreEqual("Legacy additional files", loaded.InstallerProfile.Mods[0].Name);
+        Assert.IsTrue(loaded.InstallerProfile.Mods[0].IsRequired);
+        Assert.AreEqual(loaded.InstallerProfile.Mods[0].Id, loadedAgain.InstallerProfile!.Mods[0].Id);
+        Assert.AreEqual(legacyFile.Id, loaded.InstallerProfile.Mods[0].Files[0].Id);
+        CollectionAssert.AreEqual(legacyFile.Data, loaded.InstallerProfile.Mods[0].Files[0].Data);
+    }
+
+    [TestMethod]
+    public void Load_InstallerProfileVersion4_IsRejected()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "installer-v4.byx");
+        _serializer.Save(path, project);
+
+        MutateInstallerProfile(path, profile => profile["version"] = 4);
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
     public void SaveAndLoad_EmptyInstallerProfile_PreservesDraftWithoutAssetEntries()
     {
         var project = CreateProject();
         project.InstallerProfile = CreateInstallerProfile();
         project.InstallerProfile.Assets.Clear();
+        project.InstallerProfile.Mods.Clear();
         var path = Path.Combine(_testDirectory, "empty-installer-profile.byx");
 
         _serializer.Save(path, project);
@@ -762,13 +828,24 @@ public sealed class ByxProjectSerializerTests
             CreateInstallerAsset(InstallerAssetRole.MainAsi, "BelarusianLanguage.asi", "main.asi", 1),
             CreateInstallerAsset(InstallerAssetRole.AsiLoader, "dinput8.dll", "dinput8.dll", 2),
             CreateInstallerAsset(InstallerAssetRole.SilentPatch, "SilentPatchVC.asi", "SilentPatchVC.asi", 3),
-            new InstallerAsset
+        ],
+        Mods =
+        [
+            new InstallerMod
             {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000004"),
-                Role = InstallerAssetRole.Additional,
-                OriginalFileName = "config.ini",
-                DestinationPath = "plugins\\config.ini",
-                Data = "enabled=1"u8.ToArray(),
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                Name = "Optional configuration",
+                IsRequired = false,
+                Files =
+                [
+                    new InstallerModFile
+                    {
+                        Id = Guid.Parse("00000000-0000-0000-0000-000000000004"),
+                        OriginalFileName = "config.ini",
+                        DestinationPath = "plugins\\config.ini",
+                        Data = "enabled=1"u8.ToArray(),
+                    },
+                ],
             },
         ],
     };

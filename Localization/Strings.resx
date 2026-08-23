@@ -422,6 +422,7 @@
   <data name="Filter.Installer" xml:space="preserve"><value>Windows installer (*.exe)|*.exe</value></data>
   <data name="Filter.ReleaseZip" xml:space="preserve"><value>ZIP (*.zip)|*.zip</value></data>
   <data name="Filter.ReleaseReadMe" xml:space="preserve"><value>Text (*.txt)|*.txt|All files (*.*)|*.*</value></data>
+  <data name="Filter.ModArchive" xml:space="preserve"><value>ZIP archives (*.zip)|*.zip</value></data>
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Export Windows installer</value></data>
   <data name="Dialog.ExportReleaseZip" xml:space="preserve"><value>Export release ZIP</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Building Windows installer…</value></data>
@@ -449,7 +450,7 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI, models\gta3.img together with gta3.dir, optional files from the game txd folder (up to 23), and the SilentPatch distribution root. SilentPatch remains optional in the generated setup. Attach ReadMe.txt and ПрачытайМяне.txt for a release ZIP; they are stored in the BYX project and are not copied into the game folder.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the required installer files and add custom ZIP mods below. ZIP paths are relative to the game root; required mods are fixed setup components and optional mods are selected by default. Attach both README files for a release ZIP.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
@@ -465,6 +466,18 @@
   <data name="Installer.Role.ModelsArchive" xml:space="preserve"><value>Models archive</value></data>
   <data name="Installer.Role.GameTxd" xml:space="preserve"><value>Game TXD</value></data>
   <data name="Installer.Role.Additional" xml:space="preserve"><value>Additional</value></data>
+  <data name="Installer.Mods.Title" xml:space="preserve"><value>Custom ZIP mods</value></data>
+  <data name="Installer.Mod.AddZip" xml:space="preserve"><value>Add ZIP mod…</value></data>
+  <data name="Installer.Mod.SelectArchive" xml:space="preserve"><value>Select a custom mod ZIP archive</value></data>
+  <data name="Installer.Mod.AddTitle" xml:space="preserve"><value>Add custom mod</value></data>
+  <data name="Installer.Mod.EditTitle" xml:space="preserve"><value>Edit custom mod</value></data>
+  <data name="Installer.Mod.Name" xml:space="preserve"><value>Mod name</value></data>
+  <data name="Installer.Mod.Type" xml:space="preserve"><value>Installer type</value></data>
+  <data name="Installer.Mod.Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="Installer.Mod.Required" xml:space="preserve"><value>Required</value></data>
+  <data name="Installer.Mod.Column.Name" xml:space="preserve"><value>Mod</value></data>
+  <data name="Installer.Mod.Column.Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Installer.Mod.Column.Files" xml:space="preserve"><value>Files</value></data>
 
   <data name="Installer.Validation.ProductId" xml:space="preserve"><value>The installer ProductId is invalid.</value></data>
   <data name="Installer.Validation.Name" xml:space="preserve"><value>Enter a product name.</value></data>
@@ -494,6 +507,13 @@
   <data name="Installer.Validation.ReleaseReadMeSize" xml:space="preserve"><value>“{0}” is empty or exceeds the 1 MB README limit.</value></data>
   <data name="Installer.Validation.ReleaseReadMeEnglish" xml:space="preserve"><value>Attach the English ReadMe.txt before exporting a release ZIP.</value></data>
   <data name="Installer.Validation.ReleaseReadMeBelarusian" xml:space="preserve"><value>Attach ПрачытайМяне.txt before exporting a release ZIP.</value></data>
+  <data name="Installer.Validation.ModId" xml:space="preserve"><value>A custom mod has an invalid or duplicate identifier.</value></data>
+  <data name="Installer.Validation.ModName" xml:space="preserve"><value>Enter a mod name of no more than 128 characters.</value></data>
+  <data name="Installer.Validation.DuplicateModName" xml:space="preserve"><value>More than one custom mod is named “{0}”. Mod names are case-insensitive.</value></data>
+  <data name="Installer.Validation.EmptyMod" xml:space="preserve"><value>Custom mod “{0}” contains no files.</value></data>
+  <data name="Installer.Validation.EmptyModArchive" xml:space="preserve"><value>The selected ZIP archive contains no files.</value></data>
+  <data name="Installer.Validation.ModArchiveUnsafeEntry" xml:space="preserve"><value>ZIP entry “{0}” is a symbolic link or reparse point and cannot be installed.</value></data>
+  <data name="Installer.Validation.ModArchive" xml:space="preserve"><value>Could not read custom mod archive “{0}”.</value></data>
 
   <data name="Installer.CompilerMissing" xml:space="preserve"><value>The bundled Inno Setup compiler was not found: {0}</value></data>
   <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Could not start the bundled Inno Setup compiler.</value></data>

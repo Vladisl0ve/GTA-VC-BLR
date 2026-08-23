@@ -25,11 +25,6 @@ public sealed class InnoInstallerExportService : IInstallerExportService
     private static readonly byte[] BelarusianLanguageIniBytes =
         "[Belarusian]\r\nEnabled=1\r\n"u8.ToArray();
 
-    private static readonly JsonSerializerOptions ManifestJsonOptions = new()
-    {
-        WriteIndented = true,
-    };
-
     private readonly IInstallerCompiler _compiler;
     private readonly string _assetRoot;
 
@@ -180,19 +175,22 @@ public sealed class InnoInstallerExportService : IInstallerExportService
                 asset.Data));
         }
 
-        var coreManifest = StageManifest(
-            stageDirectory,
-            "manifest-core.json",
-            profile,
-            payloads.Where(payload => payload.Component == "core").ToArray(),
-            ["core"]);
-        var fullManifest = StageManifest(
-            stageDirectory,
-            "manifest-full.json",
-            profile,
-            payloads,
-            ["core", "silentpatch"]);
-        return new StagedInstallerPackage(payloads, coreManifest, fullManifest);
+        foreach (var mod in profile.Mods)
+        {
+            var component = GetModComponentName(mod.Id);
+            foreach (var file in mod.Files)
+            {
+                payloads.Add(Stage(
+                    stageDirectory,
+                    $"mod-{file.Id:N}.bin",
+                    file.DestinationPath,
+                    component,
+                    backupOriginal: true,
+                    file.Data));
+            }
+        }
+
+        return new StagedInstallerPackage(payloads);
     }
 
     private static StagedPayload Stage(
@@ -211,39 +209,6 @@ public sealed class InnoInstallerExportService : IInstallerExportService
             component,
             backupOriginal,
             Convert.ToHexStringLower(SHA256.HashData(data)));
-    }
-
-    private static StagedManifest StageManifest(
-        string stageDirectory,
-        string stageName,
-        InstallerProfile profile,
-        IReadOnlyList<StagedPayload> payloads,
-        string[] selectedComponents)
-    {
-        var manifest = new
-        {
-            schemaVersion = 1,
-            installId = profile.ProductId,
-            product = new
-            {
-                name = profile.Name,
-                version = profile.Version,
-                publisher = profile.Publisher,
-            },
-            selectedComponents,
-            files = payloads.Select(payload => new
-            {
-                path = payload.DestinationPath,
-                component = payload.Component,
-                sha256 = payload.Sha256,
-                backupOriginal = payload.BackupOriginal,
-                backupPath = payload.BackupOriginal ? payload.DestinationPath : null,
-            }),
-        };
-        var path = Path.Combine(stageDirectory, stageName);
-        var data = JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions);
-        File.WriteAllBytes(path, data);
-        return new StagedManifest(stageName, Convert.ToHexStringLower(SHA256.HashData(data)));
     }
 
     private static string GenerateScript(
@@ -278,50 +243,162 @@ public sealed class InnoInstallerExportService : IInstallerExportService
                 .AppendLine("')");
         }
 
-        AppendManifestEntry(
-            fileEntries,
-            package.CoreManifest,
-            profile.ProductId,
-            "not IsSilentPatchSelected");
-        AppendManifestEntry(
-            fileEntries,
-            package.FullManifest,
-            profile.ProductId,
-            "IsSilentPatchSelected");
-
         var publisherDirective = string.IsNullOrWhiteSpace(profile.Publisher)
             ? string.Empty
             : $"AppPublisher={EscapeDirective(profile.Publisher)}";
+        var modComponents = GenerateModComponents(profile);
+        var modMessages = GenerateModMessages(profile);
+        var manifestBuilder = GenerateManifestBuilder(profile, package.Payloads);
         return template
             .Replace("@@APP_ID@@", $"{{{{{profile.ProductId:D}}}", StringComparison.Ordinal)
             .Replace("@@PRODUCT_ID@@", profile.ProductId.ToString("D"), StringComparison.Ordinal)
             .Replace("@@APP_NAME@@", EscapeDirective(profile.Name), StringComparison.Ordinal)
             .Replace("@@APP_VERSION@@", EscapeDirective(profile.Version), StringComparison.Ordinal)
             .Replace("@@PUBLISHER_DIRECTIVE@@", publisherDirective, StringComparison.Ordinal)
-            .Replace("@@FILE_ENTRIES@@", fileEntries.ToString().TrimEnd(), StringComparison.Ordinal);
+            .Replace("@@FILE_ENTRIES@@", fileEntries.ToString().TrimEnd(), StringComparison.Ordinal)
+            .Replace("@@MOD_COMPONENT_ENTRIES@@", modComponents, StringComparison.Ordinal)
+            .Replace("@@MOD_CUSTOM_MESSAGES@@", modMessages, StringComparison.Ordinal)
+            .Replace("@@MANIFEST_BUILDER@@", manifestBuilder, StringComparison.Ordinal);
     }
 
-    private static void AppendManifestEntry(
-        StringBuilder fileEntries,
-        StagedManifest manifest,
-        Guid productId,
-        string check)
+    private static string GenerateModComponents(InstallerProfile profile)
     {
-        var destinationPath = $"_BelarusianModBackup\\{productId:D}\\manifest.json";
-        fileEntries.Append("Source: \"payload\\")
-            .Append(Escape(manifest.StageName))
-            .Append("\"; DestDir: \"{app}\\_BelarusianModBackup\\")
-            .Append(productId.ToString("D"))
-            .Append("\"; DestName: \"manifest.json\"; Components: core; Check: ")
-            .Append(check)
-            .Append("; Flags: ignoreversion overwritereadonly uninsneveruninstall; BeforeInstall: BackupPayload('")
-            .Append(EscapePascal(destinationPath))
-            .Append("', False); AfterInstall: RecordPayload('")
-            .Append(EscapePascal(destinationPath))
-            .Append("', '")
-            .Append(manifest.Sha256)
-            .AppendLine("')");
+        var builder = new StringBuilder();
+        foreach (var mod in profile.Mods)
+        {
+            var component = GetModComponentName(mod.Id);
+            builder.Append("Name: \"")
+                .Append(component)
+                .Append("\"; Description: \"{cm:")
+                .Append(GetModMessageName(mod.Id))
+                .Append("}\"; Types: ")
+                .Append(mod.IsRequired ? "full compact custom; Flags: fixed" : "full")
+                .AppendLine();
+        }
+
+        return builder.ToString().TrimEnd();
     }
+
+    private static string GenerateModMessages(InstallerProfile profile)
+    {
+        var builder = new StringBuilder();
+        foreach (var mod in profile.Mods)
+        {
+            var key = GetModMessageName(mod.Id);
+            var name = EscapeDirective(mod.Name);
+            builder.Append("english.")
+                .Append(key)
+                .Append('=')
+                .Append(name)
+                .Append(mod.IsRequired ? " (required)" : " (optional)")
+                .AppendLine();
+            builder.Append("belarusian.")
+                .Append(key)
+                .Append('=')
+                .Append(name)
+                .Append(mod.IsRequired ? " (абавязкова)" : " (неабавязкова)")
+                .AppendLine();
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string GenerateManifestBuilder(
+        InstallerProfile profile,
+        IReadOnlyList<StagedPayload> payloads)
+    {
+        var prefix = JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1,
+            installId = profile.ProductId,
+            product = new
+            {
+                name = profile.Name,
+                version = profile.Version,
+                publisher = profile.Publisher,
+            },
+        });
+        prefix = prefix[..^1];
+
+        var builder = new StringBuilder();
+        builder.AppendLine("procedure AppendManifestValue(var Target, Separator: String; const Value: String);")
+            .AppendLine("begin")
+            .AppendLine("  Target := Target + Separator + Value;")
+            .AppendLine("  Separator := ',';")
+            .AppendLine("end;")
+            .AppendLine()
+            .AppendLine("procedure WriteSelectedManifest;")
+            .AppendLine("var")
+            .AppendLine("  SelectedComponents, Files, Separator, Manifest, RelativePath, FileName: String;")
+            .AppendLine("  Lines: TArrayOfString;")
+            .AppendLine("begin")
+            .AppendLine("  SelectedComponents := '\"core\"';")
+            .AppendLine("  Separator := ',';")
+            .AppendLine("  if WizardIsComponentSelected('silentpatch') then")
+            .AppendLine("    AppendManifestValue(SelectedComponents, Separator, '\"silentpatch\"');");
+
+        foreach (var mod in profile.Mods)
+        {
+            var component = GetModComponentName(mod.Id);
+            builder.Append("  if WizardIsComponentSelected('")
+                .Append(component)
+                .AppendLine("') then")
+                .Append("    AppendManifestValue(SelectedComponents, Separator, '")
+                .Append(EscapePascal(JsonSerializer.Serialize(component)))
+                .AppendLine("');");
+        }
+
+        builder.AppendLine("  Files := '';")
+            .AppendLine("  Separator := '';");
+        foreach (var payload in payloads)
+        {
+            var fileJson = JsonSerializer.Serialize(new
+            {
+                path = payload.DestinationPath,
+                component = payload.Component,
+                sha256 = payload.Sha256,
+                backupOriginal = payload.BackupOriginal,
+                backupPath = payload.BackupOriginal ? payload.DestinationPath : null,
+            });
+            if (payload.Component == "core")
+            {
+                builder.Append("  AppendManifestValue(Files, Separator, '")
+                    .Append(EscapePascal(fileJson))
+                    .AppendLine("');");
+            }
+            else
+            {
+                builder.Append("  if WizardIsComponentSelected('")
+                    .Append(payload.Component)
+                    .AppendLine("') then")
+                    .Append("    AppendManifestValue(Files, Separator, '")
+                    .Append(EscapePascal(fileJson))
+                    .AppendLine("');");
+            }
+        }
+
+        var relativePath = $"_BelarusianModBackup\\{profile.ProductId:D}\\manifest.json";
+        builder.Append("  Manifest := '")
+            .Append(EscapePascal(prefix))
+            .AppendLine(",\"selectedComponents\":[' + SelectedComponents + '],\"files\":[' + Files + ']}';")
+            .Append("  RelativePath := '")
+            .Append(EscapePascal(relativePath))
+            .AppendLine("';")
+            .AppendLine("  FileName := DestinationFileFor(RelativePath);")
+            .AppendLine("  BackupPayload(RelativePath, False);")
+            .AppendLine("  ForceDirectories(ExtractFileDir(FileName));")
+            .AppendLine("  SetArrayLength(Lines, 1);")
+            .AppendLine("  Lines[0] := Manifest;")
+            .AppendLine("  if not SaveStringsToUTF8FileWithoutBOM(FileName, Lines, False) then")
+            .AppendLine("    RaiseException(FmtMessage(CustomMessage('BackupFailed'), [RelativePath]));")
+            .AppendLine("  RecordPayload(RelativePath, GetSHA256OfFile(FileName));")
+            .AppendLine("end;");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string GetModComponentName(Guid id) => $"mod_{id:N}";
+
+    private static string GetModMessageName(Guid id) => $"ComponentMod_{id:N}";
 
     private static bool ShouldBackupOriginal(InstallerAsset asset) =>
         asset.Role is InstallerAssetRole.ModelsArchive or InstallerAssetRole.GameTxd ||
@@ -343,9 +420,5 @@ public sealed class InnoInstallerExportService : IInstallerExportService
         string Sha256);
 
     private sealed record StagedInstallerPackage(
-        IReadOnlyList<StagedPayload> Payloads,
-        StagedManifest CoreManifest,
-        StagedManifest FullManifest);
-
-    private sealed record StagedManifest(string StageName, string Sha256);
+        IReadOnlyList<StagedPayload> Payloads);
 }

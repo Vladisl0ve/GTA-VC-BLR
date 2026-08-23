@@ -43,12 +43,13 @@ Name: "custom"; Description: "{cm:SetupTypeCustom}"; Flags: iscustom
 [Components]
 Name: "core"; Description: "{cm:ComponentCore}"; Types: full compact custom; Flags: fixed
 Name: "silentpatch"; Description: "{cm:ComponentSilentPatch}"; Types: full
+@@MOD_COMPONENT_ENTRIES@@
 
 [CustomMessages]
-english.SetupTypeFull=Belarusian language and SilentPatch
-belarusian.SetupTypeFull=Беларуская мова і SilentPatch
-english.SetupTypeCore=Belarusian language only
-belarusian.SetupTypeCore=Толькі беларуская мова
+english.SetupTypeFull=Belarusian language and all optional components
+belarusian.SetupTypeFull=Беларуская мова і ўсе неабавязковыя кампаненты
+english.SetupTypeCore=Belarusian language and required components
+belarusian.SetupTypeCore=Беларуская мова і абавязковыя кампаненты
 english.SetupTypeCustom=Custom installation
 belarusian.SetupTypeCustom=Выбарачнае ўсталяванне
 english.ComponentCore=Belarusian language
@@ -63,6 +64,7 @@ english.LegacyState=An older installation of this localization was detected. Uni
 belarusian.LegacyState=Знойдзена старое ўсталяванне гэтай беларусізацыі. Выдаліце яго перад запускам гэтага інсталятара.
 english.DifferentGameDirectory=This localization is already installed in another folder. Uninstall it there before selecting a new folder.
 belarusian.DifferentGameDirectory=Гэтая беларусізацыя ўжо ўсталяваная ў іншай папцы. Выдаліце яе там, перш чым выбраць новую папку.
+@@MOD_CUSTOM_MESSAGES@@
 
 [Files]
 @@FILE_ENTRIES@@
@@ -278,6 +280,8 @@ begin
   SetIniString(Section, 'InstalledHash', InstalledHash, ActiveStateFile);
   SetIniBool(Section, 'Current', True, ActiveStateFile);
 end;
+
+@@MANIFEST_BUILDER@@
 
 procedure ResetCurrentPayloadFlags;
 var
@@ -535,7 +539,10 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
+  begin
+    WriteSelectedManifest;
     CommitInstallState;
+  end;
 end;
 
 procedure RollbackScriptState;

@@ -503,6 +503,22 @@ public sealed class MainWindowViewModelTests
         var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
         var byxPath = Path.Combine(_testDirectory, "saved.byx");
         var profile = CreateInstallerProfile();
+        profile.Mods.Add(new InstallerMod
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Name = "Optional mod",
+            IsRequired = false,
+            Files =
+            [
+                new InstallerModFile
+                {
+                    Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    OriginalFileName = "config.dat",
+                    DestinationPath = "plugins\\config.dat",
+                    Data = [7, 8, 9],
+                },
+            ],
+        });
         var dialogs = new FakeDialogService();
         dialogs.OpenFileResults.Enqueue(txdPath);
         dialogs.SaveFileResults.Enqueue(byxPath);
@@ -520,8 +536,8 @@ public sealed class MainWindowViewModelTests
 
         Assert.IsTrue(viewModel.IsProjectDirty);
         Assert.IsTrue(viewModel.HasInstallerProfile);
-        Assert.AreEqual(profile.Assets.Count, viewModel.InstallerAssetCount);
-        StringAssert.Contains(viewModel.InstallerProfileStatus, profile.Assets.Count.ToString());
+        Assert.AreEqual(profile.PayloadFileCount, viewModel.InstallerAssetCount);
+        StringAssert.Contains(viewModel.InstallerProfileStatus, profile.PayloadFileCount.ToString());
         Assert.AreEqual(0, exporter.CallCount);
         Assert.AreEqual(
             InstallerProfileEditorMode.Configure,
@@ -536,6 +552,11 @@ public sealed class MainWindowViewModelTests
         Assert.IsNotNull(stored.InstallerProfile);
         Assert.AreEqual(profile.ProductId, stored.InstallerProfile.ProductId);
         Assert.AreEqual(profile.Assets.Count, stored.InstallerProfile.Assets.Count);
+        Assert.HasCount(1, stored.InstallerProfile.Mods);
+        Assert.AreEqual("Optional mod", stored.InstallerProfile.Mods[0].Name);
+        CollectionAssert.AreEqual(
+            profile.Mods[0].Files[0].Data,
+            stored.InstallerProfile.Mods[0].Files[0].Data);
         foreach (var expected in profile.Assets)
         {
             var actual = stored.InstallerProfile.Assets.Single(asset => asset.Id == expected.Id);
@@ -552,13 +573,14 @@ public sealed class MainWindowViewModelTests
         var exportProfile = dialogs.InstallerProfileRequests[1].Profile;
         Assert.AreEqual(profile.ProductId, exportProfile.ProductId);
         Assert.AreEqual(profile.Assets.Count, exportProfile.Assets.Count);
+        Assert.HasCount(1, exportProfile.Mods);
         CollectionAssert.AreEqual(profile.Assets[0].Data, exportProfile.Assets[0].Data);
         Assert.AreEqual(0, exporter.CallCount);
 
         var reopenedViewModel = CreateViewModel(new FakeDialogService());
         reopenedViewModel.OpenFromCommandLine(byxPath);
         Assert.IsTrue(reopenedViewModel.HasInstallerProfile);
-        Assert.AreEqual(profile.Assets.Count, reopenedViewModel.InstallerAssetCount);
+        Assert.AreEqual(profile.PayloadFileCount, reopenedViewModel.InstallerAssetCount);
     }
 
     [TestMethod]

@@ -422,6 +422,7 @@
   <data name="Filter.Installer" xml:space="preserve"><value>Інсталятар Windows (*.exe)|*.exe</value></data>
   <data name="Filter.ReleaseZip" xml:space="preserve"><value>ZIP (*.zip)|*.zip</value></data>
   <data name="Filter.ReleaseReadMe" xml:space="preserve"><value>Тэкст (*.txt)|*.txt|Усе файлы (*.*)|*.*</value></data>
+  <data name="Filter.ModArchive" xml:space="preserve"><value>Архівы ZIP (*.zip)|*.zip</value></data>
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Экспартаваць інсталятар Windows</value></data>
   <data name="Dialog.ExportReleaseZip" xml:space="preserve"><value>Экспартаваць рэлізны ZIP</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Стварэнне інсталятара Windows…</value></data>
@@ -449,7 +450,7 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI, models\gta3.img разам з gta3.dir, неабавязковыя файлы з папкі txd гульні (да 23) і каранёвую папку дыстрыбутыва SilentPatch. SilentPatch застаецца неабавязковым у створаным інсталятары. Далучыце ReadMe.txt і ПрачытайМяне.txt для рэлізнага ZIP; яны захоўваюцца ў праекце BYX і не капіююцца ў папку гульні.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце патрэбныя файлы інсталятара і дадайце карыстальніцкія ZIP-моды ніжэй. Шляхі ZIP адлічваюцца ад кораня гульні; абавязковыя моды замацаваныя, а неабавязковыя выбраныя прадвызначана. Для рэлізнага ZIP далучыце абодва файлы README.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
@@ -465,6 +466,18 @@
   <data name="Installer.Role.ModelsArchive" xml:space="preserve"><value>Архіў models</value></data>
   <data name="Installer.Role.GameTxd" xml:space="preserve"><value>TXD гульні</value></data>
   <data name="Installer.Role.Additional" xml:space="preserve"><value>Дадатковы</value></data>
+  <data name="Installer.Mods.Title" xml:space="preserve"><value>Карыстальніцкія ZIP-моды</value></data>
+  <data name="Installer.Mod.AddZip" xml:space="preserve"><value>Дадаць ZIP-мод…</value></data>
+  <data name="Installer.Mod.SelectArchive" xml:space="preserve"><value>Выберыце ZIP-архіў карыстальніцкага мода</value></data>
+  <data name="Installer.Mod.AddTitle" xml:space="preserve"><value>Дадаць карыстальніцкі мод</value></data>
+  <data name="Installer.Mod.EditTitle" xml:space="preserve"><value>Змяніць карыстальніцкі мод</value></data>
+  <data name="Installer.Mod.Name" xml:space="preserve"><value>Назва мода</value></data>
+  <data name="Installer.Mod.Type" xml:space="preserve"><value>Тып у інсталятары</value></data>
+  <data name="Installer.Mod.Optional" xml:space="preserve"><value>Неабавязковы</value></data>
+  <data name="Installer.Mod.Required" xml:space="preserve"><value>Абавязковы</value></data>
+  <data name="Installer.Mod.Column.Name" xml:space="preserve"><value>Мод</value></data>
+  <data name="Installer.Mod.Column.Type" xml:space="preserve"><value>Тып</value></data>
+  <data name="Installer.Mod.Column.Files" xml:space="preserve"><value>Файлы</value></data>
 
   <data name="Installer.Validation.ProductId" xml:space="preserve"><value>ProductId інсталятара няправільны.</value></data>
   <data name="Installer.Validation.Name" xml:space="preserve"><value>Увядзіце назву прадукту.</value></data>
@@ -494,6 +507,13 @@
   <data name="Installer.Validation.ReleaseReadMeSize" xml:space="preserve"><value>«{0}» пусты або перавышае ліміт README у 1 МБ.</value></data>
   <data name="Installer.Validation.ReleaseReadMeEnglish" xml:space="preserve"><value>Далучыце англійскі ReadMe.txt перад экспартам рэлізнага ZIP.</value></data>
   <data name="Installer.Validation.ReleaseReadMeBelarusian" xml:space="preserve"><value>Далучыце ПрачытайМяне.txt перад экспартам рэлізнага ZIP.</value></data>
+  <data name="Installer.Validation.ModId" xml:space="preserve"><value>Карыстальніцкі мод мае няправільны або паўторны ідэнтыфікатар.</value></data>
+  <data name="Installer.Validation.ModName" xml:space="preserve"><value>Увядзіце назву мода даўжынёй не больш за 128 знакаў.</value></data>
+  <data name="Installer.Validation.DuplicateModName" xml:space="preserve"><value>Некалькі карыстальніцкіх модаў маюць назву «{0}». Рэгістр не адрозніваецца.</value></data>
+  <data name="Installer.Validation.EmptyMod" xml:space="preserve"><value>Карыстальніцкі мод «{0}» не змяшчае файлаў.</value></data>
+  <data name="Installer.Validation.EmptyModArchive" xml:space="preserve"><value>Выбраны ZIP-архіў не змяшчае файлаў.</value></data>
+  <data name="Installer.Validation.ModArchiveUnsafeEntry" xml:space="preserve"><value>Элемент ZIP «{0}» з'яўляецца сімвалічнай спасылкай або кропкай паўторнага аналізу і не можа быць усталяваны.</value></data>
+  <data name="Installer.Validation.ModArchive" xml:space="preserve"><value>Не ўдалося прачытаць архіў карыстальніцкага мода «{0}».</value></data>
 
   <data name="Installer.CompilerMissing" xml:space="preserve"><value>Убудаваны кампілятар Inno Setup не знойдзены: {0}</value></data>
   <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Не ўдалося запусціць убудаваны кампілятар Inno Setup.</value></data>

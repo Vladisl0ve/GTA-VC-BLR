@@ -8,6 +8,67 @@ namespace GTA_GXT_Editor.Tests;
 public sealed class InstallerProfileValidatorTests
 {
     [TestMethod]
+    public void Clone_CustomMods_DeepCopiesMetadataFilesAndData()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Optional mod", false, "plugins\\config.dat", 90));
+
+        var clone = profile.Clone();
+        clone.Mods[0].Name = "Changed";
+        clone.Mods[0].Files[0].DestinationPath = "plugins\\changed.dat";
+        clone.Mods[0].Files[0].Data[0] = 255;
+
+        Assert.AreEqual("Optional mod", profile.Mods[0].Name);
+        Assert.AreEqual("plugins\\config.dat", profile.Mods[0].Files[0].DestinationPath);
+        Assert.AreNotEqual(255, profile.Mods[0].Files[0].Data[0]);
+        Assert.AreNotSame(profile.Mods[0], clone.Mods[0]);
+        Assert.AreNotSame(profile.Mods[0].Files[0].Data, clone.Mods[0].Files[0].Data);
+    }
+
+    [TestMethod]
+    public void Validate_CustomMods_AreAcceptedForExport()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Required mod", true, "plugins\\required.dat", 90));
+        profile.Mods.Add(CreateMod("Optional mod", false, "data\\optional.dat", 91));
+
+        InstallerProfileValidator.Validate(profile);
+    }
+
+    [TestMethod]
+    public void Validate_CustomModDuplicateName_IsRejectedCaseInsensitively()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Example", true, "plugins\\one.dat", 90));
+        profile.Mods.Add(CreateMod("EXAMPLE", false, "plugins\\two.dat", 91));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_CustomModConflictingDestination_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(CreateMod("Example", true, InstallerProfileValidator.MainAsiDestination, 90));
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
+    public void Validate_EmptyCustomMod_IsRejected()
+    {
+        var profile = CreateValidProfile();
+        profile.Mods.Add(new InstallerMod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Empty",
+            IsRequired = false,
+        });
+
+        Assert.Throws<InvalidDataException>(() => InstallerProfileValidator.ValidateForStorage(profile));
+    }
+
+    [TestMethod]
     public void Validate_CompleteProfile_NormalizesRelativePaths()
     {
         var profile = CreateValidProfile();
@@ -441,6 +502,27 @@ public sealed class InstallerProfileValidatorTests
         OriginalFileName = fileName,
         DestinationPath = InstallerProfileValidator.GetGameTxdDestination(fileName),
         Data = [1],
+    };
+
+    private static InstallerMod CreateMod(
+        string name,
+        bool isRequired,
+        string destination,
+        int id) => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = name,
+        IsRequired = isRequired,
+        Files =
+        [
+            new InstallerModFile
+            {
+                Id = new Guid(id, 0, 0, new byte[8]),
+                OriginalFileName = Path.GetFileName(destination),
+                DestinationPath = destination,
+                Data = [(byte)id],
+            },
+        ],
     };
 
     private static InstallerReleaseDocument CreateReadMe(string fileName, string text) => new()

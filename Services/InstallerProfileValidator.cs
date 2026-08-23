@@ -102,6 +102,18 @@ public static class InstallerProfileValidator
     public static void ValidateForStorage(InstallerProfile profile)
     {
         ValidateCommon(profile);
+        ValidateStorageRoles(profile);
+    }
+
+    public static void ValidatePayloadForStorage(InstallerProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ValidatePayload(profile);
+        ValidateStorageRoles(profile);
+    }
+
+    private static void ValidateStorageRoles(InstallerProfile profile)
+    {
 
         var mainAsi = profile.Assets.Where(asset => asset.Role == InstallerAssetRole.MainAsi).ToList();
         if (mainAsi.Count > 1 ||
@@ -167,12 +179,18 @@ public static class InstallerProfileValidator
             Throw("Installer.Validation.OutputName");
         }
 
-        if (profile.Assets.Count > MaximumAssets)
+        ValidatePayload(profile);
+    }
+
+    private static void ValidatePayload(InstallerProfile profile)
+    {
+        if (profile.PayloadFileCount > MaximumAssets)
         {
             Throw("Installer.Validation.AssetCount", MaximumAssets);
         }
 
         var assetIds = new HashSet<Guid>();
+        var modNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var destinations = new HashSet<string>(ReservedDestinations, StringComparer.OrdinalIgnoreCase);
         long totalLength = 0;
         foreach (var asset in profile.Assets)
@@ -182,28 +200,44 @@ public static class InstallerProfileValidator
                 Throw("Installer.Validation.AssetRole");
             }
 
-            if (asset.Id == Guid.Empty || !assetIds.Add(asset.Id))
+            asset.DestinationPath = ValidatePayloadFile(
+                asset.Id,
+                asset.OriginalFileName,
+                asset.DestinationPath,
+                asset.Data,
+                assetIds,
+                destinations,
+                ref totalLength);
+        }
+
+        foreach (var mod in profile.Mods)
+        {
+            if (mod.Id == Guid.Empty || !assetIds.Add(mod.Id))
             {
-                Throw("Installer.Validation.AssetId");
+                Throw("Installer.Validation.ModId");
             }
 
-            if (!IsFileNameOnly(asset.OriginalFileName))
+            ValidateText(mod.Name, 128, "Installer.Validation.ModName");
+            if (!modNames.Add(mod.Name.Trim()))
             {
-                Throw("Installer.Validation.SourceName", asset.OriginalFileName);
+                Throw("Installer.Validation.DuplicateModName", mod.Name);
             }
 
-            var destination = NormalizeDestinationPath(asset.DestinationPath);
-            asset.DestinationPath = destination;
-            if (!destinations.Add(destination))
+            if (mod.Files.Count == 0)
             {
-                Throw("Installer.Validation.DuplicateTarget", destination);
+                Throw("Installer.Validation.EmptyMod", mod.Name);
             }
 
-            ValidateAllowedPayloadName(destination);
-            totalLength = checked(totalLength + asset.Data.LongLength);
-            if (RequiresX86Validation(destination) && !IsX86PeImage(asset.Data))
+            foreach (var file in mod.Files)
             {
-                Throw("Installer.Validation.X86", asset.OriginalFileName);
+                file.DestinationPath = ValidatePayloadFile(
+                    file.Id,
+                    file.OriginalFileName,
+                    file.DestinationPath,
+                    file.Data,
+                    assetIds,
+                    destinations,
+                    ref totalLength);
             }
         }
 
@@ -216,6 +250,41 @@ public static class InstallerProfileValidator
         {
             Throw("Installer.Validation.PayloadSize");
         }
+    }
+
+    private static string ValidatePayloadFile(
+        Guid id,
+        string originalFileName,
+        string destinationPath,
+        byte[] data,
+        HashSet<Guid> assetIds,
+        HashSet<string> destinations,
+        ref long totalLength)
+    {
+        if (id == Guid.Empty || !assetIds.Add(id))
+        {
+            Throw("Installer.Validation.AssetId");
+        }
+
+        if (!IsFileNameOnly(originalFileName))
+        {
+            Throw("Installer.Validation.SourceName", originalFileName);
+        }
+
+        var destination = NormalizeDestinationPath(destinationPath);
+        if (!destinations.Add(destination))
+        {
+            Throw("Installer.Validation.DuplicateTarget", destination);
+        }
+
+        ValidateAllowedPayloadName(destination);
+        totalLength = checked(totalLength + data.LongLength);
+        if (RequiresX86Validation(destination) && !IsX86PeImage(data))
+        {
+            Throw("Installer.Validation.X86", originalFileName);
+        }
+
+        return destination;
     }
 
     private static void ValidateModelsArchiveComplete(InstallerProfile profile)

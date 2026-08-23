@@ -132,7 +132,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasInstallerProfile => _project?.InstallerProfile is not null;
 
-    public int InstallerAssetCount => _project?.InstallerProfile?.Assets.Count ?? 0;
+    public int InstallerAssetCount => _project?.InstallerProfile?.PayloadFileCount ?? 0;
 
     public string InstallerProfileStatus => HasInstallerProfile
         ? _localization.Format("Main.InstallerConfigured", InstallerAssetCount)
