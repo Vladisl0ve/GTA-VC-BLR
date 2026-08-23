@@ -109,12 +109,16 @@ The project may keep an incomplete installer-profile draft after some or all of
 its files are removed. Export requires `BelarusianLanguage.asi`, `MODELS\gta3.img`,
 `MODELS\gta3.dir`, and a complete SilentPatch distribution: `SilentPatchVC.asi`,
 `SilentPatchVC.ini`, and the eight supported IPL files. Up to 23 files from the
-game `txd` folder may also be attached. Files already stored in BYX remain
-selected on later exports. ASI Loaders and arbitrary additional files are not
-included.
+game `txd` folder may also be attached. Attach `ReadMe.txt` and `ПрачытайМяне.txt`
+in the same profile editor for **Export as → Release .zip…**; they are stored in
+BYX and are not copied into the installer payload. Files already stored in BYX
+remain selected on later exports. ASI Loaders and arbitrary additional files are
+not included.
 
 Export is offline and creates one English/Belarusian `Setup.exe` with the bundled
-Inno Setup 7.0.2 x86 compiler. The installer always writes `TEXT\BELARUS.GXT`,
+Inno Setup 7.0.2 x86 compiler. **Release .zip…** packs that installer together
+with the two README files and a regenerated SHA-256 companion for the installer.
+The installer always writes `TEXT\BELARUS.GXT`,
 `MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, `BelarusianLanguage.asi`,
 and `BelarusianLanguage.ini`; SilentPatch is a setup component that is selected by
 default. Original font, archive, TXD, and IPL files are mirrored under

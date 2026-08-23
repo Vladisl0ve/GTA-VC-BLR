@@ -41,7 +41,7 @@
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Save current</value></data>
   <data name="Main.SaveProjectAs" xml:space="preserve"><value>BYX project as…</value></data>
   <data name="Main.ExportAs" xml:space="preserve"><value>Export as</value></data>
-  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Export data or build a Windows installer</value></data>
+  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Export data, build a Windows installer, or a release ZIP</value></data>
   <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
   <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
   <data name="Main.ExportComments" xml:space="preserve"><value>Comments…</value></data>
@@ -418,12 +418,19 @@
   <data name="Common.OK" xml:space="preserve"><value>OK</value></data>
   <data name="Common.Remove" xml:space="preserve"><value>Remove</value></data>
   <data name="Main.ExportInstaller" xml:space="preserve"><value>Windows installer…</value></data>
+  <data name="Main.ExportReleaseZip" xml:space="preserve"><value>Release .zip…</value></data>
   <data name="Filter.Installer" xml:space="preserve"><value>Windows installer (*.exe)|*.exe</value></data>
+  <data name="Filter.ReleaseZip" xml:space="preserve"><value>ZIP (*.zip)|*.zip</value></data>
+  <data name="Filter.ReleaseReadMe" xml:space="preserve"><value>Text (*.txt)|*.txt|All files (*.*)|*.*</value></data>
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Export Windows installer</value></data>
+  <data name="Dialog.ExportReleaseZip" xml:space="preserve"><value>Export release ZIP</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Building Windows installer…</value></data>
+  <data name="Busy.ExportReleaseZip" xml:space="preserve"><value>Building release ZIP…</value></data>
   <data name="Status.InstallerExported" xml:space="preserve"><value>Installer exported: {0}</value></data>
+  <data name="Status.ReleaseZipExported" xml:space="preserve"><value>Release ZIP exported: {0}</value></data>
   <data name="Status.InstallerProfileUpdated" xml:space="preserve"><value>Installer profile updated ({0} attached files). Save the BYX project to keep it.</value></data>
   <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Could not build the installer: {0}</value></data>
+  <data name="Message.ExportReleaseZipFailed" xml:space="preserve"><value>Could not build the release ZIP: {0}</value></data>
 
   <data name="Installer.Editor.Title" xml:space="preserve"><value>Windows installer profile</value></data>
   <data name="Installer.Editor.Name" xml:space="preserve"><value>Product name</value></data>
@@ -442,10 +449,16 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Source file</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Path relative to the game</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Size</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI, models\gta3.img together with gta3.dir, optional files from the game txd folder (up to 23), and the SilentPatch distribution root. SilentPatch remains optional in the generated setup.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Select the main ASI, models\gta3.img together with gta3.dir, optional files from the game txd folder (up to 23), and the SilentPatch distribution root. SilentPatch remains optional in the generated setup. Attach ReadMe.txt and ПрачытайМяне.txt for a release ZIP; they are stored in the BYX project and are not copied into the game folder.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Select installer file</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Select installer files</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Select installer folder</value></data>
+  <data name="Installer.Editor.ReleaseReadMeEnglish" xml:space="preserve"><value>ReadMe.txt (English)</value></data>
+  <data name="Installer.Editor.ReleaseReadMeBelarusian" xml:space="preserve"><value>ПрачытайМяне.txt (Belarusian)</value></data>
+  <data name="Installer.Editor.SelectReleaseReadMe" xml:space="preserve"><value>Select…</value></data>
+  <data name="Installer.Editor.SelectReleaseReadMeFile" xml:space="preserve"><value>Select a README text file</value></data>
+  <data name="Installer.Editor.ReleaseReadMeMissing" xml:space="preserve"><value>Not attached</value></data>
+  <data name="Installer.Editor.ReleaseReadMeSelected" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Main ASI</value></data>
   <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
   <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
@@ -476,6 +489,11 @@
   <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader and additional files are no longer supported. Remove them from the installer profile.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>“{0}” is not a safe path relative to the game folder.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>“{0}” is a source, archive, checksum, README or command file and cannot be placed in the game folder.</value></data>
+  <data name="Installer.Validation.ReleaseReadMe" xml:space="preserve"><value>“{0}” must be a non-empty .txt README file.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeType" xml:space="preserve"><value>Release README files must have a .txt extension.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeSize" xml:space="preserve"><value>“{0}” is empty or exceeds the 1 MB README limit.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeEnglish" xml:space="preserve"><value>Attach the English ReadMe.txt before exporting a release ZIP.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeBelarusian" xml:space="preserve"><value>Attach ПрачытайМяне.txt before exporting a release ZIP.</value></data>
 
   <data name="Installer.CompilerMissing" xml:space="preserve"><value>The bundled Inno Setup compiler was not found: {0}</value></data>
   <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Could not start the bundled Inno Setup compiler.</value></data>

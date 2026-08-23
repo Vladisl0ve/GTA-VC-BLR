@@ -19,23 +19,33 @@ read from disk again. In export mode, confirming requires
 complete SilentPatch set; an incomplete draft cannot be exported. Up to 23 files
 from the game `txd` folder are optional.
 
+**Export as → Release .zip…** uses the same availability rules and profile
+editor. Confirming in this mode also requires both release README files. The
+saved ZIP contains the installer, `ReadMe.txt`, `ПрачытайМяне.txt`, and a
+SHA-256 companion for the installer only.
+
 ## BYX v4 installer data
 
 The optional `installer` manifest item references `installer/profile.json` and an
 array of binary attachments. Each attachment is stored as
 `installer/assets/<guid>.bin` and has an ID, original file name, destination,
-role, bytes, and SHA-256 in the profile/manifest pair. Legacy profiles may still
-store the ASI Loader and additional-file roles, so existing BYX projects remain
-readable. A stored profile may contain a partial or empty attachment list. New
+role, bytes, and SHA-256 in the profile/manifest pair. The current installer
+profile schema is version 2. Older installer profile versions are rejected.
+Optional `releaseReadMeEnglish` and `releaseReadMeBelarusian` references store
+the release README files used by **Release .zip…**; they are omitted from the
+Inno Setup payload and must not target the game folder. A stored profile may
+contain a partial or empty attachment list, including empty README slots. New
 exports accept the main ASI, `MODELS\gta3.img`, `MODELS\gta3.dir`, the exact
-SilentPatch set, and up to 23 optional `txd\*.txd` replacements.
+SilentPatch set, and up to 23 optional `txd\*.txd` replacements. Legacy ASI
+Loader and additional-file roles may still be stored in a draft.
 
 Loading verifies the declared entry set and every hash. Paths are case-insensitive
 and must be relative to the game root. Absolute paths, `..`, control characters,
 Windows device names, invalid Windows path characters, and duplicate destinations
 are rejected. `.asi` and `.dll` attachments must be x86 PE images. README, source,
 archive, checksum, and `APPLY_*.cmd`/`CLEAN_*.cmd` payloads are rejected. The
-unpacked project limit is 1 GB and the installer attachment limit is 512 files.
+unpacked project limit is 1 GB and the installer attachment limit is 512 files,
+plus up to two release README files of at most 1 MB each.
 
 BYX v3 opens with no installer profile and is upgraded on save. BYX v1/v2 and
 versions newer than v4 are rejected.
@@ -68,6 +78,26 @@ Two UTF-8 JSON manifests are staged and setup writes the one matching the select
 components to `_BelarusianModBackup\<ProductId>\manifest.json`. It records schema
 version 1, the stable ProductId, product metadata, selected components, and each
 file's path, component, SHA-256, and original-backup policy.
+
+## Release ZIP
+
+**Export as → Release .zip…** first builds the same installer, then packs a flat
+ZIP with four files:
+
+- the installer using the profile output name;
+- `ReadMe.txt` and `ПрачытайМяне.txt` from the BYX profile, regardless of the
+  original file names used when they were attached;
+- `{OutputFileName}.sha256`, regenerated from the finished installer.
+
+The checksum file is UTF-8 without a BOM, one LF-terminated GNU line:
+
+```
+{lowercase_hex}  {OutputFileName}
+```
+
+The value matches `certutil -hashfile "<installer.exe>" SHA256`. The ZIP itself
+is not hashed. README files are not copied into the installer payload. The
+completed ZIP is moved to the selected target atomically.
 
 ## Installation and removal
 

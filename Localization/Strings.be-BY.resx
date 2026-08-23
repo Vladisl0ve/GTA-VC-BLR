@@ -41,7 +41,7 @@
   <data name="Main.SaveCurrent" xml:space="preserve"><value>Захаваць бягучы</value></data>
   <data name="Main.SaveProjectAs" xml:space="preserve"><value>Праект BYX як…</value></data>
   <data name="Main.ExportAs" xml:space="preserve"><value>Экспартаваць як</value></data>
-  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя або стварыць інсталятар Windows</value></data>
+  <data name="Main.ExportAs.ToolTip" xml:space="preserve"><value>Экспартаваць даныя, стварыць інсталятар Windows або рэлізны ZIP</value></data>
   <data name="Main.ExportJson" xml:space="preserve"><value>JSON…</value></data>
   <data name="Main.ExportGxt" xml:space="preserve"><value>GXT…</value></data>
   <data name="Main.ExportComments" xml:space="preserve"><value>Каментары…</value></data>
@@ -418,12 +418,19 @@
   <data name="Common.OK" xml:space="preserve"><value>Добра</value></data>
   <data name="Common.Remove" xml:space="preserve"><value>Выдаліць</value></data>
   <data name="Main.ExportInstaller" xml:space="preserve"><value>Інсталятар Windows…</value></data>
+  <data name="Main.ExportReleaseZip" xml:space="preserve"><value>Release .zip…</value></data>
   <data name="Filter.Installer" xml:space="preserve"><value>Інсталятар Windows (*.exe)|*.exe</value></data>
+  <data name="Filter.ReleaseZip" xml:space="preserve"><value>ZIP (*.zip)|*.zip</value></data>
+  <data name="Filter.ReleaseReadMe" xml:space="preserve"><value>Тэкст (*.txt)|*.txt|Усе файлы (*.*)|*.*</value></data>
   <data name="Dialog.ExportInstaller" xml:space="preserve"><value>Экспартаваць інсталятар Windows</value></data>
+  <data name="Dialog.ExportReleaseZip" xml:space="preserve"><value>Экспартаваць рэлізны ZIP</value></data>
   <data name="Busy.ExportInstaller" xml:space="preserve"><value>Стварэнне інсталятара Windows…</value></data>
+  <data name="Busy.ExportReleaseZip" xml:space="preserve"><value>Стварэнне рэлізнага ZIP…</value></data>
   <data name="Status.InstallerExported" xml:space="preserve"><value>Інсталятар экспартаваны: {0}</value></data>
+  <data name="Status.ReleaseZipExported" xml:space="preserve"><value>Рэлізны ZIP экспартаваны: {0}</value></data>
   <data name="Status.InstallerProfileUpdated" xml:space="preserve"><value>Профіль інсталятара абноўлены ({0} далучаных файлаў). Захавайце праект BYX, каб пакінуць змены.</value></data>
   <data name="Message.ExportInstallerFailed" xml:space="preserve"><value>Не ўдалося стварыць інсталятар: {0}</value></data>
+  <data name="Message.ExportReleaseZipFailed" xml:space="preserve"><value>Не ўдалося стварыць рэлізны ZIP: {0}</value></data>
 
   <data name="Installer.Editor.Title" xml:space="preserve"><value>Профіль інсталятара Windows</value></data>
   <data name="Installer.Editor.Name" xml:space="preserve"><value>Назва прадукту</value></data>
@@ -442,10 +449,16 @@
   <data name="Installer.Editor.Column.Source" xml:space="preserve"><value>Зыходны файл</value></data>
   <data name="Installer.Editor.Column.Destination" xml:space="preserve"><value>Шлях адносна гульні</value></data>
   <data name="Installer.Editor.Column.Size" xml:space="preserve"><value>Памер</value></data>
-  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI, models\gta3.img разам з gta3.dir, неабавязковыя файлы з папкі txd гульні (да 23) і каранёвую папку дыстрыбутыва SilentPatch. SilentPatch застаецца неабавязковым у створаным інсталятары.</value></data>
+  <data name="Installer.Editor.Hint" xml:space="preserve"><value>Выберыце асноўны ASI, models\gta3.img разам з gta3.dir, неабавязковыя файлы з папкі txd гульні (да 23) і каранёвую папку дыстрыбутыва SilentPatch. SilentPatch застаецца неабавязковым у створаным інсталятары. Далучыце ReadMe.txt і ПрачытайМяне.txt для рэлізнага ZIP; яны захоўваюцца ў праекце BYX і не капіююцца ў папку гульні.</value></data>
   <data name="Installer.Editor.SelectFile" xml:space="preserve"><value>Выберыце файл інсталятара</value></data>
   <data name="Installer.Editor.SelectFiles" xml:space="preserve"><value>Выберыце файлы інсталятара</value></data>
   <data name="Installer.Editor.SelectFolder" xml:space="preserve"><value>Выберыце папку інсталятара</value></data>
+  <data name="Installer.Editor.ReleaseReadMeEnglish" xml:space="preserve"><value>ReadMe.txt (англійская)</value></data>
+  <data name="Installer.Editor.ReleaseReadMeBelarusian" xml:space="preserve"><value>ПрачытайМяне.txt (беларуская)</value></data>
+  <data name="Installer.Editor.SelectReleaseReadMe" xml:space="preserve"><value>Выбраць…</value></data>
+  <data name="Installer.Editor.SelectReleaseReadMeFile" xml:space="preserve"><value>Выберыце тэкставы файл README</value></data>
+  <data name="Installer.Editor.ReleaseReadMeMissing" xml:space="preserve"><value>Не далучаны</value></data>
+  <data name="Installer.Editor.ReleaseReadMeSelected" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Installer.Role.MainAsi" xml:space="preserve"><value>Асноўны ASI</value></data>
   <data name="Installer.Role.AsiLoader" xml:space="preserve"><value>ASI Loader</value></data>
   <data name="Installer.Role.SilentPatch" xml:space="preserve"><value>SilentPatch</value></data>
@@ -476,6 +489,11 @@
   <data name="Installer.Validation.UnsupportedRole" xml:space="preserve"><value>ASI Loader і дадатковыя файлы больш не падтрымліваюцца. Выдаліце іх з профілю інсталятара.</value></data>
   <data name="Installer.Validation.TargetPath" xml:space="preserve"><value>«{0}» — небяспечны шлях адносна папкі гульні.</value></data>
   <data name="Installer.Validation.ExcludedFile" xml:space="preserve"><value>«{0}» — зыходнік, архіў, кантрольная сума, README або камандны файл; яго нельга змяшчаць у папку гульні.</value></data>
+  <data name="Installer.Validation.ReleaseReadMe" xml:space="preserve"><value>«{0}» мусіць быць непустым .txt файлам README.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeType" xml:space="preserve"><value>Файлы README для рэлізу мусяць мець канчатак .txt.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeSize" xml:space="preserve"><value>«{0}» пусты або перавышае ліміт README у 1 МБ.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeEnglish" xml:space="preserve"><value>Далучыце англійскі ReadMe.txt перад экспартам рэлізнага ZIP.</value></data>
+  <data name="Installer.Validation.ReleaseReadMeBelarusian" xml:space="preserve"><value>Далучыце ПрачытайМяне.txt перад экспартам рэлізнага ZIP.</value></data>
 
   <data name="Installer.CompilerMissing" xml:space="preserve"><value>Убудаваны кампілятар Inno Setup не знойдзены: {0}</value></data>
   <data name="Installer.CompilerStartFailed" xml:space="preserve"><value>Не ўдалося запусціць убудаваны кампілятар Inno Setup.</value></data>

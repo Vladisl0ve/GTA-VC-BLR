@@ -14,6 +14,8 @@ public partial class InstallerProfileWindow : Window
     private readonly string _suggestedDirectory;
     private readonly InstallerProfileEditorMode _mode;
     private readonly ObservableCollection<InstallerAssetRow> _assets;
+    private InstallerReleaseDocument? _readMeEnglish;
+    private InstallerReleaseDocument? _readMeBelarusian;
 
     public InstallerProfileWindow(
         InstallerProfileEditorRequest request,
@@ -33,6 +35,9 @@ public partial class InstallerProfileWindow : Window
         VersionTextBox.Text = _profile.Version;
         PublisherTextBox.Text = _profile.Publisher;
         OutputNameTextBox.Text = _profile.OutputFileName;
+        _readMeEnglish = _profile.ReleaseReadMeEnglish?.Clone();
+        _readMeBelarusian = _profile.ReleaseReadMeBelarusian?.Clone();
+        RefreshReadMeStatus();
     }
 
     public InstallerProfileEditorResult? Result { get; private set; }
@@ -51,6 +56,94 @@ public partial class InstallerProfileWindow : Window
 
     private void SelectSilentPatchFolder_OnClick(object sender, RoutedEventArgs e) =>
         SelectSilentPatchFolder();
+
+    private void SelectEnglishReadMe_OnClick(object sender, RoutedEventArgs e) =>
+        SelectReleaseReadMe(isEnglish: true);
+
+    private void SelectBelarusianReadMe_OnClick(object sender, RoutedEventArgs e) =>
+        SelectReleaseReadMe(isEnglish: false);
+
+    private void ClearEnglishReadMe_OnClick(object sender, RoutedEventArgs e)
+    {
+        _readMeEnglish = null;
+        RefreshReadMeStatus();
+    }
+
+    private void ClearBelarusianReadMe_OnClick(object sender, RoutedEventArgs e)
+    {
+        _readMeBelarusian = null;
+        RefreshReadMeStatus();
+    }
+
+    private void SelectReleaseReadMe(bool isEnglish)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = _localization.Get("Installer.Editor.SelectReleaseReadMeFile"),
+            Filter = _localization.Get("Filter.ReleaseReadMe"),
+            InitialDirectory = _suggestedDirectory,
+            CheckFileExists = true,
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        if (!Path.GetExtension(dialog.FileName).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowValidationError("Installer.Validation.ReleaseReadMeType");
+            return;
+        }
+
+        var data = File.ReadAllBytes(dialog.FileName);
+        if (data.Length == 0 || data.LongLength > InstallerProfileValidator.MaximumReleaseDocumentSize)
+        {
+            MessageBox.Show(
+                this,
+                _localization.Format(
+                    "Installer.Validation.ReleaseReadMeSize",
+                    Path.GetFileName(dialog.FileName)),
+                _localization.Get("Common.Error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        var document = new InstallerReleaseDocument
+        {
+            Id = Guid.NewGuid(),
+            OriginalFileName = Path.GetFileName(dialog.FileName),
+            Data = data,
+        };
+        if (isEnglish)
+        {
+            _readMeEnglish = document;
+        }
+        else
+        {
+            _readMeBelarusian = document;
+        }
+
+        RefreshReadMeStatus();
+    }
+
+    private void RefreshReadMeStatus()
+    {
+        EnglishReadMeStatus.Text = FormatReadMeStatus(_readMeEnglish);
+        BelarusianReadMeStatus.Text = FormatReadMeStatus(_readMeBelarusian);
+    }
+
+    private string FormatReadMeStatus(InstallerReleaseDocument? document) =>
+        document is null
+            ? _localization.Get("Installer.Editor.ReleaseReadMeMissing")
+            : _localization.Format(
+                "Installer.Editor.ReleaseReadMeSelected",
+                document.OriginalFileName,
+                FormatSize(document.Data.LongLength));
+
+    private static string FormatSize(long length) => length >= 1024 * 1024
+        ? $"{length / 1024d / 1024d:F1} MB"
+        : $"{Math.Max(1, length / 1024d):F0} KB";
 
     private void SelectSingleBinary(InstallerAssetRole role, string destination, string filter)
     {
@@ -375,9 +468,15 @@ public partial class InstallerProfileWindow : Window
         _profile.Publisher = PublisherTextBox.Text;
         _profile.OutputFileName = OutputNameTextBox.Text;
         _profile.Assets = _assets.Select(row => row.Asset.Clone()).ToList();
+        _profile.ReleaseReadMeEnglish = _readMeEnglish?.Clone();
+        _profile.ReleaseReadMeBelarusian = _readMeBelarusian?.Clone();
         try
         {
-            if (_mode == InstallerProfileEditorMode.Export)
+            if (_mode == InstallerProfileEditorMode.ExportReleaseZip)
+            {
+                InstallerProfileValidator.ValidateForReleaseZip(_profile);
+            }
+            else if (_mode == InstallerProfileEditorMode.Export)
             {
                 InstallerProfileValidator.Validate(_profile);
             }
@@ -423,8 +522,6 @@ public partial class InstallerProfileWindow : Window
             set => Asset.DestinationPath = value;
         }
 
-        public string SizeText => Asset.Data.LongLength >= 1024 * 1024
-            ? $"{Asset.Data.LongLength / 1024d / 1024d:F1} MB"
-            : $"{Math.Max(1, Asset.Data.LongLength / 1024d):F0} KB";
+        public string SizeText => FormatSize(Asset.Data.LongLength);
     }
 }

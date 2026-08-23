@@ -190,6 +190,37 @@ public sealed class InstallerExportServiceTests
     }
 
     [TestMethod]
+    public async Task BuildAsync_ReleaseReadMes_AreNotStagedInInstallerPayload()
+    {
+        var compiler = new InspectingCompiler();
+        var service = new InnoInstallerExportService(compiler, AppContext.BaseDirectory);
+        var project = CreateProject();
+        var english = "English README body"u8.ToArray();
+        var belarusian = Encoding.UTF8.GetBytes("Беларускі README");
+        project.InstallerProfile!.ReleaseReadMeEnglish = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000064"),
+            OriginalFileName = "ReadMe.txt",
+            Data = english,
+        };
+        project.InstallerProfile.ReleaseReadMeBelarusian = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000065"),
+            OriginalFileName = "ПрачытайМяне.txt",
+            Data = belarusian,
+        };
+        var target = Path.Combine(_testDirectory, "output", "Setup.exe");
+
+        await service.BuildAsync(project, target, CancellationToken.None);
+
+        var script = Encoding.UTF8.GetString(compiler.ScriptBytes!);
+        Assert.IsFalse(script.Contains("ReadMe.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(script.Contains("ПрачытайМяне.txt", StringComparison.Ordinal));
+        Assert.IsFalse(compiler.StagedContents.Values.Any(bytes => bytes.AsSpan().SequenceEqual(english)));
+        Assert.IsFalse(compiler.StagedContents.Values.Any(bytes => bytes.AsSpan().SequenceEqual(belarusian)));
+    }
+
+    [TestMethod]
     public async Task BuildAsync_EmptyInstallerDraft_IsRejected()
     {
         var compiler = new InspectingCompiler();

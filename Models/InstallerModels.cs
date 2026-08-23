@@ -32,6 +32,22 @@ public sealed class InstallerAsset
     };
 }
 
+public sealed class InstallerReleaseDocument
+{
+    public required Guid Id { get; init; }
+
+    public required string OriginalFileName { get; init; }
+
+    public required byte[] Data { get; init; }
+
+    public InstallerReleaseDocument Clone() => new()
+    {
+        Id = Id,
+        OriginalFileName = OriginalFileName,
+        Data = [.. Data],
+    };
+}
+
 public sealed class InstallerProfile
 {
     public Guid ProductId { get; set; } = Guid.NewGuid();
@@ -46,6 +62,10 @@ public sealed class InstallerProfile
 
     public List<InstallerAsset> Assets { get; set; } = [];
 
+    public InstallerReleaseDocument? ReleaseReadMeEnglish { get; set; }
+
+    public InstallerReleaseDocument? ReleaseReadMeBelarusian { get; set; }
+
     public InstallerProfile Clone() => new()
     {
         ProductId = ProductId,
@@ -54,13 +74,29 @@ public sealed class InstallerProfile
         Publisher = Publisher,
         OutputFileName = OutputFileName,
         Assets = Assets.Select(asset => asset.Clone()).ToList(),
+        ReleaseReadMeEnglish = ReleaseReadMeEnglish?.Clone(),
+        ReleaseReadMeBelarusian = ReleaseReadMeBelarusian?.Clone(),
     };
+
+    public IEnumerable<InstallerReleaseDocument> EnumerateReleaseDocuments()
+    {
+        if (ReleaseReadMeEnglish is not null)
+        {
+            yield return ReleaseReadMeEnglish;
+        }
+
+        if (ReleaseReadMeBelarusian is not null)
+        {
+            yield return ReleaseReadMeBelarusian;
+        }
+    }
 }
 
 public enum InstallerProfileEditorMode
 {
     Configure,
     Export,
+    ExportReleaseZip,
 }
 
 public sealed record InstallerProfileEditorRequest(

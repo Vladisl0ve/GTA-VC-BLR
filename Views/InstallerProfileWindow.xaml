@@ -4,12 +4,13 @@
         xmlns:loc="clr-namespace:GTA_GXT_Editor.Localization"
         Title="{loc:Translate Installer.Editor.Title}"
         Width="940"
-        Height="700"
+        Height="760"
         MinWidth="760"
-        MinHeight="560"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="18">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -47,8 +48,60 @@
             <Button Margin="0,0,8,8" Padding="12,6" Content="{loc:Translate Common.Remove}" Click="RemoveAsset_OnClick" />
         </WrapPanel>
 
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="{loc:Translate Installer.Editor.ReleaseReadMeEnglish}" />
+            <TextBlock Grid.Column="2" Text="{loc:Translate Installer.Editor.ReleaseReadMeBelarusian}" />
+            <Grid Grid.Row="1" Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Padding="12,6"
+                        Content="{loc:Translate Installer.Editor.SelectReleaseReadMe}"
+                        Click="SelectEnglishReadMe_OnClick" />
+                <TextBlock x:Name="EnglishReadMeStatus"
+                           Grid.Column="1"
+                           Margin="8,0,8,0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap" />
+                <Button Grid.Column="2"
+                        Padding="12,6"
+                        Content="{loc:Translate Common.Clear}"
+                        Click="ClearEnglishReadMe_OnClick" />
+            </Grid>
+            <Grid Grid.Row="1" Grid.Column="2" Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Padding="12,6"
+                        Content="{loc:Translate Installer.Editor.SelectReleaseReadMe}"
+                        Click="SelectBelarusianReadMe_OnClick" />
+                <TextBlock x:Name="BelarusianReadMeStatus"
+                           Grid.Column="1"
+                           Margin="8,0,8,0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap" />
+                <Button Grid.Column="2"
+                        Padding="12,6"
+                        Content="{loc:Translate Common.Clear}"
+                        Click="ClearBelarusianReadMe_OnClick" />
+            </Grid>
+        </Grid>
+
         <DataGrid x:Name="AssetsGrid"
-                  Grid.Row="2"
+                  Grid.Row="3"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   SelectionMode="Extended"
@@ -62,7 +115,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="3" Margin="0,16,0,0">
+        <Grid Grid.Row="4" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

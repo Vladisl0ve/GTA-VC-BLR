@@ -448,14 +448,17 @@ public sealed class MainWindowViewModelTests
 
         viewModel.OpenFromCommandLine(gtaIIIPath);
         Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ExportReleaseZipCommand.CanExecute(null));
         Assert.IsFalse(viewModel.ConfigureInstallerCommand.CanExecute(null));
         viewModel.OpenFromCommandLine(viceCityPath);
         Assert.IsFalse(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ExportReleaseZipCommand.CanExecute(null));
         Assert.IsFalse(viewModel.ConfigureInstallerCommand.CanExecute(null));
         dialogs.OpenFileResults.Enqueue(txdPath);
         await viewModel.AddTxdCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.ExportInstallerCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.ExportReleaseZipCommand.CanExecute(null));
         Assert.IsTrue(viewModel.ConfigureInstallerCommand.CanExecute(null));
     }
 
@@ -654,6 +657,90 @@ public sealed class MainWindowViewModelTests
         Assert.IsNotNull(exporter.Snapshot);
         Assert.AreEqual(profile.ProductId, exporter.Snapshot.InstallerProfile!.ProductId);
         Assert.IsNotNull(exporter.Snapshot.AttachedTxd);
+        Assert.AreNotSame(profile, exporter.Snapshot.InstallerProfile);
+    }
+
+    [TestMethod]
+    public async Task ExportReleaseZip_CancelledProfile_DoesNotChangeSavedProject()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.InstallerProfileResults.Enqueue(null);
+        var exporter = new RecordingReleaseZipExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            releaseZipExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+        Assert.IsFalse(viewModel.IsProjectDirty);
+
+        await viewModel.ExportReleaseZipCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(viewModel.IsProjectDirty);
+        Assert.AreEqual(0, exporter.CallCount);
+        Assert.HasCount(1, dialogs.InstallerProfileRequests);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.ExportReleaseZip,
+            dialogs.InstallerProfileRequests[0].Mode);
+        var reopened = new ByxProjectSerializer(new GxtManagerFactory(), new TxdReader()).Load(byxPath);
+        Assert.IsNull(reopened.InstallerProfile);
+    }
+
+    [TestMethod]
+    public async Task ExportReleaseZip_ConfirmedProfileMarksDirtyAndExportsSnapshot()
+    {
+        var viceCityPath = CreateViceCityGxt("vice.gxt");
+        var txdPath = WriteTxd("fonts.txd", [1, 2, 3, 255]);
+        var byxPath = Path.Combine(_testDirectory, "saved.byx");
+        var zipPath = Path.Combine(_testDirectory, "Release.zip");
+        var profile = CreateInstallerProfile();
+        profile.ReleaseReadMeEnglish = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000064"),
+            OriginalFileName = "ReadMe.txt",
+            Data = "English"u8.ToArray(),
+        };
+        profile.ReleaseReadMeBelarusian = new InstallerReleaseDocument
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000065"),
+            OriginalFileName = "ПрачытайМяне.txt",
+            Data = "Беларуская"u8.ToArray(),
+        };
+        var dialogs = new FakeDialogService();
+        dialogs.OpenFileResults.Enqueue(txdPath);
+        dialogs.SaveFileResults.Enqueue(byxPath);
+        dialogs.SaveFileResults.Enqueue(zipPath);
+        dialogs.InstallerProfileResults.Enqueue(new InstallerProfileEditorResult(profile));
+        var exporter = new RecordingReleaseZipExportService();
+        var viewModel = new MainWindowViewModel(
+            new GxtManagerFactory(),
+            dialogs,
+            releaseZipExportService: exporter);
+        viewModel.OpenFromCommandLine(viceCityPath);
+        await viewModel.AddTxdCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        await viewModel.ExportReleaseZipCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.AreEqual(1, exporter.CallCount);
+        Assert.AreEqual(
+            InstallerProfileEditorMode.ExportReleaseZip,
+            dialogs.InstallerProfileRequests[0].Mode);
+        Assert.AreEqual(zipPath, exporter.TargetPath);
+        Assert.IsNotNull(exporter.Snapshot);
+        Assert.AreEqual(profile.ProductId, exporter.Snapshot.InstallerProfile!.ProductId);
+        Assert.AreEqual("ReadMe.txt", exporter.Snapshot.InstallerProfile.ReleaseReadMeEnglish!.OriginalFileName);
+        Assert.AreEqual(
+            "ПрачытайМяне.txt",
+            exporter.Snapshot.InstallerProfile.ReleaseReadMeBelarusian!.OriginalFileName);
+        Assert.AreEqual("Setup.zip", Path.GetFileName(dialogs.SaveFileCalls[1].SuggestedPath));
         Assert.AreNotSame(profile, exporter.Snapshot.InstallerProfile);
     }
 
@@ -1500,6 +1587,26 @@ public sealed class MainWindowViewModelTests
     }
 
     private sealed class RecordingInstallerExportService : IInstallerExportService
+    {
+        public int CallCount { get; private set; }
+
+        public EditorProject? Snapshot { get; private set; }
+
+        public string? TargetPath { get; private set; }
+
+        public Task BuildAsync(
+            EditorProject projectSnapshot,
+            string targetPath,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            Snapshot = projectSnapshot;
+            TargetPath = targetPath;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingReleaseZipExportService : IReleaseZipExportService
     {
         public int CallCount { get; private set; }
 
