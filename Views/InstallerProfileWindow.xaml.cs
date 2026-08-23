@@ -242,17 +242,19 @@ public partial class InstallerProfileWindow : Window
                 };
             })
             .ToArray();
-        var silentPatchAsi = replacement.Single(asset =>
-            asset.DestinationPath.Equals("SilentPatchVC.asi", StringComparison.OrdinalIgnoreCase));
-        if (!InstallerProfileValidator.IsX86PeImage(silentPatchAsi.Data))
+        foreach (var binary in replacement.Where(asset =>
+                     InstallerProfileValidator.RequiresX86Validation(asset.DestinationPath)))
         {
-            MessageBox.Show(
-                this,
-                _localization.Format("Installer.Validation.X86", silentPatchAsi.OriginalFileName),
-                _localization.Get("Common.Error"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            return;
+            if (!InstallerProfileValidator.IsX86PeImage(binary.Data))
+            {
+                MessageBox.Show(
+                    this,
+                    _localization.Format("Installer.Validation.X86", binary.OriginalFileName),
+                    _localization.Get("Common.Error"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
         }
 
         RemoveAssetsByRole(InstallerAssetRole.SilentPatch);

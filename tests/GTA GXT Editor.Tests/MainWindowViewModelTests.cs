@@ -1452,7 +1452,7 @@ public sealed class MainWindowViewModelTests
                 Data = [4, 5, 6],
             },
             .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
-                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                InstallerProfileValidator.RequiresX86Validation(destination)
                     ? CreateInstallerBinary(InstallerAssetRole.SilentPatch, destination)
                     : new InstallerAsset
                     {

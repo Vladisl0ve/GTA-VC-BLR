@@ -171,8 +171,8 @@ public sealed class ReleaseZipExportServiceTests
                     CreateBinary(1, InstallerAssetRole.MainAsi, "BelarusianLanguage.asi"),
                     .. InstallerProfileValidator.SilentPatchDestinations.Select((destination, index) =>
                         CreateSilentPatchAsset(index + 2, destination)),
-                    CreatePayload(12, InstallerAssetRole.ModelsArchive, InstallerProfileValidator.Gta3ImgDestination),
-                    CreatePayload(13, InstallerAssetRole.ModelsArchive, InstallerProfileValidator.Gta3DirDestination),
+                    CreatePayload(13, InstallerAssetRole.ModelsArchive, InstallerProfileValidator.Gta3ImgDestination),
+                    CreatePayload(14, InstallerAssetRole.ModelsArchive, InstallerProfileValidator.Gta3DirDestination),
                 ],
                 ReleaseReadMeEnglish = english is null ? null : new InstallerReleaseDocument
                 {
@@ -200,7 +200,7 @@ public sealed class ReleaseZipExportServiceTests
     };
 
     private static InstallerAsset CreateSilentPatchAsset(int id, string destination) =>
-        Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+        InstallerProfileValidator.RequiresX86Validation(destination)
             ? CreateBinary(id, InstallerAssetRole.SilentPatch, destination)
             : CreatePayload(id, InstallerAssetRole.SilentPatch, destination);
 

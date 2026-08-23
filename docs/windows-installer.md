@@ -68,7 +68,7 @@ The generated installer always contains:
   selected on launch;
 - `MODELS\gta3.img` and `MODELS\gta3.dir`;
 - up to 23 optional `txd\*.txd` replacements;
-- `SilentPatchVC.asi`, `SilentPatchVC.ini`, and the eight fixed IPL replacements.
+- `SilentPatchVC.asi`, `SilentPatchVC.ini`, `ddraw.dll`, and the eight fixed IPL replacements.
 
 The core component is fixed. SilentPatch is one all-or-nothing component, selected
 by default but removable on the components page. `FONTB.TXD`, `dinput8.dll`, and
@@ -112,8 +112,8 @@ The stable Inno AppId and backup directory derive from the profile ProductId.
 Original `MODELS\FONTS.TXD`, `MODELS\gta3.img`, `MODELS\gta3.dir`, any installed
 `txd\*.txd` replacements, and, when SilentPatch is selected, the eight IPL files
 are copied to matching relative paths below `_BelarusianModBackup\<ProductId>`.
-Existing GXT/ASI/INI payloads are mod-owned and overwritten without an original
-backup. Transaction state, licenses, and the uninstaller stay under
+Existing GXT/ASI/INI payloads and SilentPatch `ddraw.dll` are mod-owned and
+overwritten without an original backup. Transaction state, licenses, and the uninstaller stay under
 `_BelarusianMod\<ProductId>` in the game folder. A shortcut named
 `uninstall_BLR.exe` is created in the game root and is removed with the
 localization. Uninstall removes that support directory except for a leftover
@@ -123,7 +123,7 @@ An update must use the same game directory recorded by the first successful
 installation; moving the installation requires uninstalling it first.
 
 Updates keep the first original backup and update installed hashes. Reinstalling
-without SilentPatch restores unmodified IPL originals and removes its ASI/INI.
+without SilentPatch restores unmodified IPL originals and removes its ASI/INI and `ddraw.dll`.
 Uninstall restores unmodified font, archive, TXD, and IPL originals, deletes unmodified mod-owned
 payloads, then removes the ProductId backup directory. Files the user changed
 after installation are left in place; uninstall does not prompt and does not copy

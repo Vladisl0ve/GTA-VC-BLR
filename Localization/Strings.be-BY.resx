@@ -480,7 +480,7 @@
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Далучэнні інсталятара перавышаюць ліміт 1 ГБ.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Выберыце роўна адзін асноўны x86 ASI з прызначэннем BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>Калі выбраны x86 ASI Loader, яго прызначэннем павінен быць dinput8.dll.</value></data>
-  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Выберыце поўны набор SilentPatch: SilentPatchVC.asi, SilentPatchVC.ini і ўсе восем патрэбных файлаў IPL.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Выберыце поўны набор SilentPatch: SilentPatchVC.asi, SilentPatchVC.ini, ddraw.dll і ўсе восем патрэбных файлаў IPL.</value></data>
   <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>У выбранай папцы SilentPatch няма наступных файлаў:&#xA;{0}</value></data>
   <data name="Installer.Validation.ModelsArchive" xml:space="preserve"><value>Выберыце абодва файлы MODELS\gta3.img і MODELS\gta3.dir.</value></data>
   <data name="Installer.Validation.ModelsArchiveMissingDir" xml:space="preserve"><value>Файл gta3.dir мусіць быць у той самай папцы, што і выбраны gta3.img.</value></data>

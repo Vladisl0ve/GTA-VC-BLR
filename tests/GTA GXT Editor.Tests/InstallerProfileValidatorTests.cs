@@ -394,7 +394,7 @@ public sealed class InstallerProfileValidatorTests
                 InstallerAssetRole.ModelsArchive,
                 InstallerProfileValidator.Gta3DirDestination),
             .. InstallerProfileValidator.SilentPatchDestinations.Select(destination =>
-                Path.GetExtension(destination).Equals(".asi", StringComparison.OrdinalIgnoreCase)
+                InstallerProfileValidator.RequiresX86Validation(destination)
                     ? CreateBinary(InstallerAssetRole.SilentPatch, destination)
                     : new InstallerAsset
                     {

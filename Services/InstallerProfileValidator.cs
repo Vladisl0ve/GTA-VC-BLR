@@ -19,6 +19,7 @@ public static class InstallerProfileValidator
     [
         "SilentPatchVC.asi",
         "SilentPatchVC.ini",
+        "ddraw.dll",
         "data\\maps\\club\\CLUB.ipl",
         "data\\maps\\hotel\\hotel.IPL",
         "data\\maps\\littleha\\littleha.ipl",
@@ -365,7 +366,7 @@ public static class InstallerProfileValidator
         totalLength = checked(totalLength + document.Data.LongLength);
     }
 
-    private static bool RequiresX86Validation(string destination)
+    public static bool RequiresX86Validation(string destination)
     {
         var extension = Path.GetExtension(destination);
         return extension.Equals(".asi", StringComparison.OrdinalIgnoreCase) ||

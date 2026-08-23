@@ -108,7 +108,7 @@ installer…**. To prepare and store its files before exporting, use the
 The project may keep an incomplete installer-profile draft after some or all of
 its files are removed. Export requires `BelarusianLanguage.asi`, `MODELS\gta3.img`,
 `MODELS\gta3.dir`, and a complete SilentPatch distribution: `SilentPatchVC.asi`,
-`SilentPatchVC.ini`, and the eight supported IPL files. Up to 23 files from the
+`SilentPatchVC.ini`, `ddraw.dll`, and the eight supported IPL files. Up to 23 files from the
 game `txd` folder may also be attached. Attach `ReadMe.txt` and `ПрачытайМяне.txt`
 in the same profile editor for **Export as → Release .zip…**; they are stored in
 BYX and are not copied into the installer payload. Files already stored in BYX

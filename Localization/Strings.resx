@@ -480,7 +480,7 @@
   <data name="Installer.Validation.PayloadSize" xml:space="preserve"><value>Installer attachments exceed the 1 GB limit.</value></data>
   <data name="Installer.Validation.MainAsi" xml:space="preserve"><value>Select exactly one x86 main ASI targeting BelarusianLanguage.asi.</value></data>
   <data name="Installer.Validation.AsiLoader" xml:space="preserve"><value>If selected, the x86 ASI Loader must target dinput8.dll.</value></data>
-  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Select the complete SilentPatch set: SilentPatchVC.asi, SilentPatchVC.ini, and all eight required IPL files.</value></data>
+  <data name="Installer.Validation.SilentPatch" xml:space="preserve"><value>Select the complete SilentPatch set: SilentPatchVC.asi, SilentPatchVC.ini, ddraw.dll, and all eight required IPL files.</value></data>
   <data name="Installer.Validation.SilentPatchFolder" xml:space="preserve"><value>The selected SilentPatch folder is missing these files:&#xA;{0}</value></data>
   <data name="Installer.Validation.ModelsArchive" xml:space="preserve"><value>Select both MODELS\gta3.img and MODELS\gta3.dir.</value></data>
   <data name="Installer.Validation.ModelsArchiveMissingDir" xml:space="preserve"><value>gta3.dir must be in the same folder as the selected gta3.img.</value></data>
