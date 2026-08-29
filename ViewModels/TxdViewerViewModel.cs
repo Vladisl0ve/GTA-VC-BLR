@@ -15,7 +15,10 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private readonly CharacterMapEditorRequest _request;
     private readonly IDialogService? _dialogs;
     private readonly ILocalizationService _localization;
+    private readonly GameFontPreviewService _previewService = new();
+    private readonly FontMetricsProfile? _initialFontMetrics;
     private CharacterMapProfile _profile;
+    private FontMetricsProfile? _fontMetrics;
 
     public TxdViewerViewModel(
         CharacterMapEditorRequest request,
@@ -27,10 +30,20 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         _dialogs = dialogs;
         _localization = localization ?? LocalizationProvider.Current;
         _profile = request.Profile.Clone();
+        _initialFontMetrics = request.FontMetrics?.Clone();
+        _fontMetrics = _initialFontMetrics?.Clone();
         Attachment = request.Attachment;
         ApplyModes = CreateApplyModes();
+        RenderContexts = CreateRenderContexts();
+        PreviewScales = CreatePreviewScales();
         selectedApplyMode = ApplyModes[0];
+        selectedRenderContext = RenderContexts[0];
+        selectedPreviewScale = PreviewScales[0];
+        previewText = _localization.Get("Txd.Preview.DefaultText");
         textureMetadata = _localization.Get("Txd.ChooseTexture");
+        previewStatus = _localization.Get(IsGameFontPreviewAvailable
+            ? "Txd.Preview.MissingMetrics"
+            : "Txd.Preview.UnavailableForGame");
         _localization.LanguageChanged += OnLanguageChanged;
 
         foreach (var texture in Attachment.Document.Textures.Where(IsVisibleFontAtlas))
@@ -51,7 +64,35 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; private set; }
 
+    public IReadOnlyList<FontRenderContextOption> RenderContexts { get; private set; }
+
+    public IReadOnlyList<PreviewScaleOption> PreviewScales { get; private set; }
+
     public CharacterMapProfile Profile => _profile;
+
+    public FontMetricsProfile? FontMetrics => _fontMetrics;
+
+    public bool IsGameFontPreviewAvailable => _request.GameType == GXTType.GtaViceCity;
+
+    public FontTextureKind? SelectedFont => GetFontTextureKind(SelectedTexture);
+
+    public GameFontLayoutResult? PreviewLayout { get; private set; }
+
+    public char? SelectedGlyphCharacter => SelectedGlyph?.Cell.Character;
+
+    public byte? SelectedGlyphCode => SelectedGlyph?.Cell.Code;
+
+    public int? SelectedMetricIndex => TryGetMetricIndex(SelectedGlyphCode);
+
+    public ushort? SelectedFont1Advance => TryGetAdvance(FontTextureKind.Font1);
+
+    public ushort? SelectedFont2Advance => TryGetAdvance(FontTextureKind.Font2);
+
+    public ushort? SelectedBaseAdvance => TryResolveSelectedMetric()?.BaseAdvance;
+
+    public ushort? SelectedContextOverrideAdvance => TryResolveSelectedMetric()?.ContextOverride;
+
+    public ushort? SelectedEffectiveAdvance => TryResolveSelectedMetric()?.EffectiveAdvance;
 
     public CharacterMapEditorResult? Result { get; private set; }
 
@@ -88,15 +129,49 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private ImageSource? glyphImage;
 
     [ObservableProperty]
+    private ImageSource? previewImage;
+
+    [ObservableProperty]
     private string textureMetadata = string.Empty;
 
     [ObservableProperty]
     private string analysisText = string.Empty;
 
     [ObservableProperty]
+    private string previewText = string.Empty;
+
+    [ObservableProperty]
+    private string previewStatus = string.Empty;
+
+    [ObservableProperty]
+    private bool showMetricGuides = true;
+
+    [ObservableProperty]
     private CharacterMapApplyModeOption selectedApplyMode;
 
-    partial void OnSelectedTextureChanged(TxdTexture? value) => RefreshGlyphs();
+    [ObservableProperty]
+    private FontRenderContextOption selectedRenderContext;
+
+    [ObservableProperty]
+    private PreviewScaleOption selectedPreviewScale;
+
+    partial void OnSelectedTextureChanged(TxdTexture? value)
+    {
+        if (SelectedRenderContext.Context == FontRenderContext.Heading &&
+            GetFontTextureKind(value) != FontTextureKind.Font1)
+        {
+            var font1 = Textures.FirstOrDefault(texture =>
+                GetFontTextureKind(texture) == FontTextureKind.Font1);
+            if (font1 is not null && !ReferenceEquals(value, font1))
+            {
+                SelectedTexture = font1;
+                return;
+            }
+        }
+
+        OnPropertyChanged(nameof(SelectedFont));
+        RefreshGlyphs();
+    }
 
     partial void OnSelectedGlyphChanged(GlyphPreviewItem? value)
     {
@@ -106,7 +181,31 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             : null;
         AssignmentText = mapping?.Character.ToString() ?? string.Empty;
         IsPreferredCode = mapping is not null && value?.Cell.Code == mapping.PreferredCode;
+        NotifySelectedMetricProperties();
     }
+
+    partial void OnPreviewTextChanged(string value) => RefreshGameFontPreview();
+
+    partial void OnShowMetricGuidesChanged(bool value) => RefreshGameFontPreview();
+
+    partial void OnSelectedRenderContextChanged(FontRenderContextOption value)
+    {
+        if (value.Context == FontRenderContext.Heading && SelectedFont != FontTextureKind.Font1)
+        {
+            var font1 = Textures.FirstOrDefault(texture =>
+                GetFontTextureKind(texture) == FontTextureKind.Font1);
+            if (font1 is not null)
+            {
+                SelectedTexture = font1;
+            }
+        }
+
+        NotifySelectedMetricProperties();
+        RefreshGameFontPreview();
+    }
+
+    partial void OnSelectedPreviewScaleChanged(PreviewScaleOption value) =>
+        RefreshGameFontPreview();
 
     [RelayCommand(CanExecute = nameof(CanAssign))]
     private void Assign()
@@ -228,6 +327,11 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private void UseBelarusianPreset()
     {
         _profile = CharacterMapPresets.Belarusian;
+        if (IsGameFontPreviewAvailable)
+        {
+            SetFontMetrics(FontMetricsPresets.BelarusianViceCity);
+        }
+
         RefreshGlyphs(SelectedGlyph?.Cell.Code);
         UpdateAnalysis();
         OnPropertyChanged(nameof(Profile));
@@ -289,6 +393,63 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanImportFontMetrics))]
+    private void ImportFontMetrics()
+    {
+        var path = _dialogs?.OpenFile(
+            _localization.Get("Txd.Metrics.ImportTitle"),
+            _localization.Get("Filter.FontMetrics"));
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ReplaceFontMetrics(FontMetricsFileSerializer.Load(path));
+        }
+        catch (Exception exception)
+        {
+            _dialogs!.ShowError(exception.Message, _localization.Get("Txd.Metrics.ImportError"));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExportFontMetrics))]
+    private void ExportFontMetrics()
+    {
+        if (_fontMetrics is null)
+        {
+            return;
+        }
+
+        var source = Attachment.SourcePath ?? Environment.CurrentDirectory;
+        var directory = Path.GetDirectoryName(source) ?? Environment.CurrentDirectory;
+        var path = _dialogs?.SaveFile(
+            _localization.Get("Txd.Metrics.ExportTitle"),
+            _localization.Get("Filter.FontMetrics"),
+            Path.Combine(directory, "font.fontmetrics.json"));
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            FontMetricsFileSerializer.Save(path, _fontMetrics);
+        }
+        catch (Exception exception)
+        {
+            _dialogs!.ShowError(exception.Message, _localization.Get("Txd.Metrics.ExportError"));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageFontMetrics))]
+    private void UseBelarusianFontMetrics() =>
+        ReplaceFontMetrics(FontMetricsPresets.BelarusianViceCity);
+
+    [RelayCommand(CanExecute = nameof(CanResetFontMetrics))]
+    private void ResetFontMetrics() => ReplaceFontMetrics(_initialFontMetrics);
+
     [RelayCommand]
     private void Apply()
     {
@@ -305,6 +466,15 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
     private bool CanUseDialogs() => _dialogs is not null;
 
+    private bool CanManageFontMetrics() => IsGameFontPreviewAvailable;
+
+    private bool CanImportFontMetrics() => CanManageFontMetrics() && CanUseDialogs();
+
+    private bool CanExportFontMetrics() =>
+        CanManageFontMetrics() && CanUseDialogs() && _fontMetrics is not null;
+
+    private bool CanResetFontMetrics() => CanManageFontMetrics();
+
     public void ReplaceProfile(CharacterMapProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -313,6 +483,17 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         UpdateAnalysis();
         OnPropertyChanged(nameof(Profile));
         OnPropertyChanged(nameof(VerificationText));
+    }
+
+    public void ReplaceFontMetrics(FontMetricsProfile? profile)
+    {
+        if (!IsGameFontPreviewAvailable)
+        {
+            return;
+        }
+
+        SetFontMetrics(profile);
+        RefreshGameFontPreview();
     }
 
     public CharacterMapEditorResult CreateResult()
@@ -325,7 +506,19 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
         var result = _profile.Clone();
         result.IsVerified = true;
-        return new CharacterMapEditorResult(result, SelectedApplyMode.Mode);
+        if (IsGameFontPreviewAvailable && _fontMetrics is not null)
+        {
+            var metricIssues = FontMetricsValidator.Validate(_fontMetrics);
+            if (metricIssues.Count > 0)
+            {
+                throw new InvalidOperationException(string.Join(Environment.NewLine, metricIssues));
+            }
+        }
+
+        return new CharacterMapEditorResult(
+            result,
+            SelectedApplyMode.Mode,
+            _fontMetrics?.Clone());
     }
 
     private void RefreshGlyphs(byte? selectedCode = null)
@@ -338,13 +531,13 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         {
             TextureImage = null;
             TextureMetadata = _localization.Get("Txd.ChooseTexture");
+            RefreshGameFontPreview();
             return;
         }
 
         var pixels = value.PreviewPixelsBgra32.Length > 0
             ? value.PreviewPixelsBgra32
             : value.PixelsBgra32;
-        TextureImage = CreateBitmap(value.Width, value.Height, pixels);
         TextureMetadata = _localization.Format(
             "Txd.TextureMetadata",
             value.Name,
@@ -354,6 +547,14 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             value.Depth,
             value.MipmapCount,
             value.Platform);
+        if (!HasValidBgraPixels(value.Width, value.Height, pixels))
+        {
+            TextureImage = null;
+            RefreshGameFontPreview();
+            return;
+        }
+
+        TextureImage = CreateBitmap(value.Width, value.Height, pixels);
 
         var decodeMap = _profile.ToDecodeMap();
         foreach (var cell in GlyphAtlasService.CreateCells(value, decodeMap, _request.GameType))
@@ -367,6 +568,167 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         SelectedGlyph = selectedCode is null
             ? Glyphs.FirstOrDefault()
             : Glyphs.FirstOrDefault(item => item.Cell.Code == selectedCode) ?? Glyphs.FirstOrDefault();
+        RefreshGameFontPreview();
+    }
+
+    private void SetFontMetrics(FontMetricsProfile? profile)
+    {
+        _fontMetrics = profile?.Clone();
+        OnPropertyChanged(nameof(FontMetrics));
+        NotifySelectedMetricProperties();
+        ExportFontMetricsCommand.NotifyCanExecuteChanged();
+        ResetFontMetricsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshGameFontPreview()
+    {
+        PreviewLayout = null;
+        OnPropertyChanged(nameof(PreviewLayout));
+        PreviewImage = null;
+        if (!IsGameFontPreviewAvailable)
+        {
+            PreviewStatus = _localization.Get("Txd.Preview.UnavailableForGame");
+            return;
+        }
+
+        if (_fontMetrics is null)
+        {
+            PreviewStatus = _localization.Get("Txd.Preview.MissingMetrics");
+            return;
+        }
+
+        if (SelectedTexture is not { } texture || SelectedFont is not { } font)
+        {
+            PreviewStatus = _localization.Get("Txd.Preview.ChooseFont");
+            return;
+        }
+
+        try
+        {
+            var layout = _previewService.Layout(
+                PreviewText,
+                texture,
+                _profile,
+                _fontMetrics,
+                font,
+                SelectedRenderContext.Context,
+                SelectedPreviewScale.Scale);
+            PreviewLayout = layout;
+            OnPropertyChanged(nameof(PreviewLayout));
+            var renderedWidth = layout.PixelWidth;
+            if (layout.CanRender && layout.PixelWidth > 0 && layout.PixelHeight > 0)
+            {
+                var rendered = GameFontPreviewService.Render(texture, layout, ShowMetricGuides);
+                renderedWidth = rendered.Width;
+                PreviewImage = CreateBitmap(
+                    rendered.Width,
+                    rendered.Height,
+                    rendered.PixelsBgra32,
+                    rendered.Stride);
+            }
+
+            PreviewStatus = layout.Issues.Count == 0
+                ? _localization.Format(
+                    "Txd.Preview.Ready",
+                    layout.Glyphs.Count,
+                    layout.AdvanceWidth,
+                    renderedWidth)
+                : string.Join(
+                    Environment.NewLine,
+                    layout.Issues.Select(FormatPreviewIssue).Distinct(StringComparer.Ordinal));
+        }
+        catch (Exception exception)
+        {
+            PreviewStatus = _localization.Format("Txd.Preview.Failed", exception.Message);
+        }
+    }
+
+    private string FormatPreviewIssue(GameFontPreviewIssue issue) => issue.Kind switch
+    {
+        GameFontPreviewIssueKind.CharacterCannotBeEncoded => _localization.Format(
+            "Txd.Preview.Issue.CharacterCannotBeEncoded",
+            issue.Character),
+        GameFontPreviewIssueKind.MetricUnavailable => _localization.Format(
+            "Txd.Preview.Issue.MetricUnavailable",
+            issue.Code),
+        GameFontPreviewIssueKind.GlyphUnavailable => _localization.Format(
+            "Txd.Preview.Issue.GlyphUnavailable",
+            issue.Code,
+            SelectedTexture?.Name ?? string.Empty),
+        GameFontPreviewIssueKind.InvalidMetrics => _localization.Get(
+            "Txd.Preview.Issue.InvalidMetrics"),
+        GameFontPreviewIssueKind.InvalidMapping => _localization.Get(
+            "Txd.Preview.Issue.InvalidMapping"),
+        _ => _localization.Get("Txd.Preview.Issue.UnsupportedFont"),
+    };
+
+    private void NotifySelectedMetricProperties()
+    {
+        OnPropertyChanged(nameof(SelectedGlyphCharacter));
+        OnPropertyChanged(nameof(SelectedGlyphCode));
+        OnPropertyChanged(nameof(SelectedMetricIndex));
+        OnPropertyChanged(nameof(SelectedFont1Advance));
+        OnPropertyChanged(nameof(SelectedFont2Advance));
+        OnPropertyChanged(nameof(SelectedBaseAdvance));
+        OnPropertyChanged(nameof(SelectedContextOverrideAdvance));
+        OnPropertyChanged(nameof(SelectedEffectiveAdvance));
+    }
+
+    private int? TryGetMetricIndex(byte? code)
+    {
+        if (!IsGameFontPreviewAvailable || code is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return FontMetricsService.GetMetricIndex(code.Value);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
+    }
+
+    private ushort? TryGetAdvance(FontTextureKind font)
+    {
+        if (_fontMetrics is null || SelectedGlyphCode is not { } code)
+        {
+            return null;
+        }
+
+        try
+        {
+            return FontMetricsService.GetBaseAdvance(_fontMetrics, font, code);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentOutOfRangeException or InvalidDataException)
+        {
+            return null;
+        }
+    }
+
+    private FontMetricResolution? TryResolveSelectedMetric()
+    {
+        if (_fontMetrics is null || SelectedGlyphCode is not { } code || SelectedFont is not { } font)
+        {
+            return null;
+        }
+
+        try
+        {
+            return FontMetricsService.Resolve(
+                _fontMetrics,
+                font,
+                code,
+                SelectedRenderContext.Context);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentOutOfRangeException or InvalidDataException)
+        {
+            return null;
+        }
     }
 
     private void UpdateAnalysis()
@@ -413,9 +775,17 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         var selectedMode = SelectedApplyMode.Mode;
+        var selectedContext = SelectedRenderContext.Context;
+        var selectedScale = SelectedPreviewScale.Scale;
         ApplyModes = CreateApplyModes();
+        RenderContexts = CreateRenderContexts();
+        PreviewScales = CreatePreviewScales();
         OnPropertyChanged(nameof(ApplyModes));
+        OnPropertyChanged(nameof(RenderContexts));
+        OnPropertyChanged(nameof(PreviewScales));
         SelectedApplyMode = ApplyModes.First(option => option.Mode == selectedMode);
+        SelectedRenderContext = RenderContexts.First(option => option.Context == selectedContext);
+        SelectedPreviewScale = PreviewScales.First(option => option.Scale == selectedScale);
         OnPropertyChanged(nameof(GlyphAtlasHeading));
         OnPropertyChanged(nameof(VerificationText));
         RefreshGlyphs(SelectedGlyph?.Cell.Code);
@@ -432,10 +802,66 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             _localization.Get("Options.Apply.Reencode")),
     ];
 
+    private FontRenderContextOption[] CreateRenderContexts() =>
+    [
+        CreateRenderContextOption(FontRenderContext.Default, "Default"),
+        CreateRenderContextOption(FontRenderContext.Gameplay, "Gameplay"),
+        CreateRenderContextOption(FontRenderContext.Subtitles, "Subtitles"),
+        CreateRenderContextOption(FontRenderContext.MainMenu, "MainMenu"),
+        CreateRenderContextOption(FontRenderContext.SaveLoad, "SaveLoad"),
+        CreateRenderContextOption(FontRenderContext.ExitConfirmation, "ExitConfirmation"),
+        CreateRenderContextOption(FontRenderContext.Heading, "Heading"),
+    ];
+
+    private FontRenderContextOption CreateRenderContextOption(
+        FontRenderContext context,
+        string resourceSuffix) => new(
+            context,
+            _localization.Get($"Txd.Preview.Context.{resourceSuffix}"));
+
+    private PreviewScaleOption[] CreatePreviewScales() =>
+    [
+        new(1, _localization.Format("Txd.Preview.ScaleOption", 1)),
+        new(2, _localization.Format("Txd.Preview.ScaleOption", 2)),
+        new(4, _localization.Format("Txd.Preview.ScaleOption", 4)),
+    ];
+
     private bool IsVisibleFontAtlas(TxdTexture texture) =>
         texture.IsFontAtlas &&
         (_request.GameType != GXTType.GtaViceCity ||
          !texture.Name.Equals("pager", StringComparison.OrdinalIgnoreCase));
+
+    private static FontTextureKind? GetFontTextureKind(TxdTexture? texture)
+    {
+        if (texture?.Name.Equals("font1", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return FontTextureKind.Font1;
+        }
+
+        if (texture?.Name.Equals("font2", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return FontTextureKind.Font2;
+        }
+
+        return null;
+    }
+
+    private static bool HasValidBgraPixels(int width, int height, byte[] pixels)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            return pixels.Length == checked(width * height * 4);
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
 
     private string FormatCellLabel(
         byte? code,
@@ -462,7 +888,10 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             : $"0x{value:X2}  {string.Join('/', characters)}";
     }
 
-    private static BitmapSource CreateBitmap(int width, int height, byte[] pixels)
+    private static BitmapSource CreateBitmap(int width, int height, byte[] pixels) =>
+        CreateBitmap(width, height, pixels, checked(width * 4));
+
+    private static BitmapSource CreateBitmap(int width, int height, byte[] pixels, int stride)
     {
         var bitmap = BitmapSource.Create(
             width,
@@ -472,7 +901,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             PixelFormats.Bgra32,
             null,
             pixels,
-            checked(width * 4));
+            stride);
         bitmap.Freeze();
         return bitmap;
     }
@@ -481,3 +910,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 public sealed record GlyphPreviewItem(GlyphCell Cell, ImageSource Image, string Label);
 
 public sealed record CharacterMapApplyModeOption(CharacterMapApplyMode Mode, string DisplayName);
+
+public sealed record FontRenderContextOption(FontRenderContext Context, string DisplayName);
+
+public sealed record PreviewScaleOption(int Scale, string DisplayName);

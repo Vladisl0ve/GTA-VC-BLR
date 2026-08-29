@@ -90,11 +90,13 @@ public sealed record CharacterMapEditorRequest(
     CharacterMapProfile Profile,
     IReadOnlyList<string> CurrentTexts,
     IReadOnlyList<byte[]> RawValues,
-    GxtLanguage Language);
+    GxtLanguage Language,
+    FontMetricsProfile? FontMetrics = null);
 
 public sealed record CharacterMapEditorResult(
     CharacterMapProfile Profile,
-    CharacterMapApplyMode ApplyMode);
+    CharacterMapApplyMode ApplyMode,
+    FontMetricsProfile? FontMetrics = null);
 
 public sealed record CharacterMapPreview(
     CharacterMapApplyMode ApplyMode,

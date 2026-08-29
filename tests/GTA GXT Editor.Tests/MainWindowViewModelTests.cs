@@ -884,6 +884,59 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public void ViewTxd_PassesProjectMetricsCancelIsDetachedAndApplyClonesMetricsAndMarksDirty()
+    {
+        var path = CreateViceCityGxt("metrics.gxt");
+        var factory = new GxtManagerFactory();
+        var manager = factory.Open(path);
+        var originalMetrics = CreateFontMetrics(defaultAdvance: 3);
+        var project = new EditorProject
+        {
+            ProjectPath = "virtual.byx",
+            GxtSourceName = "metrics.gxt",
+            GameType = GXTType.GtaViceCity,
+            GxtManager = manager,
+            CharacterMap = manager.CharacterMap.Clone(),
+            FontMetrics = originalMetrics,
+            AttachedTxd = new TxdAttachment
+            {
+                Id = Guid.NewGuid(),
+                OriginalFileName = "fonts.txd",
+                DisplayName = "fonts",
+                Data = [],
+                Document = new TxdDocument { RenderWareVersion = 0, Textures = [] },
+            },
+        };
+        var dialogs = new FakeDialogService();
+        var viewModel = new MainWindowViewModel(
+            factory,
+            dialogs,
+            projectSerializer: new StubProjectSerializer(project));
+        viewModel.OpenFromCommandLine("virtual.byx");
+
+        viewModel.ViewTxdCommand.Execute(null);
+
+        Assert.AreSame(originalMetrics, project.FontMetrics);
+        Assert.AreSame(project.FontMetrics, dialogs.CharacterMapRequest?.FontMetrics);
+        Assert.IsFalse(viewModel.IsProjectDirty);
+
+        var editedMetrics = CreateFontMetrics(defaultAdvance: 9);
+        dialogs.CharacterMapResults.Enqueue(new CharacterMapEditorResult(
+            manager.CharacterMap.Clone(),
+            CharacterMapApplyMode.Interpret,
+            editedMetrics));
+        viewModel.ViewTxdCommand.Execute(null);
+
+        Assert.IsTrue(viewModel.IsProjectDirty);
+        Assert.IsNotNull(project.FontMetrics);
+        Assert.AreNotSame(editedMetrics, project.FontMetrics);
+        Assert.AreNotSame(editedMetrics.Font1.Advances, project.FontMetrics.Font1.Advances);
+        Assert.AreEqual((ushort)9, project.FontMetrics.Font1.Advances[0]);
+        editedMetrics.Font1.Advances[0] = 77;
+        Assert.AreEqual((ushort)9, project.FontMetrics.Font1.Advances[0]);
+    }
+
+    [TestMethod]
     public async Task DirtyDocument_CancelPreventsCloseAndReplacement()
     {
         var viceCityPath = CreateViceCityGxt("vice.gxt");
@@ -1447,6 +1500,18 @@ public sealed class MainWindowViewModelTests
         File.WriteAllLines(_dictionaryPath, lines, Encoding.GetEncoding(1251));
     }
 
+    private static FontMetricsProfile CreateFontMetrics(ushort defaultAdvance)
+    {
+        var metrics = new FontMetricsProfile
+        {
+            Font1 = new FontMetricsTable { Advances = new ushort[FontMetricsTable.MetricCount] },
+            Font2 = new FontMetricsTable { Advances = new ushort[FontMetricsTable.MetricCount] },
+        };
+        Array.Fill(metrics.Font1.Advances, defaultAdvance);
+        Array.Fill(metrics.Font2.Advances, defaultAdvance);
+        return metrics;
+    }
+
     private static InstallerProfile CreateInstallerProfile() => new()
     {
         ProductId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
@@ -1520,6 +1585,8 @@ public sealed class MainWindowViewModelTests
         public Queue<EntryEditorResult?> EditEntryResults { get; } = new();
 
         public Queue<InstallerProfileEditorResult?> InstallerProfileResults { get; } = new();
+
+        public Queue<CharacterMapEditorResult?> CharacterMapResults { get; } = new();
 
         public List<(string Title, string Filter)> OpenFileCalls { get; } = [];
 
@@ -1598,7 +1665,7 @@ public sealed class MainWindowViewModelTests
         public CharacterMapEditorResult? EditCharacterMap(CharacterMapEditorRequest request)
         {
             CharacterMapRequest = request;
-            return null;
+            return CharacterMapResults.Count > 0 ? CharacterMapResults.Dequeue() : null;
         }
 
         public InstallerProfileEditorResult? EditInstallerProfile(InstallerProfileEditorRequest request)

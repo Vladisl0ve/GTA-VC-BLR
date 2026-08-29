@@ -37,7 +37,7 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void SaveAndLoad_FullV4Project_PreservesEveryProjectPart()
+    public void SaveAndLoad_FullV5Project_PreservesEveryProjectPart()
     {
         var project = CreateProject();
         var path = Path.Combine(_testDirectory, "translation.byx");
@@ -62,6 +62,8 @@ public sealed class ByxProjectSerializerTests
         Assert.IsNull(loaded.AttachedTxd.SourcePath);
         Assert.IsNotNull(loaded.CharacterMap);
         Assert.IsTrue(loaded.CharacterMap.IsVerified);
+        Assert.IsNotNull(loaded.FontMetrics);
+        AssertFontMetricsAreEqual(project.FontMetrics!, loaded.FontMetrics);
 
         Assert.AreEqual("GXT_ENTRY_METADATA", loaded.Metadata.Format);
         Assert.AreEqual(1, loaded.Metadata.Version);
@@ -83,12 +85,13 @@ public sealed class ByxProjectSerializerTests
                 "gxt/main.gxt",
                 "txd/fonts.txd",
                 "mapping/characters.json",
+                "font/metrics.json",
                 "metadata/entries.json",
             },
             archive.Entries.Select(entry => entry.FullName).ToArray());
 
         var manifest = ReadJsonObject(archive, "manifest.json");
-        Assert.AreEqual(4, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(5, manifest["version"]!.GetValue<int>());
         Assert.IsNull(manifest["installer"]);
         Assert.AreEqual("txd/fonts.txd", manifest["txd"]!["entry"]!.GetValue<string>());
         Assert.AreEqual(
@@ -97,9 +100,13 @@ public sealed class ByxProjectSerializerTests
         Assert.AreEqual(
             "metadata/entries.json",
             manifest["metadata"]!["entry"]!.GetValue<string>());
+        Assert.AreEqual(
+            "font/metrics.json",
+            manifest["fontMetrics"]!["entry"]!.GetValue<string>());
         AssertManifestHashMatches(archive, manifest, "gxt");
         AssertManifestHashMatches(archive, manifest, "txd");
         AssertManifestHashMatches(archive, manifest, "characterMap");
+        AssertManifestHashMatches(archive, manifest, "fontMetrics");
         AssertManifestHashMatches(archive, manifest, "metadata");
     }
 
@@ -114,6 +121,7 @@ public sealed class ByxProjectSerializerTests
 
         Assert.IsNull(loaded.AttachedTxd);
         Assert.IsNull(loaded.CharacterMap);
+        Assert.IsNull(loaded.FontMetrics);
         Assert.IsFalse(loaded.UsesCustomDictionary);
         Assert.IsEmpty(loaded.Metadata.Blocks);
         Assert.IsEmpty(loaded.Metadata.Entries);
@@ -124,6 +132,7 @@ public sealed class ByxProjectSerializerTests
         var manifest = ReadJsonObject(archive, "manifest.json");
         Assert.IsNull(manifest["txd"]);
         Assert.IsNull(manifest["characterMap"]);
+        Assert.IsNull(manifest["fontMetrics"]);
     }
 
     [TestMethod]
@@ -223,7 +232,7 @@ public sealed class ByxProjectSerializerTests
     public void Load_NewerManifestVersion_IsRejected()
     {
         var path = SaveProject();
-        MutateManifest(path, manifest => manifest["version"] = 5);
+        MutateManifest(path, manifest => manifest["version"] = 6);
 
         var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
 
@@ -234,11 +243,7 @@ public sealed class ByxProjectSerializerTests
     public void Load_V3Project_MigratesWithEmptyInstallerProfileOnNextSave()
     {
         var path = SaveProject();
-        MutateManifest(path, manifest =>
-        {
-            manifest["version"] = 3;
-            manifest.Remove("installer");
-        });
+        ConvertToLegacyVersion(path, 3);
 
         var loaded = _serializer.Load(path);
 
@@ -247,8 +252,110 @@ public sealed class ByxProjectSerializerTests
         _serializer.Save(migratedPath, loaded);
         using var archive = ZipFile.OpenRead(migratedPath);
         var manifest = ReadJsonObject(archive, "manifest.json");
-        Assert.AreEqual(4, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(5, manifest["version"]!.GetValue<int>());
         Assert.IsNull(manifest["installer"]);
+    }
+
+    [TestMethod]
+    public void Load_V4Project_PreservesPreviouslySupportedInstallerProfile()
+    {
+        var project = CreateProject();
+        project.InstallerProfile = CreateInstallerProfile();
+        var path = Path.Combine(_testDirectory, "legacy-installer-v4.byx");
+        _serializer.Save(path, project);
+        ConvertToLegacyVersion(path, 4);
+
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.InstallerProfile);
+        Assert.AreEqual(project.InstallerProfile.ProductId, loaded.InstallerProfile.ProductId);
+        Assert.IsNull(loaded.FontMetrics);
+        Assert.IsFalse(loaded.IsDirty);
+    }
+
+    [TestMethod]
+    [DataRow(3)]
+    [DataRow(4)]
+    public void Load_LegacyViceCityProjectWithBundledCharacterMap_UsesBundledFontMetrics(
+        int version)
+    {
+        var project = CreateProjectWithBelarusianPreset();
+        var path = Path.Combine(_testDirectory, $"legacy-preset-v{version}.byx");
+        _serializer.Save(path, project);
+        ConvertToLegacyVersion(path, version);
+
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNotNull(loaded.FontMetrics);
+        AssertFontMetricsAreEqual(FontMetricsPresets.BelarusianViceCity, loaded.FontMetrics);
+        Assert.IsFalse(loaded.IsDirty);
+    }
+
+    [TestMethod]
+    [DataRow(3)]
+    [DataRow(4)]
+    public void Load_LegacyViceCityProjectWithDifferentCharacterMap_LeavesFontMetricsUnset(
+        int version)
+    {
+        var path = SaveProject();
+        ConvertToLegacyVersion(path, version);
+
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNull(loaded.FontMetrics);
+        Assert.IsFalse(loaded.IsDirty);
+    }
+
+    [TestMethod]
+    public void Load_V5ProjectWithoutFontMetrics_DoesNotApplyLegacyFallback()
+    {
+        var project = CreateProjectWithBelarusianPreset();
+        var path = Path.Combine(_testDirectory, "v5-without-metrics.byx");
+        _serializer.Save(path, project);
+        RemoveFontMetrics(path);
+
+        var loaded = _serializer.Load(path);
+
+        Assert.IsNull(loaded.FontMetrics);
+        Assert.IsFalse(loaded.IsDirty);
+    }
+
+    [TestMethod]
+    public void Load_FontMetricsWithWrongHash_IsRejected()
+    {
+        var path = SaveProject();
+        ReplaceEntry(path, "font/metrics.json", "{}"u8.ToArray());
+
+        var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+
+        StringAssert.Contains(exception.Message, "font/metrics.json");
+    }
+
+    [TestMethod]
+    public void Load_CaseInsensitiveDuplicateFontMetricsEntry_IsRejected()
+    {
+        var path = SaveProject();
+        AddEntry(path, "FONT/METRICS.JSON", [1]);
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
+    public void Load_MalformedFontMetricsJsonWithValidHash_IsRejected()
+    {
+        var path = SaveProject();
+        ReplaceFontMetricsAndUpdateHash(path, "{"u8.ToArray());
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
+    }
+
+    [TestMethod]
+    public void Load_FontMetricsLargerThanOneMiB_IsRejected()
+    {
+        var path = SaveProject();
+        ReplaceFontMetricsAndUpdateHash(path, new byte[1024 * 1024 + 1]);
+
+        Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
     }
 
     [TestMethod]
@@ -722,9 +829,65 @@ public sealed class ByxProjectSerializerTests
             IsDirty = true,
             AttachedTxd = CreateAttachment(),
             CharacterMap = characterMap.Clone(),
+            FontMetrics = CreateFontMetrics(),
             Metadata = CreateMetadata(),
         };
     }
+
+    private EditorProject CreateProjectWithBelarusianPreset()
+    {
+        var characterMap = CharacterMapPresets.Belarusian;
+        var manager = GxtManagerFactory.Create(
+            GXTType.GtaViceCity,
+            sourceName: "american.gxt",
+            sourceTexts: ["Ж"],
+            language: GxtLanguage.Belarusian);
+        manager.CharacterMap = characterMap.Clone();
+        manager.AddGXTEntry("HELLO", "Ж");
+
+        return new EditorProject
+        {
+            GxtSourceName = "american.gxt",
+            GameType = GXTType.GtaViceCity,
+            GxtManager = manager,
+            UsesCustomDictionary = true,
+            CharacterMap = characterMap.Clone(),
+            FontMetrics = FontMetricsPresets.BelarusianViceCity,
+        };
+    }
+
+    private static FontMetricsProfile CreateFontMetrics() => new()
+    {
+        Font2 = new FontMetricsTable
+        {
+            Advances = Enumerable.Range(0, FontMetricsTable.MetricCount)
+                .Select(index => (ushort)(index % 31))
+                .ToArray(),
+        },
+        Font1 = new FontMetricsTable
+        {
+            Advances = Enumerable.Range(0, FontMetricsTable.MetricCount)
+                .Select(index => (ushort)(30 - index % 31))
+                .ToArray(),
+        },
+        Overrides =
+        [
+            new FontMetricOverride
+            {
+                Context = FontRenderContext.MainMenu,
+                Font = FontTextureKind.Font2,
+                Code = 0x91,
+                Advance = 17,
+            },
+            new FontMetricOverride
+            {
+                Context = FontRenderContext.SaveLoad,
+                Font = FontTextureKind.Font1,
+                Code = 0xA8,
+                Advance = 9,
+            },
+        ],
+    };
 
     private EditorProject CreatePlainProject()
     {
@@ -911,6 +1074,50 @@ public sealed class ByxProjectSerializerTests
         Assert.AreEqual(
             item["sha256"]!.GetValue<string>(),
             Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray())));
+    }
+
+    private static void AssertFontMetricsAreEqual(
+        FontMetricsProfile expected,
+        FontMetricsProfile actual)
+    {
+        Assert.AreEqual(expected.Version, actual.Version);
+        CollectionAssert.AreEqual(expected.Font2.Advances, actual.Font2.Advances);
+        CollectionAssert.AreEqual(expected.Font1.Advances, actual.Font1.Advances);
+        Assert.AreEqual(expected.Overrides.Count, actual.Overrides.Count);
+        for (var index = 0; index < expected.Overrides.Count; index++)
+        {
+            Assert.AreEqual(expected.Overrides[index].Context, actual.Overrides[index].Context);
+            Assert.AreEqual(expected.Overrides[index].Font, actual.Overrides[index].Font);
+            Assert.AreEqual(expected.Overrides[index].Code, actual.Overrides[index].Code);
+            Assert.AreEqual(expected.Overrides[index].Advance, actual.Overrides[index].Advance);
+        }
+    }
+
+    private static void ConvertToLegacyVersion(string path, int version)
+    {
+        RemoveFontMetrics(path);
+        MutateManifest(path, manifest =>
+        {
+            manifest["version"] = version;
+            if (version == 3)
+            {
+                manifest.Remove("installer");
+            }
+        });
+    }
+
+    private static void RemoveFontMetrics(string path)
+    {
+        DeleteEntry(path, "font/metrics.json");
+        MutateManifest(path, manifest => manifest.Remove("fontMetrics"));
+    }
+
+    private static void ReplaceFontMetricsAndUpdateHash(string path, byte[] data)
+    {
+        ReplaceEntry(path, "font/metrics.json", data);
+        MutateManifest(path, manifest =>
+            manifest["fontMetrics"]!["sha256"] =
+                Convert.ToHexStringLower(SHA256.HashData(data)));
     }
 
     private static void MutateManifest(string path, Action<JsonObject> mutation)

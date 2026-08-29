@@ -25,6 +25,8 @@ public sealed class ByxManifest
 
     public ByxCharacterMapItem? CharacterMap { get; set; }
 
+    public ByxArchiveItem? FontMetrics { get; set; }
+
     public ByxArchiveItem Metadata { get; set; } = null!;
 
     public ByxInstallerItem? Installer { get; set; }

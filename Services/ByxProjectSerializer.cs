@@ -10,17 +10,20 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class ByxProjectSerializer : IProjectSerializer
 {
-    private const int CurrentVersion = 4;
-    private const int LegacyVersion = 3;
+    private const int CurrentVersion = 5;
+    private const int OldestSupportedVersion = 3;
+    private const int InstallerVersion = 4;
     private const string ManifestEntryName = "manifest.json";
     private const string GxtEntryName = "gxt/main.gxt";
     private const string TxdEntryName = "txd/fonts.txd";
     private const string CharacterMapEntryName = "mapping/characters.json";
+    private const string FontMetricsEntryName = "font/metrics.json";
     private const string MetadataEntryName = "metadata/entries.json";
     private const string InstallerProfileEntryName = "installer/profile.json";
     private const long MaximumArchiveSize = 1024L * 1024 * 1024;
     private const long MaximumManifestSize = 1024 * 1024;
     private const long MaximumCharacterMapSize = 4L * 1024 * 1024;
+    private const long MaximumFontMetricsSize = 1024 * 1024;
     private const long MaximumMetadataSize = 64L * 1024 * 1024;
     private const int MaximumEntries = 520;
 
@@ -87,7 +90,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"));
         }
 
-        if (header.Version is not (LegacyVersion or CurrentVersion))
+        if (header.Version is < OldestSupportedVersion or > CurrentVersion)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Format(
                 header.Version > CurrentVersion ? "Byx.VersionNew" : "Byx.VersionOld",
@@ -101,11 +104,14 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var characterMap = manifest.CharacterMap is null
             ? null
             : LoadCharacterMap(archive, manifest.CharacterMap);
+        var gameType = GxtDomainRules.ParseCanonicalGameName(manifest.Game, "BYX");
+        var fontMetrics = manifest.FontMetrics is null
+            ? GetLegacyFontMetrics(manifest.Version, gameType, characterMap)
+            : LoadFontMetrics(archive, manifest.FontMetrics);
         var gxtData = ReadValidatedEntry(archive, manifest.Gxt, MaximumArchiveSize);
         var txdData = manifest.Txd is null
             ? null
             : ReadValidatedEntry(archive, manifest.Txd, MaximumArchiveSize);
-        var gameType = GxtDomainRules.ParseCanonicalGameName(manifest.Game, "BYX");
         var metadataData = ReadValidatedEntry(archive, manifest.Metadata, MaximumMetadataSize);
         var metadata = ProjectMetadataJsonSerializer.Deserialize(metadataData, gameType);
         var manager = _gxtManagerFactory.Open(
@@ -131,6 +137,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             UsesCustomDictionary = characterMap is not null,
             AttachedTxd = attachment,
             CharacterMap = characterMap,
+            FontMetrics = fontMetrics,
             Metadata = metadata,
             InstallerProfile = installerProfile,
             IsDirty = false,
@@ -157,6 +164,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var characterMapData = profile is null
             ? null
             : CharacterMapFileSerializer.Serialize(profile);
+        var fontMetricsData = project.FontMetrics is null
+            ? null
+            : FontMetricsFileSerializer.Serialize(project.FontMetrics);
         var metadataData = ProjectMetadataJsonSerializer.Serialize(
             project.Metadata,
             project.GameType);
@@ -206,6 +216,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                     Sha256 = ComputeHash(characterMapData),
                     IsVerified = profile!.IsVerified,
                 },
+            FontMetrics = fontMetricsData is null
+                ? null
+                : new ByxArchiveItem
+                {
+                    Entry = FontMetricsEntryName,
+                    Sha256 = ComputeHash(fontMetricsData),
+                },
             Metadata = new ByxArchiveItem
             {
                 Entry = MetadataEntryName,
@@ -232,6 +249,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             gxtData,
             txdData,
             characterMapData,
+            fontMetricsData,
             metadataData,
             installerProfileData,
             installerBinaries);
@@ -265,6 +283,15 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                         archive,
                         CharacterMapEntryName,
                         characterMapData,
+                        CompressionLevel.Optimal);
+                }
+
+                if (fontMetricsData is not null)
+                {
+                    WriteEntry(
+                        archive,
+                        FontMetricsEntryName,
+                        fontMetricsData,
                         CompressionLevel.Optimal);
                 }
 
@@ -323,6 +350,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[] gxtData,
         byte[]? txdData,
         byte[]? characterMapData,
+        byte[]? fontMetricsData,
         byte[] metadataData,
         byte[]? installerProfileData,
         IReadOnlyList<InstallerStoredBinary> installerBinaries)
@@ -330,6 +358,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var entryCount = 3 +
                          (txdData is null ? 0 : 1) +
                          (characterMapData is null ? 0 : 1) +
+                         (fontMetricsData is null ? 0 : 1) +
                          (installerProfileData is null ? 0 : 1) +
                          installerBinaries.Count;
         var installerAssetsLength = installerBinaries.Sum(binary => binary.Data.LongLength);
@@ -338,12 +367,14 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             gxtData.LongLength +
             (txdData?.LongLength ?? 0) +
             (characterMapData?.LongLength ?? 0) +
+            (fontMetricsData?.LongLength ?? 0) +
             metadataData.LongLength +
             (installerProfileData?.LongLength ?? 0) +
             installerAssetsLength);
         if (entryCount > MaximumEntries ||
             manifestData.LongLength > MaximumManifestSize ||
             (characterMapData?.LongLength ?? 0) > MaximumCharacterMapSize ||
+            (fontMetricsData?.LongLength ?? 0) > MaximumFontMetricsSize ||
             metadataData.LongLength > MaximumMetadataSize ||
             (installerProfileData?.LongLength ?? 0) > MaximumManifestSize ||
             totalLength > MaximumArchiveSize)
@@ -596,6 +627,59 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         }
     }
 
+    private static FontMetricsProfile LoadFontMetrics(
+        ZipArchive archive,
+        ByxArchiveItem item)
+    {
+        var data = ReadValidatedEntry(archive, item, MaximumFontMetricsSize);
+        try
+        {
+            return FontMetricsFileSerializer.Deserialize(data);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidDataException)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"), exception);
+        }
+    }
+
+    private static FontMetricsProfile? GetLegacyFontMetrics(
+        int version,
+        GXTType gameType,
+        CharacterMapProfile? characterMap)
+    {
+        if (version >= CurrentVersion ||
+            gameType != GXTType.GtaViceCity ||
+            characterMap is null)
+        {
+            return null;
+        }
+
+        var preset = CharacterMapPresets.Belarusian;
+        return CharacterMapsMatch(characterMap, preset)
+            ? FontMetricsPresets.BelarusianViceCity
+            : null;
+    }
+
+    private static bool CharacterMapsMatch(
+        CharacterMapProfile first,
+        CharacterMapProfile second)
+    {
+        var firstDecode = first.ToDecodeMap();
+        var secondDecode = second.ToDecodeMap();
+        if (firstDecode.Count != secondDecode.Count ||
+            firstDecode.Any(pair =>
+                !secondDecode.TryGetValue(pair.Key, out var character) || character != pair.Value))
+        {
+            return false;
+        }
+
+        var firstEncode = first.ToEncodeMap();
+        var secondEncode = second.ToEncodeMap();
+        return firstEncode.Count == secondEncode.Count &&
+               firstEncode.All(pair =>
+                   secondEncode.TryGetValue(pair.Key, out var code) && code == pair.Value);
+    }
+
     private TxdAttachment LoadTxd(ByxTxdItem item, byte[] data, GXTType gameType)
     {
         if (gameType != GXTType.GtaViceCity)
@@ -618,9 +702,10 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     private static void ValidateManifest(ByxManifest manifest)
     {
         if (!string.Equals(manifest.Format, "BYX", StringComparison.Ordinal) ||
-            manifest.Version is not (LegacyVersion or CurrentVersion) ||
+            manifest.Version is < OldestSupportedVersion or > CurrentVersion ||
             manifest.Gxt is null || manifest.Metadata is null ||
-            manifest.Version == LegacyVersion && manifest.Installer is not null)
+            manifest.Version < InstallerVersion && manifest.Installer is not null ||
+            manifest.Version < CurrentVersion && manifest.FontMetrics is not null)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.ManifestIncomplete"));
         }
@@ -637,6 +722,11 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (manifest.CharacterMap is not null)
         {
             ValidateArchiveItem(manifest.CharacterMap, CharacterMapEntryName, LocalizationProvider.Current.Get("Byx.AttachmentMapping"));
+        }
+
+        if (manifest.FontMetrics is not null)
+        {
+            ValidateArchiveItem(manifest.FontMetrics, FontMetricsEntryName, "font metrics");
         }
 
         if (manifest.Installer is not null)
@@ -721,6 +811,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         };
         if (manifest.Txd is not null && !expected.Add(manifest.Txd.Entry) ||
             manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry) ||
+            manifest.FontMetrics is not null && !expected.Add(manifest.FontMetrics.Entry) ||
             manifest.Installer is not null && !expected.Add(manifest.Installer.Entry) ||
             manifest.Installer is not null &&
             manifest.Installer.Assets.Any(asset => !expected.Add(asset.Entry)))

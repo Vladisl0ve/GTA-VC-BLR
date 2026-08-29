@@ -95,6 +95,7 @@ public sealed class DocumentWorkflow(
             UsesCustomDictionary = project.UsesCustomDictionary,
             AttachedTxd = attachment,
             CharacterMap = project.CharacterMap?.Clone(),
+            FontMetrics = project.FontMetrics?.Clone(),
             Metadata = metadata,
             InstallerProfile = project.InstallerProfile?.Clone(),
             IsDirty = project.IsDirty,

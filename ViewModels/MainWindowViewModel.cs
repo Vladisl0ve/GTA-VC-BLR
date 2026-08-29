@@ -1145,7 +1145,8 @@ public partial class MainWindowViewModel : ObservableObject
             profile,
             Entries.Select(entry => entry.Text).ToArray(),
             _manager.GXTEntries.Select(entry => entry.Value.ToArray()).ToArray(),
-            _manager.Language));
+            _manager.Language,
+            _project.FontMetrics));
         if (result is null)
         {
             return;
@@ -1189,6 +1190,7 @@ public partial class MainWindowViewModel : ObservableObject
             _characterMapWorkflow.Apply(_manager, result.Profile, result.ApplyMode);
             _project.CharacterMap = result.Profile.Clone();
             _project.CharacterMap.IsVerified = true;
+            _project.FontMetrics = result.FontMetrics?.Clone();
             _project.UsesCustomDictionary = true;
             SetDirty(true);
             RefreshEntries();

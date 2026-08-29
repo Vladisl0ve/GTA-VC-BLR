@@ -10,6 +10,7 @@
         Icon="/icon.ico"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <DrawingBrush x:Key="CheckerBrush" TileMode="Tile" Viewport="0,0,16,16" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>
@@ -33,6 +34,30 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition>
+                <RowDefinition.Style>
+                    <Style TargetType="RowDefinition">
+                        <Setter Property="Height" Value="6" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsGameFontPreviewAvailable}" Value="False">
+                                <Setter Property="Height" Value="0" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
+            <RowDefinition>
+                <RowDefinition.Style>
+                    <Style TargetType="RowDefinition">
+                        <Setter Property="Height" Value="230" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsGameFontPreviewAvailable}" Value="False">
+                                <Setter Property="Height" Value="0" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -147,7 +172,121 @@
             </Grid>
         </Grid>
 
-        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+        <GridSplitter Grid.Row="2" Height="6" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" ResizeDirection="Rows"
+                      Visibility="{Binding IsGameFontPreviewAvailable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <GroupBox Grid.Row="3" Margin="0,8,0,0" Header="{loc:Translate Txd.Preview.Title}"
+                  Visibility="{Binding IsGameFontPreviewAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="330" />
+                </Grid.ColumnDefinitions>
+
+                <WrapPanel Grid.ColumnSpan="3" Margin="0,0,0,8" VerticalAlignment="Center">
+                    <TextBlock Margin="0,0,6,0" VerticalAlignment="Center"
+                               Text="{loc:Translate Txd.Preview.Text}" />
+                    <TextBox Width="330" Margin="0,0,12,0" Padding="6,3"
+                             Text="{Binding PreviewText, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Margin="0,0,6,0" VerticalAlignment="Center"
+                               Text="{loc:Translate Txd.Preview.Context}" />
+                    <ComboBox Width="145" Margin="0,0,12,0" Padding="6,3"
+                              ItemsSource="{Binding RenderContexts}"
+                              SelectedItem="{Binding SelectedRenderContext}"
+                              DisplayMemberPath="DisplayName" />
+                    <TextBlock Margin="0,0,6,0" VerticalAlignment="Center"
+                               Text="{loc:Translate Txd.Preview.Scale}" />
+                    <ComboBox Width="70" Margin="0,0,12,0" Padding="6,3"
+                              ItemsSource="{Binding PreviewScales}"
+                              SelectedItem="{Binding SelectedPreviewScale}"
+                              DisplayMemberPath="DisplayName" />
+                    <CheckBox Margin="0,0,12,0" VerticalAlignment="Center"
+                              IsChecked="{Binding ShowMetricGuides}"
+                              Content="{loc:Translate Txd.Preview.ShowGuides}" />
+                    <Menu VerticalAlignment="Center">
+                        <MenuItem Header="{loc:Translate Txd.Metrics.Menu}">
+                            <MenuItem Header="{loc:Translate Txd.Metrics.Import}"
+                                      Command="{Binding ImportFontMetricsCommand}" />
+                            <MenuItem Header="{loc:Translate Txd.Metrics.Export}"
+                                      Command="{Binding ExportFontMetricsCommand}" />
+                            <Separator />
+                            <MenuItem Header="{loc:Translate Txd.Metrics.UseBelarusian}"
+                                      Command="{Binding UseBelarusianFontMetricsCommand}" />
+                            <MenuItem Header="{loc:Translate Txd.Metrics.Reset}"
+                                      Command="{Binding ResetFontMetricsCommand}" />
+                        </MenuItem>
+                    </Menu>
+                </WrapPanel>
+
+                <Border Grid.Row="1" Background="{StaticResource CheckerBrush}"
+                        BorderBrush="#808080" BorderThickness="1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <Image Source="{Binding PreviewImage}" Stretch="None"
+                               HorizontalAlignment="Left" VerticalAlignment="Top"
+                               RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                    </ScrollViewer>
+                </Border>
+
+                <GroupBox Grid.Row="1" Grid.Column="2" Header="{loc:Translate Txd.Preview.SelectedGlyphDebug}">
+                    <Grid Margin="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="{loc:Translate Txd.Preview.Character}" />
+                        <TextBlock Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedGlyphCharacter}" />
+                        <TextBlock Grid.Row="1" Text="{loc:Translate Txd.Preview.Code}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Margin="8,0,0,0"
+                                   Text="{Binding SelectedGlyphCode, StringFormat=0x{0:X2}}" />
+                        <TextBlock Grid.Row="2" Text="{loc:Translate Txd.Preview.MetricIndex}" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedMetricIndex}" />
+                        <TextBlock Grid.Row="3" Text="{loc:Translate Txd.Preview.Font1Advance}" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedFont1Advance}" />
+                        <TextBlock Grid.Row="4" Text="{loc:Translate Txd.Preview.Font2Advance}" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedFont2Advance}" />
+                        <TextBlock Grid.Row="5" Text="{loc:Translate Txd.Preview.Context}" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" Margin="8,0,0,0"
+                                   Text="{Binding SelectedRenderContext.DisplayName}" />
+                        <TextBlock Grid.Row="6" Text="{loc:Translate Txd.Preview.SelectedFont}" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedFont}" />
+                        <TextBlock Grid.Row="7" Text="{loc:Translate Txd.Preview.BaseAdvance}" />
+                        <TextBlock Grid.Row="7" Grid.Column="1" Margin="8,0,0,0" Text="{Binding SelectedBaseAdvance}" />
+                        <TextBlock Grid.Row="8" Text="{loc:Translate Txd.Preview.ContextOverride}" />
+                        <TextBlock Grid.Row="8" Grid.Column="1" Margin="8,0,0,0"
+                                   Text="{Binding SelectedContextOverrideAdvance}" />
+                        <TextBlock Grid.Row="9" FontWeight="SemiBold"
+                                   Text="{loc:Translate Txd.Preview.EffectiveAdvance}" />
+                        <TextBlock Grid.Row="9" Grid.Column="1" Margin="8,0,0,0" FontWeight="SemiBold"
+                                   Text="{Binding SelectedEffectiveAdvance}" />
+                        <ScrollViewer Grid.Row="10" Grid.ColumnSpan="2" Margin="0,6,0,0"
+                                      VerticalScrollBarVisibility="Auto">
+                            <TextBlock Opacity="0.75" TextWrapping="Wrap" Text="{Binding PreviewStatus}" />
+                        </ScrollViewer>
+                    </Grid>
+                </GroupBox>
+            </Grid>
+        </GroupBox>
+
+        <DockPanel Grid.Row="4" Margin="0,12,0,0">
             <ComboBox Width="285" Padding="8,5" ItemsSource="{Binding ApplyModes}"
                       SelectedItem="{Binding SelectedApplyMode}" DisplayMemberPath="DisplayName" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

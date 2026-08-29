@@ -33,6 +33,36 @@
 перададзены карыстальніцкі мапінг, мова застаецца метаданымі, а табліца сімвалаў
 бярэцца з мапінга.
 
+## Мапінг, растр і крок — розныя рэчы
+
+Для паказу тэксту Vice City сумяшчае тры незалежныя крыніцы даных. Адну з іх
+нельга выводзіць з іншай:
+
+| Даныя | На якое пытанне адказваюць | Крыніца |
+| --- | --- | --- |
+| Мапінг сімвалаў | Які байт GXT адпавядае Unicode-сімвалу? | `.gxtmap.json` / `CharacterMapProfile` |
+| Растр гліфа | Якія пікселі трэба намаляваць для гэтага байта? | выбраная тэкстура `font1` або `font2` у `fonts.txd` |
+| Метрыкі шрыфта | На колькі зрушыць пяро пасля гліфа? | `.fontmetrics.json` / табліцы ASI і кантэкстныя папраўкі |
+
+Таму перадпрагляд кадуе тэкст актыўным мапінгам, капіруе адпаведную ячэйку TXD
+без змен і пазіцыянуе наступны гліф паводле гульнявога кроку. Адлегласць ніколі
+не вылічаецца з празрыстых пікселяў, межаў малюнка, сістэмнага або падменнага
+шрыфта.
+
+Для звычайных кодаў Vice City, якія ўваходзяць у табліцу метрык:
+
+```text
+metricIndex = code - 0x20
+code        = metricIndex + 0x20
+дыяпазон    = 0x20..0xF1 (210 элементаў у кожным радку)
+```
+
+Фізічны радок 0 належыць `font2`, а фізічны радок 1 — `font1`. Рэдкія папраўкі
+апісваюць выніковыя кантэксты `Default`, `Gameplay`, `Subtitles`, `MainMenu`,
+`SaveLoad`, `ExitConfirmation` і `Heading`. Убудаваныя запісы Heading для
+беларускіх `Т/т` захоўваюць толькі выніковы крок: сама Vice City спачатку
+перанакіроўвае гэтыя два сімвалы на іншы індэкс метрыкі.
+
 ## Што ўбудавана для кожнай мовы
 
 | Мова | GTA III | GTA: Vice City |
@@ -279,10 +309,25 @@ BYX v4 захоўвае карыстальніцкі профіль унутры
 `mapping/characters.json`, звязвае яго з GXT/TXD праз маніфест і аднаўляе пры
 наступным адкрыцці.
 
+BYX v5 асобна захоўвае профіль метрык шрыфта як `font/metrics.json` і яго SHA-256
+у маніфесце. Пры адкрыцці праекта Vice City версіі v3 або v4 убудаваныя
+беларускія метрыкі дадаюцца толькі тады, калі і decode-мапінг, і пераважны
+encode-мапінг дакладна супадаюць з убудаванай беларускай табліцай сімвалаў.
+У іншых старых праектах метрыкі застаюцца нявызначанымі; сама міграцыя не робіць
+праект змененым.
+
+У акне мапінга TXD меню **«Метрыкі шрыфта»** дазваляе імпартаваць або
+экспартаваць `.fontmetrics.json`, ужыць убудаваныя беларускія метрыкі ці скінуць
+іх. Гэтыя каманды змяняюць адасоблены стан акна і трапляюць у праект толькі
+пасля **«Ужывання мапінга»**. Скасаванне акна не змяняе праект.
+
 ## Крыніцы ў кодзе
 
 - спіс моў і агульныя эўрыстыкі: [`Common/GxtLanguage.cs`](../Common/GxtLanguage.cs);
 - дапушчальныя коды мовы: [`Common/GxtDomainRules.cs`](../Common/GxtDomainRules.cs);
 - паводзіны GTA III: [`GTAIII/GXTManager.cs`](../GTAIII/GXTManager.cs);
 - профілі і дэтэктар Vice City: [`GTAVC/ViceCityTextEncodingProfile.cs`](../GTAVC/ViceCityTextEncodingProfile.cs);
-- загрузка і праверка карыстальніцкіх файлаў: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs).
+- загрузка і праверка карыстальніцкіх файлаў: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs);
+- кананічныя беларускія метрыкі: [`Assets/ViceCity/belarusian.fontmetrics.json`](../Assets/ViceCity/belarusian.fontmetrics.json);
+- праверка і вылічэнне метрык: [`Services/FontMetricsValidator.cs`](../Services/FontMetricsValidator.cs) і [`Services/FontMetricsService.cs`](../Services/FontMetricsService.cs);
+- згенераваная native-табліца: [`native/generated/BelarusianFontMetrics.generated.h`](../native/generated/BelarusianFontMetrics.generated.h), створаная [`scripts/generate-belarusian-font-metrics.ps1`](../scripts/generate-belarusian-font-metrics.ps1).

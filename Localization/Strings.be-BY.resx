@@ -117,9 +117,54 @@
   <data name="Txd.Analysis.Valid" xml:space="preserve"><value>Профіль не мае канфліктаў; усе выкарыстаныя сімвалы і байты прызначаныя.</value></data>
   <data name="Txd.Analysis.Usage" xml:space="preserve"><value>Выкарыстанне лакалізаваных сімвалаў:</value></data>
   <data name="Txd.OutOfRange" xml:space="preserve"><value>Па-за дыяпазонам</value></data>
+  <data name="Txd.Preview.Title" xml:space="preserve"><value>Перадпрагляд гульнявога шрыфта</value></data>
+  <data name="Txd.Preview.Text" xml:space="preserve"><value>Тэкст перадпрагляду</value></data>
+  <data name="Txd.Preview.Context" xml:space="preserve"><value>Кантэкст</value></data>
+  <data name="Txd.Preview.Scale" xml:space="preserve"><value>Маштаб</value></data>
+  <data name="Txd.Preview.ScaleOption" xml:space="preserve"><value>{0}×</value></data>
+  <data name="Txd.Preview.ShowGuides" xml:space="preserve"><value>Паказваць межы метрык</value></data>
+  <data name="Txd.Preview.SelectedGlyphDebug" xml:space="preserve"><value>Метрыкі выбранага гліфа</value></data>
+  <data name="Txd.Preview.Character" xml:space="preserve"><value>Сімвал:</value></data>
+  <data name="Txd.Preview.Code" xml:space="preserve"><value>Код:</value></data>
+  <data name="Txd.Preview.MetricIndex" xml:space="preserve"><value>Індэкс метрыкі:</value></data>
+  <data name="Txd.Preview.Font1Advance" xml:space="preserve"><value>Крок font1:</value></data>
+  <data name="Txd.Preview.Font2Advance" xml:space="preserve"><value>Крок font2:</value></data>
+  <data name="Txd.Preview.SelectedFont" xml:space="preserve"><value>Выбраны шрыфт:</value></data>
+  <data name="Txd.Preview.BaseAdvance" xml:space="preserve"><value>Базавы крок:</value></data>
+  <data name="Txd.Preview.ContextOverride" xml:space="preserve"><value>Папраўка кантэксту:</value></data>
+  <data name="Txd.Preview.EffectiveAdvance" xml:space="preserve"><value>Выніковы крок:</value></data>
+  <data name="Txd.Preview.Context.Default" xml:space="preserve"><value>Па змаўчанні</value></data>
+  <data name="Txd.Preview.Context.Gameplay" xml:space="preserve"><value>Гульня</value></data>
+  <data name="Txd.Preview.Context.Subtitles" xml:space="preserve"><value>Субцітры</value></data>
+  <data name="Txd.Preview.Context.MainMenu" xml:space="preserve"><value>Галоўнае меню</value></data>
+  <data name="Txd.Preview.Context.SaveLoad" xml:space="preserve"><value>Захаванне/загрузка</value></data>
+  <data name="Txd.Preview.Context.ExitConfirmation" xml:space="preserve"><value>Пацвярджэнне выхаду</value></data>
+  <data name="Txd.Preview.Context.Heading" xml:space="preserve"><value>Загаловак</value></data>
+  <data name="Txd.Preview.DefaultText" xml:space="preserve"><value>ВАЙС-СІЦІ Вайс-Сіці Тт Ўў</value></data>
+  <data name="Txd.Preview.UnavailableForGame" xml:space="preserve"><value>Перадпрагляд з гульнявымі метрыкамі даступны толькі для GTA Vice City.</value></data>
+  <data name="Txd.Preview.MissingMetrics" xml:space="preserve"><value>Метрыкі шрыфта не загружаныя. Імпартуйце іх або выкарыстайце ўбудаваны беларускі профіль.</value></data>
+  <data name="Txd.Preview.ChooseFont" xml:space="preserve"><value>Выберыце тэкстуру font1 або font2.</value></data>
+  <data name="Txd.Preview.Ready" xml:space="preserve"><value>Гліфаў: {0}; гульнявы крок: {1} пкс; шырыня выявы: {2} пкс.</value></data>
+  <data name="Txd.Preview.Failed" xml:space="preserve"><value>Не ўдалося стварыць перадпрагляд: {0}</value></data>
+  <data name="Txd.Preview.Issue.CharacterCannotBeEncoded" xml:space="preserve"><value>Сімвал «{0}» нельга закадаваць бягучым мапінгам.</value></data>
+  <data name="Txd.Preview.Issue.MetricUnavailable" xml:space="preserve"><value>Код 0x{0:X2} не мае метрыкі шрыфта.</value></data>
+  <data name="Txd.Preview.Issue.GlyphUnavailable" xml:space="preserve"><value>Код 0x{0:X2} не мае гліфа ў тэкстуры {1}.</value></data>
+  <data name="Txd.Preview.Issue.InvalidMetrics" xml:space="preserve"><value>Профіль метрык шрыфта некарэктны.</value></data>
+  <data name="Txd.Preview.Issue.InvalidMapping" xml:space="preserve"><value>Мапінг сімвалаў некарэктны.</value></data>
+  <data name="Txd.Preview.Issue.UnsupportedFont" xml:space="preserve"><value>Выбраную тэкстуру нельга паказаць з метрыкамі шрыфта Vice City.</value></data>
+  <data name="Txd.Metrics.Menu" xml:space="preserve"><value>Метрыкі шрыфта</value></data>
+  <data name="Txd.Metrics.Import" xml:space="preserve"><value>Імпартаваць…</value></data>
+  <data name="Txd.Metrics.Export" xml:space="preserve"><value>Экспартаваць…</value></data>
+  <data name="Txd.Metrics.UseBelarusian" xml:space="preserve"><value>Выкарыстаць беларускія метрыкі</value></data>
+  <data name="Txd.Metrics.Reset" xml:space="preserve"><value>Скінуць метрыкі</value></data>
+  <data name="Txd.Metrics.ImportTitle" xml:space="preserve"><value>Імпарт метрык шрыфта</value></data>
+  <data name="Txd.Metrics.ExportTitle" xml:space="preserve"><value>Экспарт метрык шрыфта</value></data>
+  <data name="Txd.Metrics.ImportError" xml:space="preserve"><value>Памылка імпарту метрык шрыфта</value></data>
+  <data name="Txd.Metrics.ExportError" xml:space="preserve"><value>Памылка экспарту метрык шрыфта</value></data>
 
   <data name="Filter.CharacterMapImport" xml:space="preserve"><value>Мапінг (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Слоўнік (*.txt)|*.txt</value></data>
   <data name="Filter.CharacterMapExport" xml:space="preserve"><value>Мапінг JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json</value></data>
+  <data name="Filter.FontMetrics" xml:space="preserve"><value>Метрыкі шрыфта (*.fontmetrics.json;*.json)|*.fontmetrics.json;*.json|JSON (*.json)|*.json</value></data>
   <data name="Filter.Document" xml:space="preserve"><value>GXT або праект BYX (*.gxt;*.byx)|*.gxt;*.byx|GXT (*.gxt)|*.gxt|Праект BYX (*.byx)|*.byx|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.Gxt" xml:space="preserve"><value>GTA III/Vice City GXT (*.gxt)|*.gxt|Усе файлы (*.*)|*.*</value></data>
   <data name="Filter.Txd" xml:space="preserve"><value>Vice City TXD (*.txd)|*.txd|Усе файлы (*.*)|*.*</value></data>

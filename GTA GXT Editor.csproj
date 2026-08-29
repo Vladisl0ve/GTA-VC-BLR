@@ -25,9 +25,14 @@
     <Resource Include="icon.ico" />
     <EmbeddedResource Include="Assets\ViceCity\belarusian.gxtmap.json"
                       LogicalName="GTA_GXT_Editor.Assets.ViceCity.belarusian.gxtmap.json" />
+    <EmbeddedResource Include="Assets\ViceCity\belarusian.fontmetrics.json"
+                      LogicalName="GTA_GXT_Editor.Assets.ViceCity.belarusian.fontmetrics.json" />
     <EmbeddedResource Include="Assets\ViceCity\encounter-order.metadata.json"
                       LogicalName="GTA_GXT_Editor.Assets.ViceCity.encounter-order.metadata.json" />
     <Content Include="Assets\ViceCity\belarusian.gxtmap.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\ViceCity\belarusian.fontmetrics.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\ViceCity\encounter-order.metadata.json"

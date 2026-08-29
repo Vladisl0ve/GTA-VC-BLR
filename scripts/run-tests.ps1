@@ -10,6 +10,14 @@ $ErrorActionPreference = "Stop"
 
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 $testProject = Join-Path $workspaceRoot "tests\GTA GXT Editor.Tests\GTA GXT Editor.Tests.csproj"
+$fontMetricsGenerator = Join-Path $PSScriptRoot "generate-belarusian-font-metrics.ps1"
+$canonicalAsiVerifier = Join-Path $PSScriptRoot "verify-belarusian-font-metrics-asi.ps1"
+
+# The JSON asset is the source of truth for native metrics. Fail before compiling
+# tests if the committed native header drifted. Canonical ASI verification remains
+# optional because the binary is intentionally not a repository dependency.
+& $fontMetricsGenerator -Verify
+& $canonicalAsiVerifier
 
 function Get-TerminalWidth {
     try {

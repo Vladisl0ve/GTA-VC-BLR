@@ -115,6 +115,8 @@ public sealed class EditorProject
 
     public CharacterMapProfile? CharacterMap { get; set; }
 
+    public FontMetricsProfile? FontMetrics { get; set; }
+
     public ProjectMetadata Metadata { get; set; } = new();
 
     public InstallerProfile? InstallerProfile { get; set; }

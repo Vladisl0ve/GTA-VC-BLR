@@ -34,6 +34,36 @@ An explicit `language` selects only a built-in encoding. If a custom mapping is
 supplied at the same time, the language remains metadata and the character table
 comes from the mapping.
 
+## Mapping, bitmap, and advance are separate
+
+Vice City text rendering combines three independent data sources. They must not
+be inferred from one another:
+
+| Data | Question it answers | Source |
+| --- | --- | --- |
+| Character mapping | Which GXT byte represents a Unicode character? | `.gxtmap.json` / `CharacterMapProfile` |
+| Glyph bitmap | Which pixels are drawn for that byte? | the selected `font1` or `font2` texture in `fonts.txd` |
+| Font metrics | How far does the pen move after the glyph? | `.fontmetrics.json` / ASI metric tables and context overrides |
+
+The preview therefore encodes text through the active character mapping, copies
+the corresponding TXD cell as-is, and positions the next glyph using the game
+advance. It never derives spacing from transparent pixels, glyph bounds, a
+system font, or a replacement font.
+
+For ordinary Vice City codes covered by the metric table:
+
+```text
+metricIndex = code - 0x20
+code        = metricIndex + 0x20
+code range  = 0x20..0xF1 (210 entries per row)
+```
+
+Physical row 0 belongs to `font2`; physical row 1 belongs to `font1`. Sparse
+overrides model the effective `Default`, `Gameplay`, `Subtitles`, `MainMenu`,
+`SaveLoad`, `ExitConfirmation`, and `Heading` contexts. The bundled Heading
+entries for Belarusian `Т/т` preserve their effective advance only; Vice City
+actually remaps those two characters before reading the metric row.
+
 ## What is built in for each language
 
 | Language | GTA III | GTA: Vice City |
@@ -280,10 +310,25 @@ BYX v4 stores a custom profile inside the project as
 `mapping/characters.json`, links it to the GXT/TXD through the manifest, and
 restores it the next time the project is opened.
 
+BYX v5 additionally stores the independent font-metrics profile as
+`font/metrics.json` with its SHA-256 in the manifest. Opening a v3 or v4 Vice
+City project supplies the bundled Belarusian metrics only when both the decode
+map and preferred encode map exactly match the bundled Belarusian character
+mapping. Other legacy projects keep metrics unset; migration does not mark a
+project dirty.
+
+In the TXD mapping window, the **Font metrics** menu can import/export a
+`.fontmetrics.json` file, install the bundled Belarusian metrics, or reset the
+metrics. These actions edit the detached window state; they reach the project
+only after **Apply mapping**. Cancelling the window leaves the project unchanged.
+
 ## Sources in the code
 
 - language list and shared heuristics: [`Common/GxtLanguage.cs`](../Common/GxtLanguage.cs);
 - accepted language codes: [`Common/GxtDomainRules.cs`](../Common/GxtDomainRules.cs);
 - GTA III behavior: [`GTAIII/GXTManager.cs`](../GTAIII/GXTManager.cs);
 - Vice City profiles and detector: [`GTAVC/ViceCityTextEncodingProfile.cs`](../GTAVC/ViceCityTextEncodingProfile.cs);
-- custom mapping loading and validation: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs).
+- custom mapping loading and validation: [`Services/CharacterMapFileSerializer.cs`](../Services/CharacterMapFileSerializer.cs);
+- canonical Belarusian metrics: [`Assets/ViceCity/belarusian.fontmetrics.json`](../Assets/ViceCity/belarusian.fontmetrics.json);
+- metrics validation and resolution: [`Services/FontMetricsValidator.cs`](../Services/FontMetricsValidator.cs) and [`Services/FontMetricsService.cs`](../Services/FontMetricsService.cs);
+- generated native table: [`native/generated/BelarusianFontMetrics.generated.h`](../native/generated/BelarusianFontMetrics.generated.h), produced by [`scripts/generate-belarusian-font-metrics.ps1`](../scripts/generate-belarusian-font-metrics.ps1).

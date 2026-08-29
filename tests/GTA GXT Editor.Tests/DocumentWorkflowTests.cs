@@ -46,6 +46,21 @@ public sealed class DocumentWorkflowTests
                     },
                 ],
             },
+            FontMetrics = new FontMetricsProfile
+            {
+                Font2 = new FontMetricsTable { Advances = new ushort[FontMetricsTable.MetricCount] },
+                Font1 = new FontMetricsTable { Advances = new ushort[FontMetricsTable.MetricCount] },
+                Overrides =
+                [
+                    new FontMetricOverride
+                    {
+                        Context = FontRenderContext.MainMenu,
+                        Font = FontTextureKind.Font2,
+                        Code = 0x91,
+                        Advance = 17,
+                    },
+                ],
+            },
             IsDirty = true,
         };
         var workflow = new DocumentWorkflow(
@@ -56,6 +71,14 @@ public sealed class DocumentWorkflowTests
         project.GxtManager.EditGXTEntry("HELLO", "Changed");
         project.Metadata.Entries[0].Comment = "Changed comment";
         project.AttachedTxd.Data[0] = 9;
+        project.FontMetrics.Font2.Advances[0] = 9;
+        project.FontMetrics.Overrides[0] = new FontMetricOverride
+        {
+            Context = FontRenderContext.SaveLoad,
+            Font = FontTextureKind.Font1,
+            Code = 0xA8,
+            Advance = 8,
+        };
 
         Assert.AreNotSame(project, snapshot);
         Assert.AreNotSame(project.GxtManager, snapshot.GxtManager);
@@ -64,6 +87,12 @@ public sealed class DocumentWorkflowTests
             snapshot.GxtManager.ConvertBytesToText(snapshot.GxtManager.GXTEntries.Single().Value));
         Assert.AreEqual("Original comment", snapshot.Metadata.Entries.Single().Comment);
         Assert.AreEqual((byte)1, snapshot.AttachedTxd!.Data[0]);
+        Assert.IsNotNull(snapshot.FontMetrics);
+        Assert.AreNotSame(project.FontMetrics, snapshot.FontMetrics);
+        Assert.AreNotSame(project.FontMetrics.Font2.Advances, snapshot.FontMetrics.Font2.Advances);
+        Assert.AreEqual((ushort)0, snapshot.FontMetrics.Font2.Advances[0]);
+        Assert.AreEqual(FontRenderContext.MainMenu, snapshot.FontMetrics.Overrides[0].Context);
+        Assert.AreEqual((ushort)17, snapshot.FontMetrics.Overrides[0].Advance);
         Assert.IsTrue(snapshot.IsDirty);
     }
 }

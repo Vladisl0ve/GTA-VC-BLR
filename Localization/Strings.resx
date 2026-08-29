@@ -117,9 +117,54 @@
   <data name="Txd.Analysis.Valid" xml:space="preserve"><value>The profile has no conflicts; all used characters and bytes are assigned.</value></data>
   <data name="Txd.Analysis.Usage" xml:space="preserve"><value>Localized character usage:</value></data>
   <data name="Txd.OutOfRange" xml:space="preserve"><value>Out of range</value></data>
+  <data name="Txd.Preview.Title" xml:space="preserve"><value>Game font preview</value></data>
+  <data name="Txd.Preview.Text" xml:space="preserve"><value>Preview text</value></data>
+  <data name="Txd.Preview.Context" xml:space="preserve"><value>Context</value></data>
+  <data name="Txd.Preview.Scale" xml:space="preserve"><value>Scale</value></data>
+  <data name="Txd.Preview.ScaleOption" xml:space="preserve"><value>{0}×</value></data>
+  <data name="Txd.Preview.ShowGuides" xml:space="preserve"><value>Show metric guides</value></data>
+  <data name="Txd.Preview.SelectedGlyphDebug" xml:space="preserve"><value>Selected glyph metrics</value></data>
+  <data name="Txd.Preview.Character" xml:space="preserve"><value>Character:</value></data>
+  <data name="Txd.Preview.Code" xml:space="preserve"><value>Code:</value></data>
+  <data name="Txd.Preview.MetricIndex" xml:space="preserve"><value>Metric index:</value></data>
+  <data name="Txd.Preview.Font1Advance" xml:space="preserve"><value>font1 advance:</value></data>
+  <data name="Txd.Preview.Font2Advance" xml:space="preserve"><value>font2 advance:</value></data>
+  <data name="Txd.Preview.SelectedFont" xml:space="preserve"><value>Selected font:</value></data>
+  <data name="Txd.Preview.BaseAdvance" xml:space="preserve"><value>Base advance:</value></data>
+  <data name="Txd.Preview.ContextOverride" xml:space="preserve"><value>Context override:</value></data>
+  <data name="Txd.Preview.EffectiveAdvance" xml:space="preserve"><value>Effective advance:</value></data>
+  <data name="Txd.Preview.Context.Default" xml:space="preserve"><value>Default</value></data>
+  <data name="Txd.Preview.Context.Gameplay" xml:space="preserve"><value>Gameplay</value></data>
+  <data name="Txd.Preview.Context.Subtitles" xml:space="preserve"><value>Subtitles</value></data>
+  <data name="Txd.Preview.Context.MainMenu" xml:space="preserve"><value>Main menu</value></data>
+  <data name="Txd.Preview.Context.SaveLoad" xml:space="preserve"><value>Save/load</value></data>
+  <data name="Txd.Preview.Context.ExitConfirmation" xml:space="preserve"><value>Exit confirmation</value></data>
+  <data name="Txd.Preview.Context.Heading" xml:space="preserve"><value>Heading</value></data>
+  <data name="Txd.Preview.DefaultText" xml:space="preserve"><value>ВАЙС-СІЦІ Вайс-Сіці Тт Ўў</value></data>
+  <data name="Txd.Preview.UnavailableForGame" xml:space="preserve"><value>Game font metrics preview is available only for GTA Vice City.</value></data>
+  <data name="Txd.Preview.MissingMetrics" xml:space="preserve"><value>No font metrics are loaded. Import metrics or use the bundled Belarusian profile.</value></data>
+  <data name="Txd.Preview.ChooseFont" xml:space="preserve"><value>Select the font1 or font2 texture.</value></data>
+  <data name="Txd.Preview.Ready" xml:space="preserve"><value>{0} glyphs; game advance {1}px; bitmap {2}px wide.</value></data>
+  <data name="Txd.Preview.Failed" xml:space="preserve"><value>Preview could not be rendered: {0}</value></data>
+  <data name="Txd.Preview.Issue.CharacterCannotBeEncoded" xml:space="preserve"><value>Character “{0}” cannot be encoded by the current mapping.</value></data>
+  <data name="Txd.Preview.Issue.MetricUnavailable" xml:space="preserve"><value>Code 0x{0:X2} has no font metric.</value></data>
+  <data name="Txd.Preview.Issue.GlyphUnavailable" xml:space="preserve"><value>Code 0x{0:X2} has no glyph in texture {1}.</value></data>
+  <data name="Txd.Preview.Issue.InvalidMetrics" xml:space="preserve"><value>The font metrics profile is invalid.</value></data>
+  <data name="Txd.Preview.Issue.InvalidMapping" xml:space="preserve"><value>The character mapping is invalid.</value></data>
+  <data name="Txd.Preview.Issue.UnsupportedFont" xml:space="preserve"><value>The selected texture cannot be previewed with Vice City font metrics.</value></data>
+  <data name="Txd.Metrics.Menu" xml:space="preserve"><value>Font metrics</value></data>
+  <data name="Txd.Metrics.Import" xml:space="preserve"><value>Import…</value></data>
+  <data name="Txd.Metrics.Export" xml:space="preserve"><value>Export…</value></data>
+  <data name="Txd.Metrics.UseBelarusian" xml:space="preserve"><value>Use Belarusian metrics</value></data>
+  <data name="Txd.Metrics.Reset" xml:space="preserve"><value>Reset metrics</value></data>
+  <data name="Txd.Metrics.ImportTitle" xml:space="preserve"><value>Import font metrics</value></data>
+  <data name="Txd.Metrics.ExportTitle" xml:space="preserve"><value>Export font metrics</value></data>
+  <data name="Txd.Metrics.ImportError" xml:space="preserve"><value>Font metrics import error</value></data>
+  <data name="Txd.Metrics.ExportError" xml:space="preserve"><value>Font metrics export error</value></data>
 
   <data name="Filter.CharacterMapImport" xml:space="preserve"><value>Mapping (*.json;*.txt)|*.json;*.txt|JSON (*.json)|*.json|Dictionary (*.txt)|*.txt</value></data>
   <data name="Filter.CharacterMapExport" xml:space="preserve"><value>Mapping JSON (*.gxtmap.json)|*.gxtmap.json|JSON (*.json)|*.json</value></data>
+  <data name="Filter.FontMetrics" xml:space="preserve"><value>Font metrics (*.fontmetrics.json;*.json)|*.fontmetrics.json;*.json|JSON (*.json)|*.json</value></data>
   <data name="Filter.Document" xml:space="preserve"><value>GXT or BYX project (*.gxt;*.byx)|*.gxt;*.byx|GXT (*.gxt)|*.gxt|BYX project (*.byx)|*.byx|All files (*.*)|*.*</value></data>
   <data name="Filter.Gxt" xml:space="preserve"><value>GTA III/Vice City GXT (*.gxt)|*.gxt|All files (*.*)|*.*</value></data>
   <data name="Filter.Txd" xml:space="preserve"><value>Vice City TXD (*.txd)|*.txd|All files (*.*)|*.*</value></data>
