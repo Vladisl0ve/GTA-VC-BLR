@@ -106,7 +106,7 @@ public sealed class TxdViewerViewModelTests
     }
 
     [TestMethod]
-    public void Preview_FontTextureContextScaleAndGuidesRefreshLiveWithDebugMetrics()
+    public void Preview_StyleContextScaleAndGuidesRefreshIndependentlyFromSelectedAtlas()
     {
         var metrics = CreateMetrics(defaultAdvance: 1);
         SetAdvance(metrics, FontTextureKind.Font1, (byte)'A', 7);
@@ -125,6 +125,8 @@ public sealed class TxdViewerViewModelTests
         viewModel.SelectedGlyph = viewModel.Glyphs.Single(item => item.Cell.Code == (byte)'A');
 
         Assert.AreEqual(FontTextureKind.Font1, viewModel.SelectedFont);
+        Assert.AreEqual(FontTextureKind.Font1, viewModel.PreviewFont);
+        Assert.AreEqual(ViceCityFontStyle.Standard, viewModel.SelectedFontStyle.Style);
         Assert.AreEqual(14, viewModel.PreviewLayout?.AdvanceWidth);
         Assert.AreEqual((byte)'A', viewModel.SelectedGlyphCode);
         Assert.AreEqual((byte)'A' - 0x20, viewModel.SelectedMetricIndex);
@@ -134,8 +136,15 @@ public sealed class TxdViewerViewModelTests
         viewModel.SelectedTexture = viewModel.Textures.Single(texture => texture.Name == "font2");
         viewModel.SelectedGlyph = viewModel.Glyphs.Single(item => item.Cell.Code == (byte)'A');
         Assert.AreEqual(FontTextureKind.Font2, viewModel.SelectedFont);
-        Assert.AreEqual(6, viewModel.PreviewLayout?.AdvanceWidth);
+        Assert.AreEqual(FontTextureKind.Font1, viewModel.PreviewFont);
+        Assert.AreEqual(14, viewModel.PreviewLayout?.AdvanceWidth);
         Assert.AreEqual((ushort)3, viewModel.SelectedEffectiveAdvance);
+
+        viewModel.SelectedFontStyle = viewModel.FontStyles.Single(option =>
+            option.Style == ViceCityFontStyle.Bank);
+        Assert.AreEqual(FontTextureKind.Font2, viewModel.PreviewFont);
+        Assert.AreEqual(ViceCityFontStyle.Bank, viewModel.PreviewLayout?.Style);
+        Assert.AreEqual(6, viewModel.PreviewLayout?.AdvanceWidth);
 
         var beforeContext = viewModel.PreviewImage;
         viewModel.SelectedRenderContext = viewModel.RenderContexts.Single(option =>
@@ -151,6 +160,35 @@ public sealed class TxdViewerViewModelTests
         var beforeGuides = viewModel.PreviewImage;
         viewModel.ShowMetricGuides = false;
         Assert.AreNotSame(beforeGuides, viewModel.PreviewImage);
+    }
+
+    [TestMethod]
+    public void Preview_OffersAllViceCityStylesAndOnlyRuntimeMetricsContexts()
+    {
+        var viewModel = new TxdViewerViewModel(CreateRequest(
+            GXTType.GtaViceCity,
+            metrics: CreateMetrics(defaultAdvance: 2)));
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                ViceCityFontStyle.Bank,
+                ViceCityFontStyle.Standard,
+                ViceCityFontStyle.Heading,
+            },
+            viewModel.FontStyles.Select(option => option.Style).ToArray());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                FontRenderContext.Default,
+                FontRenderContext.Gameplay,
+                FontRenderContext.Subtitles,
+                FontRenderContext.MainMenu,
+                FontRenderContext.SaveLoad,
+                FontRenderContext.ExitConfirmation,
+            },
+            viewModel.RenderContexts.Select(option => option.Context).ToArray());
+        Assert.AreEqual(ViceCityFontStyle.Standard, viewModel.SelectedFontStyle.Style);
     }
 
     [TestMethod]
@@ -261,11 +299,29 @@ public sealed class TxdViewerViewModelTests
         Assert.IsEmpty(viewModel.Glyphs);
     }
 
+    [TestMethod]
+    public void MissingTextureForSelectedStyle_DoesNotFallBackToSelectedAtlas()
+    {
+        var viewModel = new TxdViewerViewModel(CreateRequest(
+            GXTType.GtaViceCity,
+            metrics: CreateMetrics(defaultAdvance: 2),
+            includeFont2: false));
+
+        viewModel.SelectedFontStyle = viewModel.FontStyles.Single(option =>
+            option.Style == ViceCityFontStyle.Bank);
+
+        Assert.IsNull(viewModel.PreviewImage);
+        Assert.IsNull(viewModel.PreviewLayout);
+        StringAssert.Contains(viewModel.PreviewStatus, "font2");
+        Assert.AreEqual("font1", viewModel.SelectedTexture?.Name);
+    }
+
     private static CharacterMapEditorRequest CreateRequest(
         GXTType gameType,
         CharacterMapProfile? profile = null,
         FontMetricsProfile? metrics = null,
-        bool malformedTextures = false) => new(
+        bool malformedTextures = false,
+        bool includeFont2 = true) => new(
         new TxdAttachment
         {
             Id = Guid.NewGuid(),
@@ -275,12 +331,18 @@ public sealed class TxdViewerViewModelTests
             Document = new TxdDocument
             {
                 RenderWareVersion = 0,
-                Textures =
-                [
-                    CreateTexture("font1", malformedTextures),
-                    CreateTexture("font2", malformedTextures),
-                    CreateTexture("pager", malformedTextures),
-                ],
+                Textures = includeFont2
+                    ?
+                    [
+                        CreateTexture("font1", malformedTextures),
+                        CreateTexture("font2", malformedTextures),
+                        CreateTexture("pager", malformedTextures),
+                    ]
+                    :
+                    [
+                        CreateTexture("font1", malformedTextures),
+                        CreateTexture("pager", malformedTextures),
+                    ],
             },
         },
         gameType,

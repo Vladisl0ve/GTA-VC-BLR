@@ -21,7 +21,7 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             new CharacterMapProfile(),
             metrics,
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         CollectionAssert.AreEqual(new[] { 0, 10, 30 }, layout.Glyphs.Select(glyph => glyph.X).ToArray());
         CollectionAssert.AreEqual(new[] { 10, 20, 7 }, layout.Glyphs.Select(glyph => glyph.Advance).ToArray());
@@ -43,7 +43,7 @@ public sealed class GameFontPreviewServiceTests
                 texture,
                 new CharacterMapProfile(),
                 metrics,
-                FontTextureKind.Font1,
+                ViceCityFontStyle.Standard,
                 scale: scale);
 
             Assert.AreEqual(3 * scale, layout.Glyphs[0].Advance);
@@ -58,7 +58,7 @@ public sealed class GameFontPreviewServiceTests
             texture,
             new CharacterMapProfile(),
             metrics,
-            FontTextureKind.Font1,
+            ViceCityFontStyle.Standard,
             scale: 3));
     }
 
@@ -74,19 +74,19 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             new CharacterMapProfile(),
             metrics,
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
         var font2 = _service.Layout(
             "AA",
             CreateTexture("font2"),
             new CharacterMapProfile(),
             metrics,
-            FontTextureKind.Font2);
+            ViceCityFontStyle.Bank);
         var mismatch = _service.Layout(
             "AA",
             CreateTexture("font2"),
             new CharacterMapProfile(),
             metrics,
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         Assert.AreEqual(42, font1.AdvanceWidth);
         Assert.AreEqual(18, font2.AdvanceWidth);
@@ -103,7 +103,7 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             new CharacterMapProfile(),
             CreateMetrics(defaultAdvance: 1),
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         CollectionAssert.AreEqual(
             new[] { 'A', 'B', 'C', 'D', 'E' },
@@ -127,7 +127,7 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             new CharacterMapProfile(),
             CreateMetrics(defaultAdvance: 3),
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         CollectionAssert.AreEqual(new[] { 'A', 'B' }, layout.Glyphs.Select(glyph => glyph.Character).ToArray());
         CollectionAssert.AreEqual(new[] { 0, 3 }, layout.Glyphs.Select(glyph => glyph.X).ToArray());
@@ -148,7 +148,7 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             characterMap,
             metrics,
-            FontTextureKind.Font1,
+            ViceCityFontStyle.Standard,
             FontRenderContext.Default);
         var expectedCodes = sample.Select(character =>
             characterMap.ToEncodeMap().GetValueOrDefault(character, (byte)character)).ToArray();
@@ -173,19 +173,66 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             CharacterMapPresets.Belarusian,
             FontMetricsPresets.BelarusianViceCity,
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
         var saveLayout = _service.Layout(
             "Тт",
             CreateTexture("font1"),
             CharacterMapPresets.Belarusian,
             FontMetricsPresets.BelarusianViceCity,
-            FontTextureKind.Font1,
+            ViceCityFontStyle.Standard,
             FontRenderContext.SaveLoad);
 
         CollectionAssert.AreEqual(new[] { 14, 14 }, defaultLayout.Glyphs.Select(glyph => glyph.Advance).ToArray());
         CollectionAssert.AreEqual(new[] { 15, 15 }, saveLayout.Glyphs.Select(glyph => glyph.Advance).ToArray());
         Assert.AreEqual(28, defaultLayout.AdvanceWidth);
         Assert.AreEqual(30, saveLayout.AdvanceWidth);
+    }
+
+    [TestMethod]
+    public void HeadingStyle_UsesRoutedFont1GlyphsAndMetrics()
+    {
+        var texture = CreateTexture("font1");
+        var metrics = CreateMetrics(defaultAdvance: 1);
+        SetAdvance(metrics, FontTextureKind.Font1, (byte)'A', 3);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xBB, 5);
+        SetCellPixels(texture, (byte)'A',
+        [
+            1, 2, 3, 255,
+            1, 2, 3, 255,
+            1, 2, 3, 255,
+            1, 2, 3, 255,
+        ]);
+        SetCellPixels(texture, 0xBB,
+        [
+            4, 5, 6, 255,
+            4, 5, 6, 255,
+            4, 5, 6, 255,
+            4, 5, 6, 255,
+        ]);
+
+        var standard = _service.Layout(
+            "A",
+            texture,
+            new CharacterMapProfile(),
+            metrics,
+            ViceCityFontStyle.Standard);
+        var heading = _service.Layout(
+            "A",
+            texture,
+            new CharacterMapProfile(),
+            metrics,
+            ViceCityFontStyle.Heading);
+        var standardBitmap = GameFontPreviewService.Render(texture, standard);
+        var headingBitmap = GameFontPreviewService.Render(texture, heading);
+
+        Assert.AreEqual((byte)'A', standard.Glyphs.Single().GlyphCode);
+        Assert.AreEqual((byte)0xBB, heading.Glyphs.Single().GlyphCode);
+        Assert.AreEqual(3, standard.AdvanceWidth);
+        Assert.AreEqual(5, heading.AdvanceWidth);
+        Assert.AreEqual(ViceCityFontStyle.Heading, heading.Style);
+        Assert.AreEqual(FontTextureKind.Font1, heading.Font);
+        AssertPixel(standardBitmap, 0, 0, [1, 2, 3, 255]);
+        AssertPixel(headingBitmap, 0, 0, [4, 5, 6, 255]);
     }
 
     [TestMethod]
@@ -201,14 +248,14 @@ public sealed class GameFontPreviewServiceTests
             CreateTexture("font1"),
             new CharacterMapProfile(),
             invalidMetrics,
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
         var missingGlyphMap = Map('¤', 0xF0);
         var missingGlyphLayout = _service.Layout(
             "¤",
             CreateTexture("font1"),
             missingGlyphMap,
             CreateMetrics(defaultAdvance: 1),
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         Assert.IsTrue(invalidLayout.Issues.Any(issue => issue.Kind == GameFontPreviewIssueKind.InvalidMetrics));
         Assert.IsEmpty(invalidLayout.Glyphs);
@@ -233,7 +280,7 @@ public sealed class GameFontPreviewServiceTests
             texture,
             new CharacterMapProfile(),
             CreateMetrics(defaultAdvance: 1),
-            FontTextureKind.Font1,
+            ViceCityFontStyle.Standard,
             scale: 2);
 
         var bitmap = GameFontPreviewService.Render(texture, layout);
@@ -248,6 +295,31 @@ public sealed class GameFontPreviewServiceTests
     }
 
     [TestMethod]
+    public void Render_BlendsOverlappingSemitransparentGlyphsWithoutOverflow()
+    {
+        var texture = CreateTexture("font2");
+        SetCellPixels(texture, (byte)'A',
+        [
+            255, 250, 255, 85,
+            255, 250, 255, 68,
+            255, 250, 255, 85,
+            255, 250, 255, 68,
+        ]);
+        var layout = _service.Layout(
+            "AA",
+            texture,
+            new CharacterMapProfile(),
+            CreateMetrics(defaultAdvance: 1),
+            ViceCityFontStyle.Bank);
+
+        var bitmap = GameFontPreviewService.Render(texture, layout);
+
+        Assert.AreEqual(3, bitmap.Width);
+        AssertPixel(bitmap, 1, 0, [255, 250, 255, 130]);
+        AssertPixel(bitmap, 1, 1, [255, 250, 255, 130]);
+    }
+
+    [TestMethod]
     public void Render_MetricsGuidesIncludeAdvanceBoundary()
     {
         var texture = CreateTexture("font1");
@@ -256,7 +328,7 @@ public sealed class GameFontPreviewServiceTests
             texture,
             new CharacterMapProfile(),
             CreateMetrics(defaultAdvance: 3),
-            FontTextureKind.Font1);
+            ViceCityFontStyle.Standard);
 
         var bitmap = GameFontPreviewService.Render(texture, layout, showMetricsGuides: true);
 

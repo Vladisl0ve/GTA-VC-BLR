@@ -34,9 +34,12 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         _fontMetrics = _initialFontMetrics?.Clone();
         Attachment = request.Attachment;
         ApplyModes = CreateApplyModes();
+        FontStyles = CreateFontStyles();
         RenderContexts = CreateRenderContexts();
         PreviewScales = CreatePreviewScales();
         selectedApplyMode = ApplyModes[0];
+        selectedFontStyle = FontStyles.Single(option =>
+            option.Style == ViceCityFontStyle.Standard);
         selectedRenderContext = RenderContexts[0];
         selectedPreviewScale = PreviewScales[0];
         previewText = _localization.Get("Txd.Preview.DefaultText");
@@ -64,6 +67,8 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<CharacterMapApplyModeOption> ApplyModes { get; private set; }
 
+    public IReadOnlyList<ViceCityFontStyleOption> FontStyles { get; private set; }
+
     public IReadOnlyList<FontRenderContextOption> RenderContexts { get; private set; }
 
     public IReadOnlyList<PreviewScaleOption> PreviewScales { get; private set; }
@@ -75,6 +80,9 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     public bool IsGameFontPreviewAvailable => _request.GameType == GXTType.GtaViceCity;
 
     public FontTextureKind? SelectedFont => GetFontTextureKind(SelectedTexture);
+
+    public FontTextureKind PreviewFont =>
+        FontMetricsService.GetEffectiveFont(SelectedFontStyle.Style);
 
     public GameFontLayoutResult? PreviewLayout { get; private set; }
 
@@ -150,6 +158,9 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private CharacterMapApplyModeOption selectedApplyMode;
 
     [ObservableProperty]
+    private ViceCityFontStyleOption selectedFontStyle;
+
+    [ObservableProperty]
     private FontRenderContextOption selectedRenderContext;
 
     [ObservableProperty]
@@ -157,18 +168,6 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedTextureChanged(TxdTexture? value)
     {
-        if (SelectedRenderContext.Context == FontRenderContext.Heading &&
-            GetFontTextureKind(value) != FontTextureKind.Font1)
-        {
-            var font1 = Textures.FirstOrDefault(texture =>
-                GetFontTextureKind(texture) == FontTextureKind.Font1);
-            if (font1 is not null && !ReferenceEquals(value, font1))
-            {
-                SelectedTexture = font1;
-                return;
-            }
-        }
-
         OnPropertyChanged(nameof(SelectedFont));
         RefreshGlyphs();
     }
@@ -188,18 +187,14 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 
     partial void OnShowMetricGuidesChanged(bool value) => RefreshGameFontPreview();
 
+    partial void OnSelectedFontStyleChanged(ViceCityFontStyleOption value)
+    {
+        OnPropertyChanged(nameof(PreviewFont));
+        RefreshGameFontPreview();
+    }
+
     partial void OnSelectedRenderContextChanged(FontRenderContextOption value)
     {
-        if (value.Context == FontRenderContext.Heading && SelectedFont != FontTextureKind.Font1)
-        {
-            var font1 = Textures.FirstOrDefault(texture =>
-                GetFontTextureKind(texture) == FontTextureKind.Font1);
-            if (font1 is not null)
-            {
-                SelectedTexture = font1;
-            }
-        }
-
         NotifySelectedMetricProperties();
         RefreshGameFontPreview();
     }
@@ -597,9 +592,14 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (SelectedTexture is not { } texture || SelectedFont is not { } font)
+        var previewFont = PreviewFont;
+        var texture = Textures.FirstOrDefault(candidate =>
+            GetFontTextureKind(candidate) == previewFont);
+        if (texture is null)
         {
-            PreviewStatus = _localization.Get("Txd.Preview.ChooseFont");
+            PreviewStatus = _localization.Format(
+                "Txd.Preview.MissingTexture",
+                FontMetricsService.GetTextureName(previewFont));
             return;
         }
 
@@ -610,7 +610,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
                 texture,
                 _profile,
                 _fontMetrics,
-                font,
+                SelectedFontStyle.Style,
                 SelectedRenderContext.Context,
                 SelectedPreviewScale.Scale);
             PreviewLayout = layout;
@@ -654,7 +654,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         GameFontPreviewIssueKind.GlyphUnavailable => _localization.Format(
             "Txd.Preview.Issue.GlyphUnavailable",
             issue.Code,
-            SelectedTexture?.Name ?? string.Empty),
+            FontMetricsService.GetTextureName(PreviewFont)),
         GameFontPreviewIssueKind.InvalidMetrics => _localization.Get(
             "Txd.Preview.Issue.InvalidMetrics"),
         GameFontPreviewIssueKind.InvalidMapping => _localization.Get(
@@ -720,7 +720,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         {
             return FontMetricsService.Resolve(
                 _fontMetrics,
-                font,
+                FontMetricsService.GetStyle(font),
                 code,
                 SelectedRenderContext.Context);
         }
@@ -775,15 +775,19 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         var selectedMode = SelectedApplyMode.Mode;
+        var selectedStyle = SelectedFontStyle.Style;
         var selectedContext = SelectedRenderContext.Context;
         var selectedScale = SelectedPreviewScale.Scale;
         ApplyModes = CreateApplyModes();
+        FontStyles = CreateFontStyles();
         RenderContexts = CreateRenderContexts();
         PreviewScales = CreatePreviewScales();
         OnPropertyChanged(nameof(ApplyModes));
+        OnPropertyChanged(nameof(FontStyles));
         OnPropertyChanged(nameof(RenderContexts));
         OnPropertyChanged(nameof(PreviewScales));
         SelectedApplyMode = ApplyModes.First(option => option.Mode == selectedMode);
+        SelectedFontStyle = FontStyles.First(option => option.Style == selectedStyle);
         SelectedRenderContext = RenderContexts.First(option => option.Context == selectedContext);
         SelectedPreviewScale = PreviewScales.First(option => option.Scale == selectedScale);
         OnPropertyChanged(nameof(GlyphAtlasHeading));
@@ -802,6 +806,19 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             _localization.Get("Options.Apply.Reencode")),
     ];
 
+    private ViceCityFontStyleOption[] CreateFontStyles() =>
+    [
+        CreateFontStyleOption(ViceCityFontStyle.Bank, "Bank"),
+        CreateFontStyleOption(ViceCityFontStyle.Standard, "Standard"),
+        CreateFontStyleOption(ViceCityFontStyle.Heading, "Heading"),
+    ];
+
+    private ViceCityFontStyleOption CreateFontStyleOption(
+        ViceCityFontStyle style,
+        string resourceSuffix) => new(
+            style,
+            _localization.Get($"Txd.Preview.Style.{resourceSuffix}"));
+
     private FontRenderContextOption[] CreateRenderContexts() =>
     [
         CreateRenderContextOption(FontRenderContext.Default, "Default"),
@@ -810,7 +827,6 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         CreateRenderContextOption(FontRenderContext.MainMenu, "MainMenu"),
         CreateRenderContextOption(FontRenderContext.SaveLoad, "SaveLoad"),
         CreateRenderContextOption(FontRenderContext.ExitConfirmation, "ExitConfirmation"),
-        CreateRenderContextOption(FontRenderContext.Heading, "Heading"),
     ];
 
     private FontRenderContextOption CreateRenderContextOption(
@@ -910,6 +926,8 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
 public sealed record GlyphPreviewItem(GlyphCell Cell, ImageSource Image, string Label);
 
 public sealed record CharacterMapApplyModeOption(CharacterMapApplyMode Mode, string DisplayName);
+
+public sealed record ViceCityFontStyleOption(ViceCityFontStyle Style, string DisplayName);
 
 public sealed record FontRenderContextOption(FontRenderContext Context, string DisplayName);
 

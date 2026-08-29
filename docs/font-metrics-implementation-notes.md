@@ -127,10 +127,10 @@ The disassembly writes the invariant `font2` values at row-0 indices 113 (`Т`) 
 
 `Heading` must not be implemented as another ordinary `0x91`/`0xA8` override. Vice City's `SetFontStyle(FONT_HEADING)` selects the `FONT_BANK`/row-1 metrics and enables half-texture routing; `FindNewCharacter` then maps both Belarusian `Т` and `т` to metric index 198. The effective heading advance for either character is therefore row 1, index 198 = **18**.
 
-Consequences for a future resolver:
+Consequences implemented by the editor resolver:
 
 - For normal contexts, resolve `index = code - 0x20`, then apply the sparse override for the selected context.
-- For `Heading`, first apply the heading character remap and only then read the metric row. Treating `Heading` as `{ code: 0x91/0xA8, advance: 18 }` may reproduce width for those two characters but hides the game's actual routing and is unsafe as a general contract.
+- For `Heading`, the preview first applies the complete `FindNewCharacter` remap and only then reads the metric row. The persisted `{ code: 0x91/0xA8, advance: 18 }` entries remain version-1 round-trip compatibility data and are not exposed as a runtime metrics context.
 - `Gameplay` and `Subtitles` are separate useful preview labels but currently share one ASI runtime mode and the same effective metrics.
 - `MainMenu` equals the canonical base for `Т/т`; it requires no sparse override if `Default` is the extracted table.
 

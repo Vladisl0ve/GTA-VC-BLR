@@ -19,6 +19,13 @@ public sealed class FontMetricsFileSerializerTests
             Code = 0x91,
             Advance = 13,
         });
+        profile.Overrides.Add(new FontMetricOverride
+        {
+            Context = FontRenderContext.Heading,
+            Font = FontTextureKind.Font1,
+            Code = 0xA8,
+            Advance = 18,
+        });
 
         var data = FontMetricsFileSerializer.Serialize(profile);
         var json = Encoding.UTF8.GetString(data);
@@ -30,11 +37,15 @@ public sealed class FontMetricsFileSerializerTests
         Assert.HasCount(FontMetricsTable.MetricCount, loaded.Font1.Advances);
         CollectionAssert.AreEqual(profile.Font2.Advances, loaded.Font2.Advances);
         CollectionAssert.AreEqual(profile.Font1.Advances, loaded.Font1.Advances);
-        Assert.HasCount(1, loaded.Overrides);
+        Assert.HasCount(2, loaded.Overrides);
         Assert.AreEqual(FontRenderContext.Gameplay, loaded.Overrides[0].Context);
         Assert.AreEqual(FontTextureKind.Font1, loaded.Overrides[0].Font);
         Assert.AreEqual((byte)0x91, loaded.Overrides[0].Code);
         Assert.AreEqual((ushort)13, loaded.Overrides[0].Advance);
+        Assert.AreEqual(FontRenderContext.Heading, loaded.Overrides[1].Context);
+        Assert.AreEqual(FontTextureKind.Font1, loaded.Overrides[1].Font);
+        Assert.AreEqual((byte)0xA8, loaded.Overrides[1].Code);
+        Assert.AreEqual((ushort)18, loaded.Overrides[1].Advance);
     }
 
     [TestMethod]

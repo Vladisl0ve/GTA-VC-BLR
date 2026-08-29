@@ -2,7 +2,9 @@ namespace GTA_GXT_Editor.Models;
 
 public sealed record FontMetricResolution(
     int MetricIndex,
-    byte RoutedCode,
+    byte MetricCode,
+    byte GlyphCode,
+    ViceCityFontStyle Style,
     FontTextureKind EffectiveFont,
     ushort BaseAdvance,
     ushort? ContextOverride,
@@ -44,6 +46,7 @@ public sealed record GameFontPreviewIssue(
 public sealed record GameFontLayoutResult(
     IReadOnlyList<PositionedGlyph> Glyphs,
     IReadOnlyList<GameFontPreviewIssue> Issues,
+    ViceCityFontStyle Style,
     FontTextureKind Font,
     FontRenderContext Context,
     int Scale,

@@ -42,7 +42,7 @@ be inferred from one another:
 | Data | Question it answers | Source |
 | --- | --- | --- |
 | Character mapping | Which GXT byte represents a Unicode character? | `.gxtmap.json` / `CharacterMapProfile` |
-| Glyph bitmap | Which pixels are drawn for that byte? | the selected `font1` or `font2` texture in `fonts.txd` |
+| Glyph bitmap | Which pixels are drawn for that byte? | the texture selected by the GTA style in `fonts.txd` |
 | Font metrics | How far does the pen move after the glyph? | `.fontmetrics.json` / ASI metric tables and context overrides |
 
 The preview therefore encodes text through the active character mapping, copies
@@ -60,9 +60,11 @@ code range  = 0x20..0xF1 (210 entries per row)
 
 Physical row 0 belongs to `font2`; physical row 1 belongs to `font1`. Sparse
 overrides model the effective `Default`, `Gameplay`, `Subtitles`, `MainMenu`,
-`SaveLoad`, `ExitConfirmation`, and `Heading` contexts. The bundled Heading
-entries for Belarusian `Т/т` preserve their effective advance only; Vice City
-actually remaps those two characters before reading the metric row.
+`SaveLoad`, and `ExitConfirmation` runtime metrics contexts. Font style is an
+independent choice: `Bank` uses `font2`, `Standard` uses `font1`, and `Heading`
+uses `font1` after applying Vice City's complete `FindNewCharacter` routing.
+Selecting `font1` or `font2` in the atlas browser does not change the game-font
+preview. Version-1 Heading overrides remain load/save compatibility data only.
 
 ## What is built in for each language
 

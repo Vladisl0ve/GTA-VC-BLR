@@ -8,8 +8,8 @@ hexadecimal byte code used by the character map.
 
 The two `Heading` entries for Belarusian `Т` (`0x91`) and `т` (`0xA8`) are a
 deliberately narrow compatibility representation of their effective advance 18.
-They are not a general description of Vice City's heading routing. The game first
-remaps both characters to metric index 198 and then reads row 1 (`font1`), whose
-canonical advance at that index is 18. A resolver that models heading behavior
-beyond these two characters must implement that remap explicitly rather than
-generalizing the compatibility overrides.
+They are retained so version-1 files and BYX projects continue to round-trip; they
+are not a runtime metrics context in the preview. `Heading` is a Vice City font
+style. The resolver applies the game's complete `FindNewCharacter` routing before
+reading row 1 (`font1`) or looking up a runtime-context override. Both Belarusian
+characters consequently route to metric index 198, whose canonical advance is 18.

@@ -17,7 +17,7 @@ public sealed class GameFontPreviewService
         TxdTexture texture,
         CharacterMapProfile characterMap,
         FontMetricsProfile metrics,
-        FontTextureKind font,
+        ViceCityFontStyle style,
         FontRenderContext context = FontRenderContext.Default,
         int scale = 1)
     {
@@ -27,10 +27,13 @@ public sealed class GameFontPreviewService
         ArgumentNullException.ThrowIfNull(metrics);
         ValidateScale(scale);
 
-        var fatalIssues = ValidateInputs(texture, characterMap, metrics, font, context);
+        var font = Enum.IsDefined(style)
+            ? FontMetricsService.GetEffectiveFont(style)
+            : default;
+        var fatalIssues = ValidateInputs(texture, characterMap, metrics, style, context);
         if (fatalIssues.Count > 0)
         {
-            return EmptyLayout(font, context, scale, fatalIssues);
+            return EmptyLayout(style, font, context, scale, fatalIssues);
         }
 
         var atlas = _atlasCaches.GetValue(texture, CreateAtlasCache);
@@ -74,7 +77,7 @@ public sealed class GameFontPreviewService
             FontMetricResolution metric;
             try
             {
-                metric = FontMetricsService.Resolve(metrics, font, code, context);
+                metric = FontMetricsService.Resolve(metrics, style, code, context);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -87,14 +90,14 @@ public sealed class GameFontPreviewService
                 continue;
             }
 
-            if (!atlas.CellsByCode.TryGetValue(metric.RoutedCode, out var cell))
+            if (!atlas.CellsByCode.TryGetValue(metric.GlyphCode, out var cell))
             {
                 issues.Add(new GameFontPreviewIssue(
                     GameFontPreviewIssueKind.GlyphUnavailable,
                     characterIndex,
-                    $"Code 0x{metric.RoutedCode:X2} for character \"{character}\" has no glyph in texture {texture.Name}.",
+                    $"Code 0x{metric.GlyphCode:X2} for character \"{character}\" has no glyph in texture {texture.Name}.",
                     character,
-                    metric.RoutedCode));
+                    metric.GlyphCode));
                 continue;
             }
 
@@ -102,7 +105,7 @@ public sealed class GameFontPreviewService
             var glyph = new PositionedGlyph(
                 character,
                 code,
-                metric.RoutedCode,
+                metric.GlyphCode,
                 cell,
                 x,
                 y,
@@ -122,6 +125,7 @@ public sealed class GameFontPreviewService
         return new GameFontLayoutResult(
             glyphs.ToArray(),
             issues.ToArray(),
+            style,
             font,
             context,
             scale,
@@ -145,7 +149,7 @@ public sealed class GameFontPreviewService
             return new GameFontPreviewBitmap(0, 0, 0, []);
         }
 
-        var expectedName = GetTextureName(layout.Font);
+        var expectedName = FontMetricsService.GetTextureName(layout.Font);
         if (!texture.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
@@ -189,11 +193,11 @@ public sealed class GameFontPreviewService
         TxdTexture texture,
         CharacterMapProfile characterMap,
         FontMetricsProfile metrics,
-        FontTextureKind font,
+        ViceCityFontStyle style,
         FontRenderContext context)
     {
         var issues = new List<GameFontPreviewIssue>();
-        if (!Enum.IsDefined(font) || !Enum.IsDefined(context))
+        if (!Enum.IsDefined(style) || !FontMetricsService.IsRuntimeContext(context))
         {
             issues.Add(new GameFontPreviewIssue(
                 GameFontPreviewIssueKind.UnsupportedFont,
@@ -202,21 +206,14 @@ public sealed class GameFontPreviewService
             return issues;
         }
 
-        var expectedName = GetTextureName(font);
+        var font = FontMetricsService.GetEffectiveFont(style);
+        var expectedName = FontMetricsService.GetTextureName(font);
         if (!texture.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase) || !texture.IsFontAtlas)
         {
             issues.Add(new GameFontPreviewIssue(
                 GameFontPreviewIssueKind.UnsupportedFont,
                 -1,
                 $"Texture {texture.Name} cannot be used as Vice City {expectedName}."));
-        }
-
-        if (context == FontRenderContext.Heading && font != FontTextureKind.Font1)
-        {
-            issues.Add(new GameFontPreviewIssue(
-                GameFontPreviewIssueKind.UnsupportedFont,
-                -1,
-                "Vice City heading rendering uses font1 metrics and texture routing."));
         }
 
         foreach (var message in FontMetricsValidator.Validate(metrics))
@@ -239,12 +236,14 @@ public sealed class GameFontPreviewService
     }
 
     private static GameFontLayoutResult EmptyLayout(
+        ViceCityFontStyle style,
         FontTextureKind font,
         FontRenderContext context,
         int scale,
         IReadOnlyList<GameFontPreviewIssue> issues) => new(
             [],
             issues,
+            style,
             font,
             context,
             scale,
@@ -380,12 +379,16 @@ public sealed class GameFontPreviewService
 
         var destinationAlpha = target[targetOffset + 3];
         var inverseSourceAlpha = byte.MaxValue - sourceAlpha;
-        var outputAlpha = sourceAlpha + ((destinationAlpha * inverseSourceAlpha + 127) / 255);
+        var outputAlphaNumerator =
+            sourceAlpha * byte.MaxValue + destinationAlpha * inverseSourceAlpha;
+        var outputAlpha = (outputAlphaNumerator + 127) / byte.MaxValue;
         for (var channel = 0; channel < 3; channel++)
         {
-            var premultiplied = source[sourceOffset + channel] * sourceAlpha +
-                ((target[targetOffset + channel] * destinationAlpha * inverseSourceAlpha + 127) / 255);
-            target[targetOffset + channel] = checked((byte)((premultiplied + outputAlpha / 2) / outputAlpha));
+            var outputChannelNumerator =
+                source[sourceOffset + channel] * sourceAlpha * byte.MaxValue +
+                target[targetOffset + channel] * destinationAlpha * inverseSourceAlpha;
+            target[targetOffset + channel] = checked((byte)(
+                (outputChannelNumerator + outputAlphaNumerator / 2) / outputAlphaNumerator));
         }
 
         target[targetOffset + 3] = checked((byte)outputAlpha);
@@ -407,13 +410,6 @@ public sealed class GameFontPreviewService
             target[offset + 3] = 0xFF;
         }
     }
-
-    private static string GetTextureName(FontTextureKind font) => font switch
-    {
-        FontTextureKind.Font1 => "font1",
-        FontTextureKind.Font2 => "font2",
-        _ => throw new ArgumentOutOfRangeException(nameof(font), font, "Unsupported font texture kind."),
-    };
 
     private static void ValidateScale(int scale)
     {

@@ -195,6 +195,12 @@
                     <TextBox Width="330" Margin="0,0,12,0" Padding="6,3"
                              Text="{Binding PreviewText, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock Margin="0,0,6,0" VerticalAlignment="Center"
+                               Text="{loc:Translate Txd.Preview.Style}" />
+                    <ComboBox Width="145" Margin="0,0,12,0" Padding="6,3"
+                              ItemsSource="{Binding FontStyles}"
+                              SelectedItem="{Binding SelectedFontStyle}"
+                              DisplayMemberPath="DisplayName" />
+                    <TextBlock Margin="0,0,6,0" VerticalAlignment="Center"
                                Text="{loc:Translate Txd.Preview.Context}" />
                     <ComboBox Width="145" Margin="0,0,12,0" Padding="6,3"
                               ItemsSource="{Binding RenderContexts}"

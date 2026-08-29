@@ -119,7 +119,8 @@
   <data name="Txd.OutOfRange" xml:space="preserve"><value>Па-за дыяпазонам</value></data>
   <data name="Txd.Preview.Title" xml:space="preserve"><value>Перадпрагляд гульнявога шрыфта</value></data>
   <data name="Txd.Preview.Text" xml:space="preserve"><value>Тэкст перадпрагляду</value></data>
-  <data name="Txd.Preview.Context" xml:space="preserve"><value>Кантэкст</value></data>
+  <data name="Txd.Preview.Style" xml:space="preserve"><value>Стыль GTA</value></data>
+  <data name="Txd.Preview.Context" xml:space="preserve"><value>Кантэкст метрык</value></data>
   <data name="Txd.Preview.Scale" xml:space="preserve"><value>Маштаб</value></data>
   <data name="Txd.Preview.ScaleOption" xml:space="preserve"><value>{0}×</value></data>
   <data name="Txd.Preview.ShowGuides" xml:space="preserve"><value>Паказваць межы метрык</value></data>
@@ -140,10 +141,14 @@
   <data name="Txd.Preview.Context.SaveLoad" xml:space="preserve"><value>Захаванне/загрузка</value></data>
   <data name="Txd.Preview.Context.ExitConfirmation" xml:space="preserve"><value>Пацвярджэнне выхаду</value></data>
   <data name="Txd.Preview.Context.Heading" xml:space="preserve"><value>Загаловак</value></data>
+  <data name="Txd.Preview.Style.Bank" xml:space="preserve"><value>Банк (font2)</value></data>
+  <data name="Txd.Preview.Style.Standard" xml:space="preserve"><value>Стандартны (font1)</value></data>
+  <data name="Txd.Preview.Style.Heading" xml:space="preserve"><value>Загаловак (font1)</value></data>
   <data name="Txd.Preview.DefaultText" xml:space="preserve"><value>ВАЙС-СІЦІ Вайс-Сіці Тт Ўў</value></data>
   <data name="Txd.Preview.UnavailableForGame" xml:space="preserve"><value>Перадпрагляд з гульнявымі метрыкамі даступны толькі для GTA Vice City.</value></data>
   <data name="Txd.Preview.MissingMetrics" xml:space="preserve"><value>Метрыкі шрыфта не загружаныя. Імпартуйце іх або выкарыстайце ўбудаваны беларускі профіль.</value></data>
   <data name="Txd.Preview.ChooseFont" xml:space="preserve"><value>Выберыце тэкстуру font1 або font2.</value></data>
+  <data name="Txd.Preview.MissingTexture" xml:space="preserve"><value>Для выбранага стылю GTA патрэбная тэкстура {0}, але яна адсутнічае.</value></data>
   <data name="Txd.Preview.Ready" xml:space="preserve"><value>Гліфаў: {0}; гульнявы крок: {1} пкс; шырыня выявы: {2} пкс.</value></data>
   <data name="Txd.Preview.Failed" xml:space="preserve"><value>Не ўдалося стварыць перадпрагляд: {0}</value></data>
   <data name="Txd.Preview.Issue.CharacterCannotBeEncoded" xml:space="preserve"><value>Сімвал «{0}» нельга закадаваць бягучым мапінгам.</value></data>

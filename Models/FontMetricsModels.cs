@@ -74,6 +74,13 @@ public enum FontTextureKind
     Font2,
 }
 
+public enum ViceCityFontStyle
+{
+    Bank,
+    Standard,
+    Heading,
+}
+
 public static class FontMetricsPresets
 {
     public static FontMetricsProfile BelarusianViceCity =>
