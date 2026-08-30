@@ -96,6 +96,8 @@ public sealed class DocumentWorkflow(
             AttachedTxd = attachment,
             CharacterMap = project.CharacterMap?.Clone(),
             FontMetrics = project.FontMetrics?.Clone(),
+            AsiFontProfileBinding = project.AsiFontProfileBinding?.Clone(),
+            AsiFontProfileState = project.AsiFontProfileState?.Clone(),
             Metadata = metadata,
             InstallerProfile = project.InstallerProfile?.Clone(),
             IsDirty = project.IsDirty,

@@ -91,7 +91,10 @@ public sealed record CharacterMapEditorRequest(
     IReadOnlyList<string> CurrentTexts,
     IReadOnlyList<byte[]> RawValues,
     GxtLanguage Language,
-    FontMetricsProfile? FontMetrics = null);
+    FontMetricsProfile? FontMetrics = null,
+    CharacterMapProfile? AsiBaseCharacterMap = null,
+    FontMetricsProfile? AsiBaseFontMetrics = null,
+    string? AsiProfileStatus = null);
 
 public sealed record CharacterMapEditorResult(
     CharacterMapProfile Profile,

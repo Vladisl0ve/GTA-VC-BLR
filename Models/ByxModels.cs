@@ -27,6 +27,8 @@ public sealed class ByxManifest
 
     public ByxArchiveItem? FontMetrics { get; set; }
 
+    public ByxArchiveItem? AsiFontProfileBinding { get; set; }
+
     public ByxArchiveItem Metadata { get; set; } = null!;
 
     public ByxInstallerItem? Installer { get; set; }

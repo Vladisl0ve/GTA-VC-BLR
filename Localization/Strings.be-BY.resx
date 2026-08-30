@@ -267,6 +267,12 @@
   <data name="Message.ApplyMappingQuestion" xml:space="preserve"><value>Ужыць профіль?</value></data>
   <data name="Message.ApplyMappingTitle" xml:space="preserve"><value>Ужыванне мапінга</value></data>
   <data name="Message.ApplyMappingFailed" xml:space="preserve"><value>Не ўдалося ўжыць мапінг.&#xA;&#xA;{0}</value></data>
+  <data name="Message.AsiSyncFailed" xml:space="preserve"><value>Не ўдалося сінхранізаваць шрыфтавы профіль прывязанага Main ASI. Папярэдні стан праекта захаваны.&#xA;&#xA;{0}</value></data>
+  <data name="Asi.Status.None" xml:space="preserve"><value>Крыніца шрыфту: Main ASI не прывязаны; дзейнічаюць ручныя профілі.</value></data>
+  <data name="Asi.Status.Unknown" xml:space="preserve"><value>Крыніца шрыфту: Main ASI SHA-256 {0}…; аўтаматычная карэкцыя недаступная.</value></data>
+  <data name="Asi.Status.Recognized" xml:space="preserve"><value>Крыніца шрыфту: Main ASI {0}, SHA-256 {1}…, давер {2}; змены: мапінг {3}, метрыкі {4}.</value></data>
+  <data name="Txd.AsiBaseMapping" xml:space="preserve"><value>Мапінг ASI</value></data>
+  <data name="Txd.Metrics.UseAsi" xml:space="preserve"><value>Скінуць да прывязанага ASI</value></data>
   <data name="Message.ExportJsonFailed" xml:space="preserve"><value>Не ўдалося экспартаваць JSON.&#xA;&#xA;{0}</value></data>
   <data name="Message.CommentsSummary" xml:space="preserve"><value>Абноўлена: {0}; выдалена: {1}; без змен: {2}; няма ў GXT: {3}; тэкст адрозніваецца: {4}.</value></data>
   <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Не ўдалося імпартаваць каментары.&#xA;&#xA;{0}</value></data>

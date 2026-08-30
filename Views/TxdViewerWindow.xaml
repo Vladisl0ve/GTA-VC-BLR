@@ -66,6 +66,9 @@
                 <TextBlock VerticalAlignment="Center" FontWeight="SemiBold"
                            Text="{Binding Attachment.DisplayName, StringFormat='TXD: {0}'}" />
                 <TextBlock Margin="0,3,0,0" Opacity="0.7" Text="{Binding VerificationText}" />
+                <TextBlock Margin="0,3,0,0" Opacity="0.75" TextWrapping="Wrap"
+                           Text="{Binding AsiProfileStatus}"
+                           Visibility="{Binding HasAsiProfileStatus, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button Margin="8,0,0,0" Padding="12,6" Content="{loc:Translate Txd.Import}"
@@ -74,6 +77,8 @@
                         Command="{Binding ExportProfileCommand}" />
                 <Button Margin="8,0,0,0" Padding="12,6" Content="{loc:Translate Txd.BelarusianPreset}"
                         Command="{Binding UseBelarusianPresetCommand}" />
+                <Button Margin="8,0,0,0" Padding="12,6" Content="{loc:Translate Txd.AsiBaseMapping}"
+                        Command="{Binding UseAsiCharacterMapCommand}" />
                 <Button Margin="8,0,0,0" Padding="12,6" Content="{loc:Translate Common.Reset}"
                         Command="{Binding ResetProfileCommand}" />
             </StackPanel>
@@ -224,6 +229,8 @@
                             <Separator />
                             <MenuItem Header="{loc:Translate Txd.Metrics.UseBelarusian}"
                                       Command="{Binding UseBelarusianFontMetricsCommand}" />
+                            <MenuItem Header="{loc:Translate Txd.Metrics.UseAsi}"
+                                      Command="{Binding UseAsiFontMetricsCommand}" />
                             <MenuItem Header="{loc:Translate Txd.Metrics.Reset}"
                                       Command="{Binding ResetFontMetricsCommand}" />
                         </MenuItem>

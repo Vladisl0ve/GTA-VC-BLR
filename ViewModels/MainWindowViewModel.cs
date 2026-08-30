@@ -22,6 +22,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IAppSettingsStore _appSettings;
     private readonly IInstallerExportService _installerExportService;
     private readonly IReleaseZipExportService _releaseZipExportService;
+    private readonly IAsiProjectFontProfileService _asiFontProfileService;
 
     private string DocumentFileFilter => _localization.Get("Filter.Document");
     private string GxtFileFilter => _localization.Get("Filter.Gxt");
@@ -60,7 +61,8 @@ public partial class MainWindowViewModel : ObservableObject
         ILocalizationService? localization = null,
         IAppSettingsStore? appSettings = null,
         IInstallerExportService? installerExportService = null,
-        IReleaseZipExportService? releaseZipExportService = null)
+        IReleaseZipExportService? releaseZipExportService = null,
+        IAsiProjectFontProfileService? asiFontProfileService = null)
     {
         _dialogs = dialogs;
         _localization = localization ?? LocalizationProvider.Current;
@@ -68,6 +70,7 @@ public partial class MainWindowViewModel : ObservableObject
         _installerExportService = installerExportService ?? new InnoInstallerExportService();
         _releaseZipExportService = releaseZipExportService ??
             new ReleaseZipExportService(_installerExportService);
+        _asiFontProfileService = asiFontProfileService ?? new AsiProjectFontProfileService();
         var resolvedTxdReader = txdReader ?? new TxdReader();
         var resolvedProjectSerializer = projectSerializer ??
             new ByxProjectSerializer(managerFactory, resolvedTxdReader);
@@ -664,7 +667,10 @@ public partial class MainWindowViewModel : ObservableObject
             return Task.CompletedTask;
         }
 
-        ApplyInstallerProfile(result.Profile);
+        if (!ApplyInstallerProfile(result.Profile))
+        {
+            return Task.CompletedTask;
+        }
         var targetPath = _dialogs.SaveFile(
             _localization.Get("Dialog.ExportInstaller"),
             InstallerFileFilter,
@@ -708,7 +714,10 @@ public partial class MainWindowViewModel : ObservableObject
             return Task.CompletedTask;
         }
 
-        ApplyInstallerProfile(result.Profile);
+        if (!ApplyInstallerProfile(result.Profile))
+        {
+            return Task.CompletedTask;
+        }
         var suggestedName = Path.GetFileNameWithoutExtension(result.Profile.OutputFileName) + ".zip";
         var targetPath = _dialogs.SaveFile(
             _localization.Get("Dialog.ExportReleaseZip"),
@@ -754,7 +763,10 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        ApplyInstallerProfile(result.Profile);
+        if (!ApplyInstallerProfile(result.Profile))
+        {
+            return;
+        }
         SetStatus("Status.InstallerProfileUpdated", InstallerAssetCount);
     }
 
@@ -773,16 +785,27 @@ public partial class MainWindowViewModel : ObservableObject
             new InstallerProfileEditorRequest(profile, suggestedDirectory, mode));
     }
 
-    private void ApplyInstallerProfile(InstallerProfile profile)
+    private bool ApplyInstallerProfile(InstallerProfile profile)
     {
         if (_project is null)
         {
-            return;
+            return false;
         }
 
-        _project.InstallerProfile = profile.Clone();
-        OnInstallerProfileChanged();
-        SetDirty(true);
+        try
+        {
+            var clone = profile.Clone();
+            _asiFontProfileService.Synchronize(_project, clone);
+            _project.InstallerProfile = clone;
+            OnInstallerProfileChanged();
+            SetDirty(true);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(_localization.Format("Message.AsiSyncFailed", exception.Message));
+            return false;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanUseDocument))]
@@ -1138,6 +1161,16 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        try
+        {
+            _asiFontProfileService.Synchronize(_project);
+        }
+        catch (Exception exception)
+        {
+            _dialogs.ShowError(_localization.Format("Message.AsiSyncFailed", exception.Message));
+            return;
+        }
+
         var profile = _project.CharacterMap?.Clone() ?? _manager.CharacterMap.Clone();
         var result = _dialogs.EditCharacterMap(new CharacterMapEditorRequest(
             AttachedTxd,
@@ -1146,7 +1179,10 @@ public partial class MainWindowViewModel : ObservableObject
             Entries.Select(entry => entry.Text).ToArray(),
             _manager.GXTEntries.Select(entry => entry.Value.ToArray()).ToArray(),
             _manager.Language,
-            _project.FontMetrics));
+            _project.FontMetrics,
+            _project.AsiFontProfileState?.BaseCharacterMap,
+            _project.AsiFontProfileState?.BaseFontMetrics,
+            _asiFontProfileService.GetStatus(_project, _localization)));
         if (result is null)
         {
             return;
@@ -1188,10 +1224,12 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             _characterMapWorkflow.Apply(_manager, result.Profile, result.ApplyMode);
-            _project.CharacterMap = result.Profile.Clone();
-            _project.CharacterMap.IsVerified = true;
-            _project.FontMetrics = result.FontMetrics?.Clone();
-            _project.UsesCustomDictionary = true;
+            var effectiveMap = result.Profile.Clone();
+            effectiveMap.IsVerified = true;
+            _asiFontProfileService.UpdateEffectiveProfiles(
+                _project,
+                effectiveMap,
+                result.FontMetrics);
             SetDirty(true);
             RefreshEntries();
             if (result.ApplyMode == CharacterMapApplyMode.Interpret)
@@ -1796,6 +1834,7 @@ public partial class MainWindowViewModel : ObservableObject
         bool clearTransientState = false)
     {
         ArgumentNullException.ThrowIfNull(project);
+        _asiFontProfileService.Synchronize(project);
         if (clearTransientState)
         {
             ClearComparisons();

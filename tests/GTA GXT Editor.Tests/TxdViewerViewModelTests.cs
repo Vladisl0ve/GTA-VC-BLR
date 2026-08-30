@@ -106,6 +106,31 @@ public sealed class TxdViewerViewModelTests
     }
 
     [TestMethod]
+    public void LinkedAsiCommands_ResetMappingAndMetricsToBaseProfile()
+    {
+        var effectiveMetrics = CreateMetrics(defaultAdvance: 9);
+        var asiMetrics = CreateMetrics(defaultAdvance: 3);
+        var viewModel = new TxdViewerViewModel(CreateRequest(
+            GXTType.GtaViceCity,
+            profile: Map('Я', 0x80),
+            metrics: effectiveMetrics,
+            asiBaseMap: Map('Ж', 0x80),
+            asiBaseMetrics: asiMetrics,
+            asiStatus: "Main ASI 1.2.34"));
+
+        Assert.IsTrue(viewModel.UseAsiCharacterMapCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.UseAsiFontMetricsCommand.CanExecute(null));
+        Assert.AreEqual("Main ASI 1.2.34", viewModel.AsiProfileStatus);
+        viewModel.UseAsiCharacterMapCommand.Execute(null);
+        viewModel.UseAsiFontMetricsCommand.Execute(null);
+
+        Assert.AreEqual('Ж', viewModel.Profile.ToDecodeMap()[0x80]);
+        Assert.AreEqual(
+            (ushort)3,
+            viewModel.FontMetrics!.Font1.Advances[FontMetricsService.GetMetricIndex((byte)'A')]);
+    }
+
+    [TestMethod]
     public void Preview_StyleContextScaleAndGuidesRefreshIndependentlyFromSelectedAtlas()
     {
         var metrics = CreateMetrics(defaultAdvance: 1);
@@ -321,7 +346,10 @@ public sealed class TxdViewerViewModelTests
         CharacterMapProfile? profile = null,
         FontMetricsProfile? metrics = null,
         bool malformedTextures = false,
-        bool includeFont2 = true) => new(
+        bool includeFont2 = true,
+        CharacterMapProfile? asiBaseMap = null,
+        FontMetricsProfile? asiBaseMetrics = null,
+        string? asiStatus = null) => new(
         new TxdAttachment
         {
             Id = Guid.NewGuid(),
@@ -350,7 +378,10 @@ public sealed class TxdViewerViewModelTests
         [],
         [],
         GxtLanguage.English,
-        metrics);
+        metrics,
+        asiBaseMap,
+        asiBaseMetrics,
+        asiStatus);
 
     private static CharacterMapProfile Map(char character, byte code) => new()
     {

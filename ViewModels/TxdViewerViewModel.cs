@@ -17,6 +17,8 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private readonly ILocalizationService _localization;
     private readonly GameFontPreviewService _previewService = new();
     private readonly FontMetricsProfile? _initialFontMetrics;
+    private readonly CharacterMapProfile? _asiBaseCharacterMap;
+    private readonly FontMetricsProfile? _asiBaseFontMetrics;
     private CharacterMapProfile _profile;
     private FontMetricsProfile? _fontMetrics;
 
@@ -31,6 +33,8 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         _localization = localization ?? LocalizationProvider.Current;
         _profile = request.Profile.Clone();
         _initialFontMetrics = request.FontMetrics?.Clone();
+        _asiBaseCharacterMap = request.AsiBaseCharacterMap?.Clone();
+        _asiBaseFontMetrics = request.AsiBaseFontMetrics?.Clone();
         _fontMetrics = _initialFontMetrics?.Clone();
         Attachment = request.Attachment;
         ApplyModes = CreateApplyModes();
@@ -76,6 +80,10 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     public CharacterMapProfile Profile => _profile;
 
     public FontMetricsProfile? FontMetrics => _fontMetrics;
+
+    public string? AsiProfileStatus => _request.AsiProfileStatus;
+
+    public bool HasAsiProfileStatus => !string.IsNullOrWhiteSpace(AsiProfileStatus);
 
     public bool IsGameFontPreviewAvailable => _request.GameType == GXTType.GtaViceCity;
 
@@ -388,6 +396,9 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanUseAsiCharacterMap))]
+    private void UseAsiCharacterMap() => ReplaceProfile(_asiBaseCharacterMap!);
+
     [RelayCommand(CanExecute = nameof(CanImportFontMetrics))]
     private void ImportFontMetrics()
     {
@@ -445,6 +456,9 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanResetFontMetrics))]
     private void ResetFontMetrics() => ReplaceFontMetrics(_initialFontMetrics);
 
+    [RelayCommand(CanExecute = nameof(CanUseAsiFontMetrics))]
+    private void UseAsiFontMetrics() => ReplaceFontMetrics(_asiBaseFontMetrics);
+
     [RelayCommand]
     private void Apply()
     {
@@ -469,6 +483,11 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         CanManageFontMetrics() && CanUseDialogs() && _fontMetrics is not null;
 
     private bool CanResetFontMetrics() => CanManageFontMetrics();
+
+    private bool CanUseAsiCharacterMap() => _asiBaseCharacterMap is not null;
+
+    private bool CanUseAsiFontMetrics() =>
+        CanManageFontMetrics() && _asiBaseFontMetrics is not null;
 
     public void ReplaceProfile(CharacterMapProfile profile)
     {

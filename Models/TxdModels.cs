@@ -117,6 +117,10 @@ public sealed class EditorProject
 
     public FontMetricsProfile? FontMetrics { get; set; }
 
+    public AsiFontProfileBinding? AsiFontProfileBinding { get; set; }
+
+    public AsiFontProfileState? AsiFontProfileState { get; set; }
+
     public ProjectMetadata Metadata { get; set; } = new();
 
     public InstallerProfile? InstallerProfile { get; set; }

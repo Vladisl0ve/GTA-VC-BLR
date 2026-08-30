@@ -178,7 +178,7 @@ public sealed class BinaryContractTests
         _byxSerializer.Save(outputPath, project);
 
         var outputArchive = ReadArchiveEntries(outputPath);
-        AssertByxManifestAndHashes(outputArchive, expectedVersion: 5);
+        AssertByxManifestAndHashes(outputArchive, expectedVersion: 6);
         CollectionAssert.AreEqual(
             File.ReadAllBytes(FixturePath("vice-city-edited.gxt", ViceCityEditedHash)),
             outputArchive["gxt/main.gxt"]);
@@ -264,6 +264,10 @@ public sealed class BinaryContractTests
         {
             expectedProperties.Add("fontMetrics");
         }
+        if (expectedVersion >= 6)
+        {
+            expectedProperties.Add("asiFontProfileBinding");
+        }
 
         AssertObjectProperties(manifest, expectedProperties.ToArray());
         Assert.AreEqual("BYX", manifest["format"]!.GetValue<string>());
@@ -275,6 +279,10 @@ public sealed class BinaryContractTests
         if (expectedVersion >= 5)
         {
             Assert.IsNull(manifest["fontMetrics"]);
+        }
+        if (expectedVersion >= 6)
+        {
+            Assert.IsNull(manifest["asiFontProfileBinding"]);
         }
         Assert.AreEqual("GTA Vice City", manifest["game"]!.GetValue<string>());
         Assert.AreEqual("en", manifest["language"]!.GetValue<string>());

@@ -37,7 +37,7 @@ public sealed class ByxProjectSerializerTests
     }
 
     [TestMethod]
-    public void SaveAndLoad_FullV5Project_PreservesEveryProjectPart()
+    public void SaveAndLoad_FullV6Project_PreservesEveryProjectPart()
     {
         var project = CreateProject();
         var path = Path.Combine(_testDirectory, "translation.byx");
@@ -91,7 +91,7 @@ public sealed class ByxProjectSerializerTests
             archive.Entries.Select(entry => entry.FullName).ToArray());
 
         var manifest = ReadJsonObject(archive, "manifest.json");
-        Assert.AreEqual(5, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(6, manifest["version"]!.GetValue<int>());
         Assert.IsNull(manifest["installer"]);
         Assert.AreEqual("txd/fonts.txd", manifest["txd"]!["entry"]!.GetValue<string>());
         Assert.AreEqual(
@@ -232,7 +232,7 @@ public sealed class ByxProjectSerializerTests
     public void Load_NewerManifestVersion_IsRejected()
     {
         var path = SaveProject();
-        MutateManifest(path, manifest => manifest["version"] = 6);
+        MutateManifest(path, manifest => manifest["version"] = 7);
 
         var exception = Assert.Throws<InvalidDataException>(() => _serializer.Load(path));
 
@@ -252,7 +252,7 @@ public sealed class ByxProjectSerializerTests
         _serializer.Save(migratedPath, loaded);
         using var archive = ZipFile.OpenRead(migratedPath);
         var manifest = ReadJsonObject(archive, "manifest.json");
-        Assert.AreEqual(5, manifest["version"]!.GetValue<int>());
+        Assert.AreEqual(6, manifest["version"]!.GetValue<int>());
         Assert.IsNull(manifest["installer"]);
     }
 

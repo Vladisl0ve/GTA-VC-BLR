@@ -10,20 +10,24 @@ namespace GTA_GXT_Editor.Services;
 
 public sealed class ByxProjectSerializer : IProjectSerializer
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
     private const int OldestSupportedVersion = 3;
     private const int InstallerVersion = 4;
+    private const int FontMetricsVersion = 5;
+    private const int AsiBindingVersion = 6;
     private const string ManifestEntryName = "manifest.json";
     private const string GxtEntryName = "gxt/main.gxt";
     private const string TxdEntryName = "txd/fonts.txd";
     private const string CharacterMapEntryName = "mapping/characters.json";
     private const string FontMetricsEntryName = "font/metrics.json";
+    private const string AsiBindingEntryName = "font/asi-binding.json";
     private const string MetadataEntryName = "metadata/entries.json";
     private const string InstallerProfileEntryName = "installer/profile.json";
     private const long MaximumArchiveSize = 1024L * 1024 * 1024;
     private const long MaximumManifestSize = 1024 * 1024;
     private const long MaximumCharacterMapSize = 4L * 1024 * 1024;
     private const long MaximumFontMetricsSize = 1024 * 1024;
+    private const long MaximumAsiBindingSize = 1024 * 1024;
     private const long MaximumMetadataSize = 64L * 1024 * 1024;
     private const int MaximumEntries = 520;
 
@@ -42,11 +46,16 @@ public sealed class ByxProjectSerializer : IProjectSerializer
 
     private readonly GxtManagerFactory _gxtManagerFactory;
     private readonly ITxdReader _txdReader;
+    private readonly IAsiProjectFontProfileService _asiFontProfileService;
 
-    public ByxProjectSerializer(GxtManagerFactory gxtManagerFactory, ITxdReader txdReader)
+    public ByxProjectSerializer(
+        GxtManagerFactory gxtManagerFactory,
+        ITxdReader txdReader,
+        IAsiProjectFontProfileService? asiFontProfileService = null)
     {
         _gxtManagerFactory = gxtManagerFactory;
         _txdReader = txdReader;
+        _asiFontProfileService = asiFontProfileService ?? new AsiProjectFontProfileService();
     }
 
     public EditorProject Load(string path)
@@ -126,8 +135,12 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var installerProfile = manifest.Installer is null
             ? null
             : LoadInstallerProfile(archive, manifest.Installer);
+        var asiBinding = manifest.AsiFontProfileBinding is null
+            ? null
+            : LoadAsiBinding(archive, manifest.AsiFontProfileBinding);
+        ValidateBindingSource(asiBinding, installerProfile);
 
-        return new EditorProject
+        var project = new EditorProject
         {
             ProjectPath = path,
             GxtSourceName = manifest.Gxt.OriginalFileName,
@@ -138,10 +151,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             AttachedTxd = attachment,
             CharacterMap = characterMap,
             FontMetrics = fontMetrics,
+            AsiFontProfileBinding = asiBinding,
             Metadata = metadata,
             InstallerProfile = installerProfile,
             IsDirty = false,
         };
+        _asiFontProfileService.Synchronize(project);
+        return project;
     }
 
     public void Save(string path, EditorProject project)
@@ -167,6 +183,9 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         var fontMetricsData = project.FontMetrics is null
             ? null
             : FontMetricsFileSerializer.Serialize(project.FontMetrics);
+        var asiBindingData = project.AsiFontProfileBinding is null
+            ? null
+            : AsiFontProfileBindingSerializer.Serialize(project.AsiFontProfileBinding);
         var metadataData = ProjectMetadataJsonSerializer.Serialize(
             project.Metadata,
             project.GameType);
@@ -223,6 +242,13 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                     Entry = FontMetricsEntryName,
                     Sha256 = ComputeHash(fontMetricsData),
                 },
+            AsiFontProfileBinding = asiBindingData is null
+                ? null
+                : new ByxArchiveItem
+                {
+                    Entry = AsiBindingEntryName,
+                    Sha256 = ComputeHash(asiBindingData),
+                },
             Metadata = new ByxArchiveItem
             {
                 Entry = MetadataEntryName,
@@ -250,6 +276,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             txdData,
             characterMapData,
             fontMetricsData,
+            asiBindingData,
             metadataData,
             installerProfileData,
             installerBinaries);
@@ -292,6 +319,15 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                         archive,
                         FontMetricsEntryName,
                         fontMetricsData,
+                        CompressionLevel.Optimal);
+                }
+
+                if (asiBindingData is not null)
+                {
+                    WriteEntry(
+                        archive,
+                        AsiBindingEntryName,
+                        asiBindingData,
                         CompressionLevel.Optimal);
                 }
 
@@ -343,6 +379,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         {
             throw new InvalidOperationException(LocalizationProvider.Current.Get("Byx.InstallerViceCityOnly"));
         }
+
+        ValidateBindingSource(project.AsiFontProfileBinding, project.InstallerProfile);
     }
 
     private static void ValidateSaveLimits(
@@ -351,6 +389,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         byte[]? txdData,
         byte[]? characterMapData,
         byte[]? fontMetricsData,
+        byte[]? asiBindingData,
         byte[] metadataData,
         byte[]? installerProfileData,
         IReadOnlyList<InstallerStoredBinary> installerBinaries)
@@ -359,6 +398,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
                          (txdData is null ? 0 : 1) +
                          (characterMapData is null ? 0 : 1) +
                          (fontMetricsData is null ? 0 : 1) +
+                         (asiBindingData is null ? 0 : 1) +
                          (installerProfileData is null ? 0 : 1) +
                          installerBinaries.Count;
         var installerAssetsLength = installerBinaries.Sum(binary => binary.Data.LongLength);
@@ -368,6 +408,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             (txdData?.LongLength ?? 0) +
             (characterMapData?.LongLength ?? 0) +
             (fontMetricsData?.LongLength ?? 0) +
+            (asiBindingData?.LongLength ?? 0) +
             metadataData.LongLength +
             (installerProfileData?.LongLength ?? 0) +
             installerAssetsLength);
@@ -375,6 +416,7 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             manifestData.LongLength > MaximumManifestSize ||
             (characterMapData?.LongLength ?? 0) > MaximumCharacterMapSize ||
             (fontMetricsData?.LongLength ?? 0) > MaximumFontMetricsSize ||
+            (asiBindingData?.LongLength ?? 0) > MaximumAsiBindingSize ||
             metadataData.LongLength > MaximumMetadataSize ||
             (installerProfileData?.LongLength ?? 0) > MaximumManifestSize ||
             totalLength > MaximumArchiveSize)
@@ -642,12 +684,27 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         }
     }
 
+    private static AsiFontProfileBinding LoadAsiBinding(
+        ZipArchive archive,
+        ByxArchiveItem item)
+    {
+        var data = ReadValidatedEntry(archive, item, MaximumAsiBindingSize);
+        try
+        {
+            return AsiFontProfileBindingSerializer.Deserialize(data);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidDataException)
+        {
+            throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.InvalidFormat"), exception);
+        }
+    }
+
     private static FontMetricsProfile? GetLegacyFontMetrics(
         int version,
         GXTType gameType,
         CharacterMapProfile? characterMap)
     {
-        if (version >= CurrentVersion ||
+        if (version >= FontMetricsVersion ||
             gameType != GXTType.GtaViceCity ||
             characterMap is null)
         {
@@ -705,7 +762,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
             manifest.Version is < OldestSupportedVersion or > CurrentVersion ||
             manifest.Gxt is null || manifest.Metadata is null ||
             manifest.Version < InstallerVersion && manifest.Installer is not null ||
-            manifest.Version < CurrentVersion && manifest.FontMetrics is not null)
+            manifest.Version < FontMetricsVersion && manifest.FontMetrics is not null ||
+            manifest.Version < AsiBindingVersion && manifest.AsiFontProfileBinding is not null)
         {
             throw new InvalidDataException(LocalizationProvider.Current.Get("Byx.ManifestIncomplete"));
         }
@@ -727,6 +785,15 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (manifest.FontMetrics is not null)
         {
             ValidateArchiveItem(manifest.FontMetrics, FontMetricsEntryName, "font metrics");
+        }
+
+
+        if (manifest.AsiFontProfileBinding is not null)
+        {
+            ValidateArchiveItem(
+                manifest.AsiFontProfileBinding,
+                AsiBindingEntryName,
+                "ASI font-profile binding");
         }
 
         if (manifest.Installer is not null)
@@ -812,6 +879,8 @@ public sealed class ByxProjectSerializer : IProjectSerializer
         if (manifest.Txd is not null && !expected.Add(manifest.Txd.Entry) ||
             manifest.CharacterMap is not null && !expected.Add(manifest.CharacterMap.Entry) ||
             manifest.FontMetrics is not null && !expected.Add(manifest.FontMetrics.Entry) ||
+            manifest.AsiFontProfileBinding is not null &&
+            !expected.Add(manifest.AsiFontProfileBinding.Entry) ||
             manifest.Installer is not null && !expected.Add(manifest.Installer.Entry) ||
             manifest.Installer is not null &&
             manifest.Installer.Assets.Any(asset => !expected.Add(asset.Entry)))
@@ -944,6 +1013,29 @@ public sealed class ByxProjectSerializer : IProjectSerializer
     }
 
     private static string ComputeHash(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
+
+    private static void ValidateBindingSource(
+        AsiFontProfileBinding? binding,
+        InstallerProfile? installerProfile)
+    {
+        if (binding is null)
+        {
+            return;
+        }
+
+        AsiFontProfileBindingService.Validate(binding);
+        var asset = installerProfile?.Assets.SingleOrDefault(item =>
+            item.Id == binding.AsiAssetId && item.Role == InstallerAssetRole.MainAsi);
+        if (asset is null ||
+            !string.Equals(
+                Convert.ToHexString(SHA256.HashData(asset.Data)),
+                binding.AsiSha256,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "The ASI font-profile binding does not match the stored Main ASI asset.");
+        }
+    }
 
     private static string GetInstallerAssetEntryName(Guid id) =>
         $"installer/assets/{id:N}.bin";

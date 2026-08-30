@@ -267,6 +267,12 @@
   <data name="Message.ApplyMappingQuestion" xml:space="preserve"><value>Apply the profile?</value></data>
   <data name="Message.ApplyMappingTitle" xml:space="preserve"><value>Apply mapping</value></data>
   <data name="Message.ApplyMappingFailed" xml:space="preserve"><value>Could not apply the mapping.&#xA;&#xA;{0}</value></data>
+  <data name="Message.AsiSyncFailed" xml:space="preserve"><value>Could not synchronize the linked Main ASI font profile. The previous project state was kept.&#xA;&#xA;{0}</value></data>
+  <data name="Asi.Status.None" xml:space="preserve"><value>Font source: no linked Main ASI; manual profiles are active.</value></data>
+  <data name="Asi.Status.Unknown" xml:space="preserve"><value>Font source: Main ASI SHA-256 {0}…; automatic correction is unavailable.</value></data>
+  <data name="Asi.Status.Recognized" xml:space="preserve"><value>Font source: Main ASI {0}, SHA-256 {1}…, trust {2}; overrides: mapping {3}, metrics {4}.</value></data>
+  <data name="Txd.AsiBaseMapping" xml:space="preserve"><value>ASI mapping</value></data>
+  <data name="Txd.Metrics.UseAsi" xml:space="preserve"><value>Reset to linked ASI</value></data>
   <data name="Message.ExportJsonFailed" xml:space="preserve"><value>Could not export JSON.&#xA;&#xA;{0}</value></data>
   <data name="Message.CommentsSummary" xml:space="preserve"><value>Updated: {0}; removed: {1}; unchanged: {2}; missing from GXT: {3}; text differs: {4}.</value></data>
   <data name="Message.ImportCommentsFailed" xml:space="preserve"><value>Could not import comments.&#xA;&#xA;{0}</value></data>
