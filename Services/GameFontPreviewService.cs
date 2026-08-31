@@ -19,7 +19,8 @@ public sealed class GameFontPreviewService
         FontMetricsProfile metrics,
         ViceCityFontStyle style,
         FontRenderContext context = FontRenderContext.Default,
-        int scale = 1)
+        int scale = 1,
+        IReadOnlyDictionary<char, byte>? headingGlyphCodes = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(texture);
@@ -77,7 +78,13 @@ public sealed class GameFontPreviewService
             FontMetricResolution metric;
             try
             {
-                metric = FontMetricsService.Resolve(metrics, style, code, context);
+                metric = ResolveMetric(
+                    metrics,
+                    style,
+                    context,
+                    character,
+                    code,
+                    headingGlyphCodes);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -134,6 +141,30 @@ public sealed class GameFontPreviewService
             maximumAdvanceWidth,
             maximumPixelWidth,
             pixelHeight);
+    }
+
+    private static FontMetricResolution ResolveMetric(
+        FontMetricsProfile metrics,
+        ViceCityFontStyle style,
+        FontRenderContext context,
+        char character,
+        byte code,
+        IReadOnlyDictionary<char, byte>? headingGlyphCodes)
+    {
+        if (style == ViceCityFontStyle.Heading &&
+            headingGlyphCodes?.TryGetValue(character, out var headingGlyphCode) == true)
+        {
+            return FontMetricsService.Resolve(
+                metrics,
+                FontTextureKind.Font1,
+                headingGlyphCode,
+                context) with
+            {
+                Style = ViceCityFontStyle.Heading,
+            };
+        }
+
+        return FontMetricsService.Resolve(metrics, style, code, context);
     }
 
     public static GameFontPreviewBitmap Render(

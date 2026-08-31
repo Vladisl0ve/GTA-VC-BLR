@@ -12,6 +12,9 @@ namespace GTA_GXT_Editor.ViewModels;
 
 public partial class TxdViewerViewModel : ObservableObject, IDisposable
 {
+    private static readonly IReadOnlyDictionary<char, byte> EmptyHeadingGlyphCodes =
+        new Dictionary<char, byte>();
+
     private readonly CharacterMapEditorRequest _request;
     private readonly IDialogService? _dialogs;
     private readonly ILocalizationService _localization;
@@ -19,6 +22,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
     private readonly FontMetricsProfile? _initialFontMetrics;
     private readonly CharacterMapProfile? _asiBaseCharacterMap;
     private readonly FontMetricsProfile? _asiBaseFontMetrics;
+    private readonly IReadOnlyDictionary<char, byte> _asiHeadingGlyphCodes;
     private CharacterMapProfile _profile;
     private FontMetricsProfile? _fontMetrics;
 
@@ -35,6 +39,7 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
         _initialFontMetrics = request.FontMetrics?.Clone();
         _asiBaseCharacterMap = request.AsiBaseCharacterMap?.Clone();
         _asiBaseFontMetrics = request.AsiBaseFontMetrics?.Clone();
+        _asiHeadingGlyphCodes = CreateAsiHeadingGlyphCodes(_asiBaseCharacterMap);
         _fontMetrics = _initialFontMetrics?.Clone();
         Attachment = request.Attachment;
         ApplyModes = CreateApplyModes();
@@ -631,7 +636,8 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
                 _fontMetrics,
                 SelectedFontStyle.Style,
                 SelectedRenderContext.Context,
-                SelectedPreviewScale.Scale);
+                SelectedPreviewScale.Scale,
+                _asiHeadingGlyphCodes);
             PreviewLayout = layout;
             OnPropertyChanged(nameof(PreviewLayout));
             var renderedWidth = layout.PixelWidth;
@@ -680,6 +686,39 @@ public partial class TxdViewerViewModel : ObservableObject, IDisposable
             "Txd.Preview.Issue.InvalidMapping"),
         _ => _localization.Get("Txd.Preview.Issue.UnsupportedFont"),
     };
+
+    private static IReadOnlyDictionary<char, byte> CreateAsiHeadingGlyphCodes(
+        CharacterMapProfile? asiBaseCharacterMap)
+    {
+        if (asiBaseCharacterMap is null)
+        {
+            return EmptyHeadingGlyphCodes;
+        }
+
+        var result = new Dictionary<char, byte>();
+        AddAsiHeadingGlyphCode(asiBaseCharacterMap, result, 'Я', 0xAD, 0xEB);
+        AddAsiHeadingGlyphCode(asiBaseCharacterMap, result, 'я', 0xAE, 0xEB);
+        AddAsiHeadingGlyphCode(asiBaseCharacterMap, result, 'Ё', 0x96, 0xEC);
+        AddAsiHeadingGlyphCode(asiBaseCharacterMap, result, 'ё', 0xAF, 0xEC);
+        return result.Count == 0 ? EmptyHeadingGlyphCodes : result;
+    }
+
+    private static void AddAsiHeadingGlyphCode(
+        CharacterMapProfile asiBaseCharacterMap,
+        Dictionary<char, byte> result,
+        char character,
+        byte expectedCode,
+        byte headingGlyphCode)
+    {
+        var mapping = asiBaseCharacterMap.Mappings.FirstOrDefault(item =>
+            item.Character == character);
+        if (mapping is { PreferredCode: var preferredCode } &&
+            preferredCode == expectedCode &&
+            mapping.Codes.Contains(expectedCode))
+        {
+            result.Add(character, headingGlyphCode);
+        }
+    }
 
     private void NotifySelectedMetricProperties()
     {

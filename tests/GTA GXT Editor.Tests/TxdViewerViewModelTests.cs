@@ -131,6 +131,38 @@ public sealed class TxdViewerViewModelTests
     }
 
     [TestMethod]
+    public void LinkedAsiMapping_UsesBelarusianHeadingAtlasCells()
+    {
+        var metrics = CreateMetrics(defaultAdvance: 1);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xEB, 15);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xEC, 16);
+        var mapping = CharacterMapPresets.Belarusian;
+        var viewModel = new TxdViewerViewModel(CreateRequest(
+            GXTType.GtaViceCity,
+            profile: mapping,
+            metrics: metrics,
+            asiBaseMap: mapping));
+
+        viewModel.PreviewText = "ЁЯяё";
+        viewModel.SelectedFontStyle = viewModel.FontStyles.Single(option =>
+            option.Style == ViceCityFontStyle.Heading);
+
+        var glyphs = viewModel.PreviewLayout?.Glyphs;
+        Assert.IsNotNull(glyphs);
+        CollectionAssert.AreEqual(
+            new byte[] { 0x96, 0xAD, 0xAE, 0xAF },
+            glyphs.Select(glyph => glyph.Code).ToArray());
+        CollectionAssert.AreEqual(
+            new byte[] { 0xEC, 0xEB, 0xEB, 0xEC },
+            glyphs.Select(glyph => glyph.GlyphCode).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { 16, 15, 15, 16 },
+            glyphs.Select(glyph => glyph.Advance).ToArray());
+        Assert.AreEqual(62, viewModel.PreviewLayout?.AdvanceWidth);
+        Assert.IsEmpty(viewModel.PreviewLayout?.Issues ?? []);
+    }
+
+    [TestMethod]
     public void Preview_StyleContextScaleAndGuidesRefreshIndependentlyFromSelectedAtlas()
     {
         var metrics = CreateMetrics(defaultAdvance: 1);
@@ -424,13 +456,13 @@ public sealed class TxdViewerViewModelTests
         MaskName = string.Empty,
         Platform = TxdPlatform.D3D8,
         Width = 32,
-        Height = 32,
+        Height = 39,
         Depth = 32,
         MipmapCount = 1,
         RasterFormat = 0x0500,
         Compression = TxdCompression.None,
         HasAlpha = true,
-        PixelsBgra32 = malformedPixels ? [1] : new byte[32 * 32 * 4],
+        PixelsBgra32 = malformedPixels ? [1] : new byte[32 * 39 * 4],
     };
 
     private sealed class FakeDialogService : IDialogService

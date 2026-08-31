@@ -13,3 +13,8 @@ are not a runtime metrics context in the preview. `Heading` is a Vice City font
 style. The resolver applies the game's complete `FindNewCharacter` routing before
 reading row 1 (`font1`) or looking up a runtime-context override. Both Belarusian
 characters consequently route to metric index 198, whose canonical advance is 18.
+
+The TXD preview applies ASI-authoritative Heading glyph overrides for the current
+Belarusian atlas. When the linked recognized Main ASI profile confirms the
+expected character codes, `Я/я` use font1 glyph/metric code `0xEB`, while
+`Ё/ё` use `0xEC`. Other characters keep Vice City's standard routing.

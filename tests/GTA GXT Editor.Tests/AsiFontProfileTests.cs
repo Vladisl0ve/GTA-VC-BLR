@@ -49,6 +49,8 @@ public sealed class AsiFontProfileTests
         Assert.IsNotNull(result.CharacterMap);
         Assert.AreEqual((byte)0x91, result.CharacterMap.ToEncodeMap()['Т']);
         Assert.AreEqual((byte)0xA8, result.CharacterMap.ToEncodeMap()['т']);
+        Assert.AreEqual((byte)0xAD, result.CharacterMap.ToEncodeMap()['Я']);
+        Assert.AreEqual((byte)0xAF, result.CharacterMap.ToEncodeMap()['ё']);
         Assert.HasCount(63, result.PhysicalPatches);
         Assert.HasCount(2, result.ExecutableTargets);
         AssertOverride(result.FontMetrics, FontRenderContext.Gameplay, 0x91, 13);

@@ -236,6 +236,67 @@ public sealed class GameFontPreviewServiceTests
     }
 
     [TestMethod]
+    public void HeadingStyle_AsiGlyphOverridesFollowBelarusianAtlasCells()
+    {
+        var texture = CreateTexture("font1");
+        var metrics = CreateMetrics(defaultAdvance: 1);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xEB, 15);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xEC, 16);
+        SetAdvance(metrics, FontTextureKind.Font1, 0xED, 17);
+        var mapping = new CharacterMapProfile
+        {
+            Mappings =
+            [
+                new CharacterMapEntry { Character = 'Ё', Codes = [0x96], PreferredCode = 0x96 },
+                new CharacterMapEntry { Character = 'Я', Codes = [0xAD], PreferredCode = 0xAD },
+                new CharacterMapEntry { Character = 'я', Codes = [0xAE], PreferredCode = 0xAE },
+                new CharacterMapEntry { Character = 'ё', Codes = [0xAF], PreferredCode = 0xAF },
+            ],
+        };
+        IReadOnlyDictionary<char, byte> headingGlyphCodes = new Dictionary<char, byte>
+        {
+            ['Ё'] = 0xEC,
+            ['Я'] = 0xEB,
+            ['я'] = 0xEB,
+            ['ё'] = 0xEC,
+        };
+
+        var routed = _service.Layout(
+            "ЁЯяё",
+            texture,
+            mapping,
+            metrics,
+            ViceCityFontStyle.Heading);
+        var overridden = _service.Layout(
+            "ЁЯяё",
+            texture,
+            mapping,
+            metrics,
+            ViceCityFontStyle.Heading,
+            headingGlyphCodes: headingGlyphCodes);
+        var standard = _service.Layout(
+            "ЁЯяё",
+            texture,
+            mapping,
+            metrics,
+            ViceCityFontStyle.Standard,
+            headingGlyphCodes: headingGlyphCodes);
+
+        CollectionAssert.AreEqual(
+            new byte[] { 0xEB, 0xEC, 0xEC, 0xED },
+            routed.Glyphs.Select(glyph => glyph.GlyphCode).ToArray());
+        CollectionAssert.AreEqual(
+            new byte[] { 0xEC, 0xEB, 0xEB, 0xEC },
+            overridden.Glyphs.Select(glyph => glyph.GlyphCode).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { 16, 15, 15, 16 },
+            overridden.Glyphs.Select(glyph => glyph.Advance).ToArray());
+        CollectionAssert.AreEqual(
+            new byte[] { 0x96, 0xAD, 0xAE, 0xAF },
+            standard.Glyphs.Select(glyph => glyph.GlyphCode).ToArray());
+    }
+
+    [TestMethod]
     public void Layout_InvalidMetricsAndUnavailableGlyphReturnIssuesWithoutCrashing()
     {
         var invalidMetrics = new FontMetricsProfile
